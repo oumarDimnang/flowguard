@@ -1,0 +1,50 @@
+{
+  "name": "@flowguard/server",
+  "version": "0.1.0",
+  "description": "FlowGuard BFF — business event ingress, Temporal orchestration client, decision log",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:cov": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.0.0",
+    "@nestjs/config": "^12.0.0",
+    "@nestjs/core": "^12.0.0",
+    "@nestjs/mongoose": "^12.0.0",
+    "@nestjs/platform-express": "^12.0.0",
+    "@nestjs/platform-socket.io": "^12.0.0",
+    "@nestjs/websockets": "^12.0.0",
+    "@temporalio/client": "^1.23.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "mongoose": "^9.9.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1",
+    "zod": "^4.5.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/schematics": "^12.0.0",
+    "@nestjs/testing": "^12.0.0",
+    "@swc/core": "^1.16.1",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "prettier": "^3.4.2",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^6.0.3",
+    "unplugin-swc": "^1.5.11",
+    "vitest": "^4.1.11"
+  }
+}
