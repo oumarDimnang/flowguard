@@ -1,0 +1,19 @@
+{
+  "id": "crane-a-lift-001",
+  "assetType": "CRANE",
+  "device": {
+    "id": "crane-a",
+    "phoneNumber": "+99999991001"
+  },
+  "operation": "Move Container #A392",
+  "description": "Remote-operated gantry crane lifting a 40-tonne high-value container over an active quay walkway. The operator relies on a live low-latency video feed; loss of feed mid-lift requires an emergency stop with the load suspended.",
+  "expectedDurationSeconds": 60,
+  "site": "Khalifa Bin Salman Port - Berth 3",
+  "metadata": {
+    "cargoValueUsd": 2400000,
+    "loadTonnes": 40,
+    "overWalkway": true,
+    "siteLatitude": 26.2041,
+    "siteLongitude": 50.605
+  }
+}
