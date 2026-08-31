@@ -22,13 +22,19 @@ import httpx
 from flowguard_agent.config import get_settings
 from flowguard_agent.network.nokia_provider import (
     PATH_CONGESTION_QUERY,
+    PATH_CONGESTION_SUBSCRIPTIONS,
     PATH_DEVICE_REACHABILITY,
+    PATH_LOCATION_RETRIEVE,
+    PATH_LOCATION_VERIFY,
     PATH_QOD_SESSIONS,
     PATH_SLICE_ATTACH,
     PATH_SLICES,
 )
 
-#: The sandbox test device from the playground's own example.
+#: Phone number alone — what most of the playground examples send.
+MINIMAL_DEVICE = {"phoneNumber": "+99999991000"}
+
+#: The fuller identifier QoD's example supplies.
 TEST_DEVICE = {
     "phoneNumber": "+99999991001",
     "ipv4Address": {
@@ -105,24 +111,50 @@ async def main() -> int:
                 },
             ),
             # INFERRED paths below.
+            # Reachability, location and congestion take the phone number
+            # alone — that is what their playground examples show.
             (
                 "Device Reachability  retrieve",
                 "POST",
                 PATH_DEVICE_REACHABILITY,
-                {"device": TEST_DEVICE},
+                {"device": MINIMAL_DEVICE},
             ),
             (
                 "Congestion Insights  query",
                 "POST",
                 PATH_CONGESTION_QUERY,
-                {"device": TEST_DEVICE},
+                {"device": MINIMAL_DEVICE},
+            ),
+            (
+                "Congestion Insights  subscriptions",
+                "GET",
+                PATH_CONGESTION_SUBSCRIPTIONS,
+                None,
             ),
             ("Network Slicing  list", "GET", PATH_SLICES, None),
+            # Listed rather than created: a successful POST would attach a real
+            # device to a slice.
+            ("Slice Device Attach  list", "GET", PATH_SLICE_ATTACH, None),
             (
-                "Slice Device Attach  create",
+                "Location Verification  verify",
                 "POST",
-                PATH_SLICE_ATTACH,
-                {"device": TEST_DEVICE, "sliceId": settings.nokia_slice_id or "example-slice"},
+                PATH_LOCATION_VERIFY,
+                {
+                    "device": MINIMAL_DEVICE,
+                    "area": {
+                        "areaType": "CIRCLE",
+                        "center": {"latitude": 26.2041, "longitude": 50.6050},
+                        "radius": 50000,
+                    },
+                },
+            ),
+            (
+                # maxAge is REQUIRED here — omitting it returns 422 with an
+                # empty detail, which says nothing about why.
+                "Location Retrieval  retrieve",
+                "POST",
+                PATH_LOCATION_RETRIEVE,
+                {"device": MINIMAL_DEVICE, "maxAge": 60},
             ),
         ]
 
