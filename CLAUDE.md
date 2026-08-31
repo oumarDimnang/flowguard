@@ -1,45 +1,32 @@
 # FlowGuard — Engineering Context
 
-Full working context for this repository: what it is, what is built, why each
-significant decision was made, and what will bite you. Written so a session with
+Working context for this repository: what it is, how it is put together, why the
+significant decisions were made, and what will bite you. Written so someone with
 no prior history can pick up work without re-deriving anything.
-
-Last updated after the Langfuse and prompt-extraction work. 32 commits.
 
 ---
 
 ## 1. What this is
 
-A GSMA MENA hackathon submission by team **PulseGrid**. Theme: **Smart Mobility
-and Logistics Agents**.
+FlowGuard allocates premium 5G connectivity to industrial operations only while
+they need it. It reads business events from facility systems (a crane starting a
+lift, a drone switching from survey to emergency inspection), judges how
+business-critical each one is, checks live network conditions, requests Quality
+on Demand — and a network slice for the most critical — then releases everything
+when the operation ends.
 
-FlowGuard is an AI agent that allocates premium 5G connectivity to industrial
-operations only while they need it. It reads business events from facility
-systems, judges how business-critical each one is, checks live network
-conditions, requests Quality on Demand (and a network slice for the most
-critical), then releases everything when the operation ends.
+It sits between an organisation's operational systems and the programmable
+network, using GSMA Open Gateway **CAMARA** APIs through **Nokia Network as
+Code**.
 
-**The thesis, which everything else serves:** criticality triggers action;
+**The invariant everything else serves:** criticality triggers action;
 congestion never does on its own. The same drone under the same HIGH congestion
-gets nothing for routine mapping and a slice for a pipeline leak inspection.
-
-**Why this is a 2026 project:** buying guaranteed network quality used to mean a
-telco contract negotiation. CAMARA turned it into an API call. That is the only
-reason this is buildable.
-
-### The commercial framing
-
-Not "an AI service provider". FlowGuard is a **connectivity decisioning layer**
-that sits between operational systems and the programmable network. The AI is a
-component; the product is the decision.
-
-The strongest go-to-market angle is that operators (Nokia, Batelco, stc) have
-built QoD and slicing and lack demand — FlowGuard creates the reason to buy
-them. That is a channel play, not direct sales.
+gets nothing for routine mapping and a slice for a pipeline leak inspection. If
+a change breaks that property, the change is wrong.
 
 ---
 
-## 2. Repository layout
+## 2. Repository layout and current state
 
 ```
 flowguard/
@@ -49,22 +36,20 @@ flowguard/
 └── docs/
 ```
 
-### Current state
-
 | | Files | Tests | Notes |
 |---|---|---|---|
-| `server/` | 58 `.ts` | 12 passing | build clean, ruff/lint clean |
+| `server/` | 58 `.ts` | 12 passing | build clean, lint clean |
 | `agent/` | 43 `.py` | 96 passing | ruff clean |
 | `client/` | 0 | — | not started |
 
-**Verified live** against a running Temporal dev server, not just unit-tested:
-the drone contrast pair, false-claim detection via location, duplicate-event
-idempotency, release surviving a missing completion signal, and both services
+**Verified against a running Temporal dev server**, not only unit-tested: the
+drone contrast pair, false-claim detection via location, duplicate-event
+idempotency, release surviving a missing completion signal, and each service
 completing correctly with the other side down.
 
-**Never run:** a real LLM. `LLM_PROVIDER=mock` everywhere so far, which means
-the offline keyword classifier — not a model — produced every result to date.
-This is the single most important gap.
+**Never run: a real LLM.** `LLM_PROVIDER=mock` throughout, so the offline
+keyword classifier — not a model — produced every result so far. Treat any claim
+about model behaviour as unvalidated.
 
 ---
 
@@ -81,29 +66,26 @@ client → server → Temporal → agent → Nokia CAMARA APIs
 `agent/` is a pure Temporal worker: it connects *outbound* to the task queue and
 polls. Nokia's webhooks terminate at NestJS and arrive as Temporal **signals**.
 This removes the internal REST API, the relay endpoints, and the agent's entire
-attack surface. One TLS surface, one tunnel on demo day.
+inbound attack surface — one TLS surface, one tunnel to expose.
 
 ### Why Temporal rather than LangGraph owning the loop
 
-Of the seven steps in the loop, exactly one is an LLM call — the rest are
-network I/O, a pure function and a wait. That is a durable workflow, not an
-agent loop.
+Of the seven steps in the loop, exactly one is an LLM call; the rest are network
+I/O, a pure function and a wait. That is a durable workflow, not an agent loop.
 
-More decisively: FlowGuard's business case is *release*, not allocation. A
-stranded QoD session is bounded by its mandatory `duration` TTL, but **a slice
-attachment has no TTL at all** — nothing expires it. If the release never runs,
-the device stays attached indefinitely. Temporal's `try/finally` plus retry
-policy makes that structural rather than aspirational.
+More decisively: the value proposition is *release*, not allocation. A stranded
+QoD session is bounded by its mandatory `duration` TTL, but **a slice attachment
+has no TTL at all** — nothing expires it. If the release never runs, the device
+stays attached indefinitely. Temporal's `try/finally` plus retry policy makes
+that structural rather than aspirational.
 
 LangGraph's checkpointer only makes a graph *resumable*; something must still
 come back and re-invoke it. Temporal owns the clock.
 
 ### Why LangGraph is still here
 
-It runs the criticality assessment *inside* a Temporal activity, and it does
-real work: confidence-based evidence gathering and model escalation. It is also
-the component that makes "an AI agent layer that orchestrates CAMARA APIs"
-literally true rather than a generous reading.
+It runs the criticality assessment *inside* a Temporal activity and does real
+work: confidence-based evidence gathering and model escalation.
 
 **Hard rule:** LangGraph never appears in workflow code, and it has **no
 checkpointer**. Temporal owns durability; a second persistence layer inside an
@@ -122,8 +104,8 @@ network slice for a suspended 40-tonne load.
 
 This is enforced by **absence**: `tools/network_tools.py` exposes four read
 tools and no write tool, so the model has no way to allocate regardless of what
-it decides. `test_toolbox_exposes_no_write_capability` fails the build if
-anyone adds one.
+it decides. `test_toolbox_exposes_no_write_capability` fails the build if anyone
+adds one.
 
 ---
 
@@ -142,12 +124,16 @@ nowhere.
 | Decision payload | `RecordDecisionDto` | `activities/emit.py` |
 | Business event | `events/domain/business-event.ts` | `BusinessEvent.from_wire()` |
 
-`INTERNAL_API_TOKEN` must be byte-identical in both `.env` files or the agent's
-decision events get 401'd and the dashboard silently stays empty.
+`INTERNAL_API_TOKEN` must be byte-identical in both `.env` files, or the agent's
+decision events are rejected with 401 and the dashboard silently stays empty.
 
 **Wire format is camelCase** (it originates in TypeScript). Python reconstructs
 via `from_wire()` classmethods rather than deserialising directly, which keeps
 the Python side idiomatic.
+
+The server's `ValidationPipe` runs with `forbidNonWhitelisted: true`, so adding a
+field to an outbound payload without adding it to the DTO produces a 400, not a
+silent drop.
 
 ---
 
@@ -162,7 +148,7 @@ Each of these cost real time to discover. Do not re-derive them.
   rejects it. Note the asymmetry: medium down, *large up*. That is the shape a
   camera-heavy industrial asset needs, and the opposite of a consumer plan.
 - **Auth is the RapidAPI key alone.** `x-rapidapi-key` + `x-rapidapi-host`
-  headers. No OAuth bearer, despite `NaC Authorization Server` being in the
+  headers. No OAuth bearer, despite `NaC Authorization Server` appearing in the
   catalogue.
 - **Base URL is regional:** `https://network-as-code.p-eu.apihub.nokia.io`.
 - **Congestion levels are `"Low" | "Medium" | "High"`** with exactly that
@@ -172,12 +158,12 @@ Each of these cost real time to discover. Do not re-derive them.
   bootstrap step, not a per-request call.
 - **A slice takes minutes to provision** (create → AVAILABLE → activate →
   OPERATING). It cannot be created inside a decision window. Pre-provision it;
-  only attach/detach per operation.
+  only attach and detach per operation.
 - **Slice modification is unsupported.** Create and delete only.
 - **QoD is asynchronous** — `qosStatus` is `REQUESTED` before `AVAILABLE`.
 - **`duration` is mandatory** and doubles as a TTL backstop.
-- Nokia ships **two incompatible SDK generations**; most tutorials show the old
-  one. We use direct HTTP instead — see §6.
+- Nokia ships **two incompatible SDK generations**; most tutorials show the older
+  one. This repo uses direct HTTP instead — see §6.
 - Nokia has an **MCP server**. Deliberately not used — see §6.
 
 ### Toolchain
@@ -190,9 +176,9 @@ Each of these cost real time to discover. Do not re-derive them.
 - **TypeScript 6, not 7.** `@nestjs/cli@12` pins `~6.0.2`. TS 6 also requires an
   explicit `rootDir` and rejects `baseUrl`.
 - **`@nestjs/terminus` has no v12 release** — peers stop at `^11`. Health is
-  hand-rolled.
-- **Langfuse is 4.x**, and `start_as_current_span` does **not** exist there —
-  only `start_as_current_observation(as_type="span", ...)`. `start_span()` in
+  hand-rolled in `server/src/health/`.
+- **Langfuse is 4.x**, where `start_as_current_span` does **not** exist — only
+  `start_as_current_observation(as_type="span", ...)`. `start_span()` in
   `langfuse_setup.py` tries both.
 - **Langfuse's LangChain callback needs the full `langchain` package**, not just
   `langchain-core`.
@@ -210,11 +196,11 @@ actually known to work. `httpx` was already a dependency.
 
 **Own tool layer instead of Nokia's MCP server.** If the agent's tools come from
 a remote server and that server is unreachable, the agent has *no tools* — not
-degraded, absent. Our tools are backed by `NetworkProvider`, so the mock keeps
-the full toolset offline. Nokia's MCP also fronts ~17 API families, almost
-certainly including QoD writes, which would put allocation back in the model's
-hands. MCP is the better long-term integration; not the right trade before a
-demo.
+degraded, absent. These tools are backed by `NetworkProvider`, so the mock keeps
+the full toolset available offline. Nokia's MCP also fronts ~17 API families,
+almost certainly including QoD writes, which would put allocation back in the
+model's hands. MCP is the better long-term integration; it is not the right
+trade while the system must run without network access.
 
 **Pydantic at boundaries, dataclasses inside.** The provider previously used
 `.get()` chains. `bool(body.get("reachable"))` returns `False` when the field is
@@ -225,25 +211,27 @@ depends on are now required with no default; `extra="ignore"` keeps forward
 compatibility.
 
 **`decide()` is a pure function, never a model call.** Auditable, exhaustively
-testable (36 tests cover the full space), reproducible. The model classifies
-criticality; rules map that to an action.
+testable (36 tests cover the full input space), reproducible. The model
+classifies criticality; rules map that to an action.
 
 **Prompts as Markdown in `prompts/templates/`.** They are the highest-leverage
-text in the project, reviewed by people who do not read Python, and a prompt
+text in the project, are reviewed by people who do not read Python, and a prompt
 change should produce a readable diff. Loaded via `importlib.resources` and
-declared as wheel artifacts, or they vanish from an installed package.
+declared as wheel artifacts — without that declaration they vanish from an
+installed package.
 
-**Emit is non-fatal; tracing is non-fatal.** A dashboard being down must not stop
-the agent protecting a crane. Both log and continue after retries.
+**Emit is non-fatal; tracing is non-fatal.** Neither the dashboard nor Langfuse
+may be able to fail an activity that is holding paid network capacity. Both log
+and continue after retries are exhausted.
 
 **Deterministic workflow IDs** (`operation-{eventId}`). Temporal rejects a
-duplicate for a running execution, so a re-submitted business event cannot start
-a second workflow holding a second paid session.
+duplicate ID for a running execution, so a re-submitted business event cannot
+start a second workflow holding a second paid session.
 
-**Mock providers are demo mode, not stubs.** The hackathon guide says outright:
-*"cache demo data; live API calls fail at the worst moment."* Congestion is
-scripted, not random, because the contrast demo depends on two events seeing
-identical conditions.
+**Mock providers are a first-class mode, not stubs.** They let the entire loop
+run offline and make results reproducible. Congestion is *scripted* rather than
+random, because the contrast case depends on two events observing identical
+network conditions — randomness would destroy the comparison.
 
 ---
 
@@ -256,13 +244,13 @@ identical conditions.
 | `workflows/critical_operation.py` | the lifecycle; `finally: release` is the guarantee |
 | `policy/rules.py` | `decide()` — the auditable decision |
 | `graph/assessment_graph.py` | LangGraph: classify → gather evidence → escalate → validate |
-| `graph/evidence.py` | which tool to call; heuristic + LLM implementations |
+| `graph/evidence.py` | which tool to call; heuristic and LLM implementations |
 | `tools/network_tools.py` | the read-only toolbox — the safety boundary |
 | `network/provider.py` | the mock ↔ Nokia swap point |
 | `network/schemas.py` | Pydantic CAMARA payloads |
-| `prompts/templates/*.md` | the criticality taxonomy and tool-selection prompt |
+| `prompts/templates/*.md` | criticality taxonomy and tool-selection prompt |
 | `observability/temporal_interceptor.py` | one Langfuse trace per workflow run |
-| `scripts/verify_nokia.py` | probes all five endpoints, reports which paths are wrong |
+| `scripts/verify_nokia.py` | probes every endpoint, reports which paths are wrong |
 
 ### `server/`
 
@@ -272,11 +260,41 @@ identical conditions.
 | `temporal/temporal.constants.ts` | the cross-language contract |
 | `decision-log/decision-log.service.ts` | dedupe → append → project → publish |
 | `webhooks/` | the single public Nokia sink; correlation carried in the sink URL |
-| `simulator/scenarios/` | the three demo scenarios |
+| `simulator/scenarios/` | scripted scenario definitions |
 
 ---
 
-## 8. Running it
+## 8. Conventions
+
+**Adding a CAMARA API.** Add the method to `NetworkProvider` (ABC), then
+`MockNetworkProvider`, then `NokiaNetworkProvider`, then a Pydantic model in
+`network/schemas.py`. If it is a *read* the agent should be able to choose, add
+a schema to `TOOL_SCHEMAS` and a branch in `NetworkToolbox._dispatch`. **Never
+add a write to the toolbox** — a test enforces this.
+
+**Adding a workflow step.** Activities are invoked **by name**, never imported,
+which keeps LangChain and httpx out of the workflow sandbox. Add the constant to
+`shared/constants.py`, register the activity in `worker.py`, and give it an
+explicit timeout and retry policy. Anything non-deterministic goes in an
+activity, never in workflow code.
+
+**Adding a prompt.** Drop a `.md` file in `prompts/templates/`, add a name
+constant in `prompts/registry.py`. Content contracts are tested in
+`tests/test_prompts.py`.
+
+**Adding a scenario.** `server/src/simulator/scenarios/scenario.definitions.ts`.
+Scenario runs generate fresh event IDs, because reusing one trips the
+idempotency guard and adopts the previous run's finished workflow.
+
+**Testing approach.** `decide()` is pure, so its tests are exhaustive over the
+input space. The graph is driven by stub classifiers with no model or network.
+Workflow tests use Temporal's **time-skipping** `WorkflowEnvironment`, so a
+three-minute operation runs in milliseconds and the release path can actually be
+asserted rather than reasoned about.
+
+---
+
+## 9. Running it
 
 Everything below works with **no API keys** — mock network provider, offline
 classifier.
@@ -288,95 +306,43 @@ cd agent && uv run pytest                                # 96 tests
 cd server && npm test                                    # 12 tests
 ```
 
-The server additionally needs `MONGODB_URI` in `server/.env`.
+The server additionally needs `MONGODB_URI` in `server/.env`. Each service has a
+`.env.example`.
 
-To go live: set `NETWORK_PROVIDER=nokia` + `NOKIA_API_KEY`, and
-`LLM_PROVIDER=openrouter` + `OPENROUTER_API_KEY`. Run
-`scripts/verify_nokia.py` first — three endpoint paths are still inferred.
-
----
-
-## 9. What is left
-
-**Blocking, and owned by the team (all under an hour):**
-
-1. **Set `OPENROUTER_API_KEY`.** Until this happens there is no AI in the AI
-   agent layer — every result so far came from the keyword classifier. This is
-   also the first real read on whether GPT-5.6 Luna's reasoning is good enough
-   to render on screen.
-2. **Run `scripts/verify_nokia.py`.** Confirms or corrects three inferred paths:
-   device reachability, congestion query, slice attach.
-3. **MongoDB Atlas cluster** (Frankfurt `eu-central-1`, *not* a Middle East
-   region — MongoDB currently advises against both after June 2026 damage).
-   Watch the IP allowlist; it is the most common way Atlas kills a demo.
-
-**Engineering:**
-
-4. **`client/`** — the dashboard. The last missing piece, and the guide says
-   explicitly that judges want the reasoning trace on screen.
-5. **Mid-operation re-decision.** `congestion_updated` signals arrive and are
-   stored but do not re-trigger `decide()`. Correct for a crane on a fixed quay;
-   leaves value on the table for a moving ambulance. Roughly an hour in
-   `_monitor()`.
-6. **Server ↔ agent never tested together** — blocked on MongoDB.
+To run against live services: set `NETWORK_PROVIDER=nokia` + `NOKIA_API_KEY`, and
+`LLM_PROVIDER=openrouter` + `OPENROUTER_API_KEY`. Run `scripts/verify_nokia.py`
+first — three endpoint paths are still inferred rather than confirmed.
 
 ---
 
-## 10. Hackathon constraints
+## 10. Known gaps
 
-**Mandatory**
+1. **No real LLM has ever run.** Everything to date used the offline classifier.
+   Set `OPENROUTER_API_KEY` and flip `LLM_PROVIDER` to change that.
+2. **Three Nokia endpoint paths are inferred** — device reachability, congestion
+   query, slice attach. `scripts/verify_nokia.py` reports which are wrong.
+3. **`client/` does not exist.** The decision trail is reachable only via the
+   REST API and worker logs.
+4. **The agent's `graphTrace` and `toolCalls` never reach the server.**
+   `assess_criticality` returns them, but the workflow's `_emit` does not forward
+   them and `RecordDecisionDto` has no field for them. The reasoning path and the
+   agent's tool choices are therefore invisible to any UI. Fixing this means two
+   optional fields on the DTO, schema and domain type, plus passing them at the
+   `CRITICALITY_ASSESSED` step.
+5. **Mid-operation re-decision is not implemented.** `congestion_updated`
+   signals arrive and are stored but do not re-trigger `decide()`. Correct for a
+   fixed-position asset; leaves value on the table for a moving one. Roughly an
+   hour in `_monitor()`.
+6. **Server and agent have never been run together** — blocked on a MongoDB
+   instance. Each side is verified independently.
+7. **No multi-tenancy.** One config, one task queue, one database, one
+   credential set. Consistent with per-facility deployment, which matches how the
+   network operator relationship works.
 
-| Requirement | Status |
-|---|---|
-| ≥1 CAMARA API via Nokia NaC | ✅ seven |
-| AI agent layer orchestrating them | ⚠️ built, but no real model has run |
-| Not user-triggered actions | ✅ no approve button exists |
-| Original code | ✅ (guide approves Claude/Cursor/Copilot as coding tools) |
-| One of seven themes | ✅ Smart Mobility and Logistics Agents |
-| Agent built only with approved tools | ⚠️ see below |
+### Open decision: fail open or closed?
 
-**The tooling caveat.** The guide restricts the *AI agent component* to listed
-tools. LangGraph, LangChain, OpenRouter and MongoDB Atlas are all listed.
-**Temporal and Langfuse are not.** The user decided to proceed anyway.
-
-The mitigation costs nothing and is true: describe the **AI agent layer as
-LangGraph + LangChain + OpenRouter**, with Temporal as durable infrastructure
-alongside the database. LangGraph genuinely is where the reasoning happens.
-Langfuse is off by default and is dev tooling — do not name it in the agent-layer
-description.
-
-**Impact metrics** (42% premium reduction, 97% critical operations protected)
-come from the team's own scenario set. Reproducible, but not a field trial. Own
-that framing before someone extracts it.
-
----
-
-## 11. Open decisions
-
-**Fail open or closed?** If criticality assessment fails outright, assume HIGH
-(protect, spend) or LOW (save, expose)? Currently `POLICY_FAIL_OPEN=true`.
-Recommended answer: keep fail-open — a safety product that fails toward safety is
-defensible, and the cost is bounded by the QoD TTL.
-
-**Multi-tenancy.** None exists. One config, one queue, one database, one
-credential set. Consistent with per-facility deployment, which matches how the
-operator relationship actually works. Do not claim otherwise.
-
----
-
-## 12. Pitch notes worth keeping
-
-- **The crane is the best story and the weakest market case** — it is the most
-  visceral example and the most likely to already have private 5G. Lead with it,
-  pivot to the drone and ambulance under challenge: mobile assets a private
-  network can never cover.
-- **"Just build private 5G"** is the strongest objection. Concede it for NEOM,
-  then note that a private network is a capital project covering one fixed site.
-- **"Just use rules instead of AI"** — the rules *do* decide. The model reads
-  free text from heterogeneous systems that share no schema. Concede that rules
-  work fine for one facility with a fixed taxonomy.
-- **Guaranteed capacity is finite, not merely expensive.** If every device holds
-  a permanent guarantee, the guarantee is meaningless. Allocation by need is what
-  makes the tier viable — a stronger frame than cost saving.
-- **Location verification is adversarially independent.** An asset can lie in a
-  JSON payload; it cannot lie to the network about which cell it is attached to.
+If criticality assessment fails outright, should the system assume HIGH (protect,
+spend) or LOW (save, leave exposed)? Currently `POLICY_FAIL_OPEN=true`. The
+argument for keeping it: a safety-oriented system that fails toward safety is
+defensible, and the cost of a wrong allocation is bounded by the QoD `duration`
+TTL.
