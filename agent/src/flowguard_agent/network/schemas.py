@@ -95,9 +95,13 @@ class CongestionReading(CamaraModel):
     congestion_level: Literal["None", "Low", "Medium", "High"] = Field(
         alias="congestionLevel"
     )
+    #: Reported 0-100 by the API, not 0-1.
     confidence_level: int | None = Field(default=None, alias="confidenceLevel")
-    start_time: datetime | None = Field(default=None, alias="startTime")
-    end_time: datetime | None = Field(default=None, alias="endTime")
+    #: Nokia names these timeIntervalStart / timeIntervalStop — not the
+    #: startTime / endTime the CAMARA spec text suggests. Confirmed against a
+    #: live sandbox response.
+    start_time: datetime | None = Field(default=None, alias="timeIntervalStart")
+    end_time: datetime | None = Field(default=None, alias="timeIntervalStop")
 
 
 # ── Quality on Demand ─────────────────────────────────────────────────
