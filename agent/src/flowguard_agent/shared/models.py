@@ -90,14 +90,19 @@ class DeviceRef:
     phone_number: str | None = None
     ipv4_address: str | None = None
     ipv6_address: str | None = None
+    #: Required by Nokia's Device Attach API. Not derivable from a phone number
+    #: on a real network, so a deployment must supply it on the asset record.
+    imsi: int | None = None
 
     @classmethod
     def from_wire(cls, raw: dict[str, Any]) -> DeviceRef:
+        imsi = raw.get("imsi")
         return cls(
             id=raw["id"],
             phone_number=raw.get("phoneNumber"),
             ipv4_address=raw.get("ipv4Address"),
             ipv6_address=raw.get("ipv6Address"),
+            imsi=int(imsi) if imsi is not None else None,
         )
 
 

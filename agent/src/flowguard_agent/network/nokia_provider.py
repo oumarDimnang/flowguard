@@ -57,16 +57,28 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 # ── API paths ─────────────────────────────────────────────────────────
-# VERIFIED from the account playground:
+#
+# All read from this account's playground cURL snippets. Do not derive these
+# from the API catalogue's display names — the mapping is not mechanical:
+#
+#   * "Network Slicing"        lives at /slice/            not /network-slicing/
+#   * "Slice Device Attach"    lives at /device-attach/    not /slice-device-attach/
+#   * Reachability is NESTED:  /device-status/device-reachability-status/v1/
+#   * Path versions are only ever /v0 or /v1 — never the catalogue's minor
+#     version. "Congestion Insights v1.0.0" is served at /v0, and
+#     "Location Retrieval v0.2.0" at /v0.
+#
+# 26 candidate paths were probed before these were obtained; guessing does not
+# work here. `scripts/discover_nokia.py` exists for the next time one moves.
+
 PATH_QOD_SESSIONS = "/quality-on-demand/v1/sessions"
 PATH_SLICES = "/slice/v1/slices"
-
-# INFERRED from the catalog's naming convention — confirm with verify_nokia.py:
-PATH_DEVICE_REACHABILITY = "/device-reachability-status/v1/retrieve"
-PATH_CONGESTION_QUERY = "/congestion-insights/v1/query"
-PATH_SLICE_ATTACH = "/slice-device-attach/v1/attachments"
-PATH_LOCATION_RETRIEVE = "/location-retrieval/v0.2/retrieve"
+PATH_DEVICE_REACHABILITY = "/device-status/device-reachability-status/v1/retrieve"
+PATH_CONGESTION_SUBSCRIPTIONS = "/congestion-insights/v0/subscriptions"
+PATH_SLICE_ATTACH = "/device-attach/v0/attachments"
+PATH_LOCATION_RETRIEVE = "/location-retrieval/v0/retrieve"
 PATH_LOCATION_VERIFY = "/location-verification/v1/verify"
+PATH_CONGESTION_QUERY = "/congestion-insights/v0/query"
 
 
 class NokiaApiError(RuntimeError):
@@ -89,8 +101,19 @@ class NokiaNetworkProvider(NetworkProvider):
         slice_id: str | None = None,
         webhook_base_url: str | None = None,
         webhook_token: str = "",
+        customer: dict[str, str] | None = None,
+        mobile_services: tuple[str, ...] = ("5G-Data",),
         timeout_seconds: float = 20.0,
     ) -> None:
+        # Device Attach requires a customer block identifying who ordered the
+        # attachment. It is descriptive metadata, not an account lookup.
+        self._customer = customer or {
+            "name": "FlowGuard",
+            "description": "Automated connectivity allocation for critical operations",
+            "address": "n/a",
+            "contact": "n/a",
+        }
+        self._mobile_services = mobile_services
         self._base_url = base_url.rstrip("/")
         self._qos_profile = qos_profile
         self._application_server_ipv4 = application_server_ipv4
@@ -108,7 +131,13 @@ class NokiaNetworkProvider(NetworkProvider):
 
     async def _request(
         self, method: str, path: str, *, json: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    ) -> Any:
+        """Perform one CAMARA call.
+
+        Returns whatever the endpoint sends. Most return an object, but
+        congestion returns a bare JSON array, so this is deliberately not typed
+        as a dict.
+        """
         url = f"{self._base_url}{path}"
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
@@ -128,21 +157,24 @@ class NokiaNetworkProvider(NetworkProvider):
             return {}
         return response.json()
 
-    def _device(self, device: DeviceRef) -> DeviceIdentifier:
+    def _device(self, device: DeviceRef, *, minimal: bool = False) -> DeviceIdentifier:
         """Build the CAMARA device identifier block.
 
-        The sandbox's working example supplies both a phone number and an IPv4
-        block, so both are sent when available rather than assuming the phone
-        number alone is sufficient.
+        ``minimal`` sends the phone number alone. The playground examples differ
+        per API: QoD supplies both a phone number and an IPv4 block, while
+        reachability, location and congestion supply only the phone number.
+        CAMARA APIs vary in whether they accept several identifiers at once, so
+        each call site sends the shape its own example showed rather than
+        assuming more is harmless.
         """
         identifier = DeviceIdentifier(
             phoneNumber=device.phone_number,
             ipv4Address=(
                 Ipv4Address(publicAddress=device.ipv4_address)
-                if device.ipv4_address
+                if device.ipv4_address and not minimal
                 else None
             ),
-            ipv6Address=device.ipv6_address,
+            ipv6Address=None if minimal else device.ipv6_address,
         )
 
         if not any(
@@ -151,8 +183,31 @@ class NokiaNetworkProvider(NetworkProvider):
             raise ValueError(f"Device '{device.id}' has no network identifier")
         return identifier
 
-    def _device_payload(self, device: DeviceRef) -> dict[str, Any]:
-        return self._device(device).model_dump(by_alias=True, exclude_none=True)
+    def _device_payload(self, device: DeviceRef, *, minimal: bool = False) -> dict[str, Any]:
+        return self._device(device, minimal=minimal).model_dump(
+            by_alias=True, exclude_none=True
+        )
+
+    def _attach_device_payload(self, device: DeviceRef) -> dict[str, Any]:
+        """Device block for Device Attach, which additionally wants an IMSI.
+
+        The sandbox example uses the MSISDN digits as the IMSI. That is not true
+        of a real network — an IMSI is not derivable from a phone number — so a
+        real deployment must carry it on the asset record. Deriving it here keeps
+        the sandbox working; `DeviceRef.imsi` overrides it when present.
+        """
+        payload: dict[str, Any] = {"phoneNumber": device.phone_number}
+
+        imsi = device.imsi
+        if imsi is None and device.phone_number:
+            digits = device.phone_number.lstrip("+")
+            if digits.isdigit():
+                imsi = int(digits)
+
+        if imsi is not None:
+            payload["imsi"] = imsi
+
+        return payload
 
     def _sink(self, path: str) -> str | None:
         """Correlation carried in the callback URL rather than looked up later."""
@@ -198,7 +253,7 @@ class NokiaNetworkProvider(NetworkProvider):
         body = await self._request(
             "POST",
             PATH_DEVICE_REACHABILITY,
-            json={"device": self._device_payload(device)},
+            json={"device": self._device_payload(device, minimal=True)},
         )
 
         # Validated rather than .get()-ed: a missing reachability flag must
@@ -221,7 +276,7 @@ class NokiaNetworkProvider(NetworkProvider):
         body = await self._request(
             "POST",
             PATH_CONGESTION_QUERY,
-            json={"device": self._device_payload(device)},
+            json={"device": self._device_payload(device, minimal=True)},
         )
 
         raw_readings = (
@@ -230,6 +285,9 @@ class NokiaNetworkProvider(NetworkProvider):
         if not raw_readings:
             raise NokiaApiError("congestion query", 200, "empty congestion response")
 
+        # The API returns one entry per time window, most recent first — the
+        # first element's interval ends at the request time. Later entries are
+        # earlier windows.
         current = CongestionReading.model_validate(raw_readings[0])
 
         # CAMARA can report "None" for an uncongested cell. The policy vocabulary
@@ -256,7 +314,7 @@ class NokiaNetworkProvider(NetworkProvider):
         body = await self._request(
             "POST",
             PATH_LOCATION_RETRIEVE,
-            json={"device": self._device_payload(device), "maxAge": 60},
+            json={"device": self._device_payload(device, minimal=True), "maxAge": 60},
         )
 
         parsed = LocationRetrievalResponse.model_validate(body)
@@ -282,7 +340,7 @@ class NokiaNetworkProvider(NetworkProvider):
             "POST",
             PATH_LOCATION_VERIFY,
             json={
-                "device": self._device_payload(device),
+                "device": self._device_payload(device, minimal=True),
                 "area": {
                     "areaType": "CIRCLE",
                     "center": {"latitude": latitude, "longitude": longitude},
@@ -350,15 +408,27 @@ class NokiaNetworkProvider(NetworkProvider):
         await self._request("DELETE", f"{PATH_QOD_SESSIONS}/{session_id}")
 
     async def attach_device_to_slice(self, device: DeviceRef, slice_id: str) -> SliceAttachment:
-        body = await self._request(
-            "POST",
-            PATH_SLICE_ATTACH,
-            json={
-                "device": self._device_payload(device),
-                "sliceId": slice_id,
-                **({"sink": self._sink(f"slice/{device.id}")} if self._webhook_base_url else {}),
-            },
-        )
+        # Device Attach wants considerably more than an identifier and a slice
+        # ID: a customer block, the mobile services to enable, and a traffic
+        # category. Shapes taken from the playground example.
+        #
+        # Note the mixed casing — `mobile_services` and `traffic_categories` are
+        # snake_case while everything around them is camelCase. That is Nokia's
+        # wire format, not a mistake here.
+        payload: dict[str, Any] = {
+            "device": self._attach_device_payload(device),
+            "customer": self._customer,
+            "sliceId": slice_id,
+            "mobile_services": list(self._mobile_services),
+        }
+
+        if self._webhook_base_url:
+            payload["webhook"] = {
+                "notificationUrl": self._sink(f"slice/{device.id}"),
+                "notificationAuthToken": self._webhook_token,
+            }
+
+        body = await self._request("POST", PATH_SLICE_ATTACH, json=payload)
         # The attachment ID is required: a slice attachment has no TTL, so
         # losing it means the device can never be detached.
         parsed = SliceAttachmentResponse.model_validate(body)
