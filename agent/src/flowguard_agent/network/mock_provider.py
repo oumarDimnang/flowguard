@@ -45,6 +45,13 @@ UNREACHABLE_DEVICES: set[str] = {"camera-offline"}
 
 #: Where each demo device actually is, as (latitude, longitude).
 #:
+#: These are Bahrain coordinates, chosen to match the demo scenarios. Note that
+#: Nokia's *sandbox* devices report a fixed position near Budapest
+#: (47.4863, 19.0792) — so with NETWORK_PROVIDER=nokia, a location check against
+#: these coordinates always returns FALSE and every safety-critical claim is
+#: downgraded. Use the mock for scenarios that depend on location verification,
+#: or move the scenario coordinates to the sandbox's position.
+#:
 #: 'drone-9' is the interesting one: it reports a pipeline leak inspection but
 #: is ~18 km from the pipeline. A criticality claim the network can contradict
 #: is the reason location is worth querying at all.
@@ -100,7 +107,9 @@ class MockNetworkProvider(NetworkProvider):
     async def get_congestion(self, device: DeviceRef) -> CongestionResult:
         await self._delay(0.04)
         level = SCRIPTED_CONGESTION.get(device.id) or self._derive_congestion(device.id)
-        return CongestionResult(level=level, predicted=False, confidence=0.9)
+        # Confidence is 0-100 in the real API, not 0-1. Matching the scale keeps
+        # the dashboard consistent across mock and live.
+        return CongestionResult(level=level, predicted=False, confidence=90.0)
 
     async def get_device_location(self, device: DeviceRef) -> LocationResult:
         await self._delay(0.05)
@@ -108,7 +117,10 @@ class MockNetworkProvider(NetworkProvider):
         return LocationResult(
             latitude=latitude,
             longitude=longitude,
-            accuracy_meters=250.0,
+            # The sandbox reports a 1000m accuracy radius. Matching it keeps the
+            # mock honest about how coarse network location really is — this is
+            # not GPS, and a verification radius must be sized accordingly.
+            accuracy_meters=1000.0,
         )
 
     async def verify_device_location(
