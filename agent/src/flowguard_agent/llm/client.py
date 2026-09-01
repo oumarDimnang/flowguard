@@ -218,9 +218,16 @@ class OpenRouterClassifier(CriticalityClassifier):
             # than variety, and the same event should classify the same way.
             temperature=0,
             max_retries=2,
+            # `models` (OpenRouter's own fallback list) has no dedicated field
+            # on ChatOpenRouter, so it goes through model_kwargs, which the
+            # client spreads verbatim into the request. `extra_body` is NOT
+            # accepted by the installed `openrouter` SDK's send()/send_async()
+            # — passing it raises TypeError at call time, not import time, so
+            # this only surfaces on the first real (non-mock) classification.
+            model_kwargs={"models": [model, *self._fallbacks]},
             # Route to the lowest-latency endpoint: the decision sits inside a
             # ~2 second budget shared with several network calls.
-            extra_body={"models": [model, *self._fallbacks], "sort": "latency"},
+            openrouter_provider={"sort": "latency"},
         )
 
         # method="json_schema" is required. Without it LangChain falls back to
@@ -278,10 +285,11 @@ def build_chat_model(settings):
         api_key=settings.openrouter_api_key,
         temperature=0,
         max_retries=2,
-        extra_body={
-            "models": [settings.llm_model, *settings.fallback_models],
-            "sort": "latency",
-        },
+        # See the matching comment in OpenRouterClassifier._build — extra_body
+        # is not accepted by the installed openrouter SDK; model_kwargs and
+        # openrouter_provider are the fields that actually reach the request.
+        model_kwargs={"models": [settings.llm_model, *settings.fallback_models]},
+        openrouter_provider={"sort": "latency"},
     )
 
 
