@@ -39,7 +39,7 @@ flowguard/
 | | Files | Tests | Notes |
 |---|---|---|---|
 | `server/` | 58 `.ts` | 12 passing | build clean, lint clean |
-| `agent/` | 43 `.py` | 96 passing | ruff clean |
+| `agent/` | 44 `.py` | 110 passing | ruff clean |
 | `client/` | 0 | — | not started |
 
 **Verified against a running Temporal dev server**, not only unit-tested: the
@@ -165,6 +165,37 @@ Each of these cost real time to discover. Do not re-derive them.
 - Nokia ships **two incompatible SDK generations**; most tutorials show the older
   one. This repo uses direct HTTP instead — see §6.
 - Nokia has an **MCP server**. Deliberately not used — see §6.
+- **All 5 CAMARA endpoint paths are verified against the sandbox** (as of
+  2026-09-02, via `scripts/verify_nokia.py` with a real `NOKIA_API_KEY`):
+  device reachability (`POST /device-status/device-reachability-status/v1/retrieve`),
+  congestion query (`POST /congestion-insights/v0/query`), and slice device
+  attach (`GET /device-attach/v0/attachments`), alongside the
+  already-verified QoD path and location verification/retrieval. None of the
+  catalogue's display names map mechanically to their REST paths — e.g.
+  "Slice Device Attach" is `/device-attach/`, not `/slice-device-attach/`.
+
+### LLM / LangGraph
+
+- **`langchain-openrouter`'s `extra_body` kwarg is silently accepted at
+  construction and rejected at call time.** `ChatOpenRouter(..., extra_body=
+  {...})` builds without error, but the installed `openrouter` SDK's
+  `send()`/`send_async()` has no `extra_body` parameter at all — it raises
+  `TypeError: Chat.send_async() got an unexpected keyword argument
+  'extra_body'` on the first real classification call, which is exactly why
+  no test caught it before `LLM_PROVIDER=openrouter` was first exercised for
+  real (2026-09-02). Use `model_kwargs={"models": [...]}` for the
+  OpenRouter model-fallback list (no dedicated field, but `model_kwargs` is
+  spread verbatim into the request) and the dedicated `openrouter_provider=
+  {"sort": "latency"}` field for provider routing — not `extra_body`.
+  Regression-covered in `tests/test_llm_client.py` by mocking `ChatOpenRouter`
+  and asserting on its constructor kwargs, with no API key or network call.
+- **A real model has now run the assessment graph successfully**, against
+  the exact `crane-lift` and `drone-contrast` scenario content
+  (`openai/gpt-5.6-luna` via OpenRouter): it reproduced the drone-contrast
+  thesis exactly (routine mapping → LOW, the same device's leak inspection
+  five minutes later → HIGH/safety-critical), and independently chose to
+  call `retrieve_device_location` as evidence for the leak inspection with
+  no prompting to do so.
 
 ### Toolchain
 
@@ -310,32 +341,35 @@ The server additionally needs `MONGODB_URI` in `server/.env`. Each service has a
 `.env.example`.
 
 To run against live services: set `NETWORK_PROVIDER=nokia` + `NOKIA_API_KEY`, and
-`LLM_PROVIDER=openrouter` + `OPENROUTER_API_KEY`. Run `scripts/verify_nokia.py`
-first — three endpoint paths are still inferred rather than confirmed.
+`LLM_PROVIDER=openrouter` + `OPENROUTER_API_KEY`. All 5 endpoint paths are
+verified (§5) — `scripts/verify_nokia.py` is still worth a run after any
+account/region change, since the paths are unconfirmed by contract, only by
+observation. A real OpenRouter model has also now run successfully end-to-end
+through the assessment graph (§5, "LLM / LangGraph").
 
 ---
 
 ## 10. Known gaps
 
-1. **No real LLM has ever run.** Everything to date used the offline classifier.
-   Set `OPENROUTER_API_KEY` and flip `LLM_PROVIDER` to change that.
-2. **Three Nokia endpoint paths are inferred** — device reachability, congestion
-   query, slice attach. `scripts/verify_nokia.py` reports which are wrong.
-3. **`client/` does not exist.** The decision trail is reachable only via the
+1. **`client/` does not exist.** The decision trail is reachable only via the
    REST API and worker logs.
-4. **The agent's `graphTrace` and `toolCalls` never reach the server.**
+2. **The agent's `graphTrace` and `toolCalls` never reach the server.**
    `assess_criticality` returns them, but the workflow's `_emit` does not forward
    them and `RecordDecisionDto` has no field for them. The reasoning path and the
    agent's tool choices are therefore invisible to any UI. Fixing this means two
    optional fields on the DTO, schema and domain type, plus passing them at the
    `CRITICALITY_ASSESSED` step.
-5. **Mid-operation re-decision is not implemented.** `congestion_updated`
+3. **Mid-operation re-decision is not implemented.** `congestion_updated`
    signals arrive and are stored but do not re-trigger `decide()`. Correct for a
    fixed-position asset; leaves value on the table for a moving one. Roughly an
    hour in `_monitor()`.
-6. **Server and agent have never been run together** — blocked on a MongoDB
-   instance. Each side is verified independently.
-7. **No multi-tenancy.** One config, one task queue, one database, one
+4. **Server and agent have not yet completed a run together.** As of
+   2026-09-02, both sides install and boot cleanly and the Temporal dev
+   server, `npm run start:dev`, and `uv run flowguard-worker` all start —
+   the server currently fails at Mongo connection (Atlas IP allowlist,
+   pending a teammate adding access) rather than anything code-level. Each
+   side remains independently verified in the meantime.
+5. **No multi-tenancy.** One config, one task queue, one database, one
    credential set. Consistent with per-facility deployment, which matches how the
    network operator relationship works.
 
