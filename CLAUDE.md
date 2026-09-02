@@ -47,9 +47,24 @@ drone contrast pair, false-claim detection via location, duplicate-event
 idempotency, release surviving a missing completion signal, and each service
 completing correctly with the other side down.
 
-**Never run: a real LLM.** `LLM_PROVIDER=mock` throughout, so the offline
-keyword classifier — not a model — produced every result so far. Treat any claim
-about model behaviour as unvalidated.
+**Server and agent have now completed a real run together** (2026-09-03,
+first time — see §10 for how long this was blocked): `temporal server
+start-dev`, `npm run start:dev`, and `uv run flowguard-worker` all up
+simultaneously, Mongo Atlas reachable, a `crane-lift` scenario triggered via
+`POST /simulator/scenarios/crane-lift/run`, classified `HIGH` by a real
+OpenRouter model, and the full decision trail (`DEVICE_CHECKED` →
+`CONGESTION_CHECKED` → `CRITICALITY_ASSESSED` → `DECIDED` → `ALLOCATED` →
+`QOS_STATUS_CHANGED` → `RELEASED`) persisted to Mongo and readable back via
+`GET /decision-log/:operationId`. Workflow completed with `action:
+QOD_AND_SLICE`, `rule: SAFETY_CRITICAL_CONGESTED_SLICE`, `released: true`.
+
+The `drone-contrast` pair was then run live through the same stack, not just
+time-skipped: `drone-3-routine` classified `LOW` and decided `NONE` (no
+allocation, nothing more in its trail); `drone-3-leak`, same device, 30
+seconds later, classified `HIGH` and ran the full `ALLOCATED` →
+`QOS_STATUS_CHANGED` → `RELEASED` cycle. The core invariant (§1 — criticality
+triggers action, congestion never does on its own) is now demonstrated with
+real infrastructure end to end, not only asserted by a unit test.
 
 ---
 
@@ -363,13 +378,7 @@ through the assessment graph (§5, "LLM / LangGraph").
    signals arrive and are stored but do not re-trigger `decide()`. Correct for a
    fixed-position asset; leaves value on the table for a moving one. Roughly an
    hour in `_monitor()`.
-4. **Server and agent have not yet completed a run together.** As of
-   2026-09-02, both sides install and boot cleanly and the Temporal dev
-   server, `npm run start:dev`, and `uv run flowguard-worker` all start —
-   the server currently fails at Mongo connection (Atlas IP allowlist,
-   pending a teammate adding access) rather than anything code-level. Each
-   side remains independently verified in the meantime.
-5. **No multi-tenancy.** One config, one task queue, one database, one
+4. **No multi-tenancy.** One config, one task queue, one database, one
    credential set. Consistent with per-facility deployment, which matches how the
    network operator relationship works.
 
