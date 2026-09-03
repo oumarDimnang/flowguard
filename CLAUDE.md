@@ -39,7 +39,7 @@ flowguard/
 | | Files | Tests | Notes |
 |---|---|---|---|
 | `server/` | 58 `.ts` | 13 passing | build clean, lint clean |
-| `agent/` | 44 `.py` | 112 passing | ruff clean |
+| `agent/` | 45 `.py` | 115 passing | ruff clean |
 | `client/` | 0 | — | not started |
 
 **Verified against a running Temporal dev server**, not only unit-tested: the
@@ -245,6 +245,16 @@ Each of these cost real time to discover. Do not re-derive them.
   (`_confirm_qos_available`'s 10-second wait, for instance). A test that
   needs to poll for an intermediate step *and* let a workflow timer resolve
   must poll with `await env.sleep(...)`, not `asyncio.sleep(...)`.
+- **Config a workflow needs must be read by an activity, not live.**
+  `PolicyConfig` used to be constructed bare (`PolicyConfig()`) at every
+  `decide()` call site — `Settings.policy_always_protect_safety_critical`
+  and `.policy_fail_open` were real, env-configurable fields that nothing
+  ever consulted. The fix is `activities/policy_config.py`'s
+  `get_policy_config`, called once near the top of `run()`; its *result* is
+  what Temporal records in history, so a replay sees exactly what the
+  original run saw rather than whatever `.env` says now. This is the same
+  "no I/O in workflow code" rule already applied to every CAMARA read,
+  just applied to configuration.
 
 ### Toolchain
 
@@ -323,6 +333,7 @@ network conditions — randomness would destroy the comparison.
 |---|---|
 | `workflows/critical_operation.py` | the lifecycle; `finally: release` is the guarantee |
 | `policy/rules.py` | `decide()` — the auditable decision |
+| `activities/policy_config.py` | reads `PolicyConfig`/fail-open once per run, recorded in history |
 | `graph/assessment_graph.py` | LangGraph: classify → gather evidence → escalate → validate |
 | `graph/evidence.py` | which tool to call; heuristic and LLM implementations |
 | `tools/network_tools.py` | the read-only toolbox — the safety boundary |
@@ -419,16 +430,6 @@ through the assessment graph (§5, "LLM / LangGraph").
 2. **No multi-tenancy.** One config, one task queue, one database, one
    credential set. Consistent with per-facility deployment, which matches how the
    network operator relationship works.
-3. **`PolicyConfig` never reads `Settings`.** `policy_always_protect_safety_critical`
-   and `policy_fail_open` are real, documented env-configurable fields on
-   `Settings` (`agent/.env.example` lists both), but every `decide()` call
-   site in `critical_operation.py` constructs a bare `PolicyConfig()` —
-   the env vars are read into memory and then never consulted. The "flip a
-   value and re-run a scenario live" claim in §6 is aspirational until this
-   is wired through (an activity read at the top of `run()`, recorded once in
-   history — workflow code cannot read env vars directly without breaking
-   replay determinism). Found while implementing mid-operation re-decision
-   below; out of scope to fix at the same time.
 
 ### Open decision: fail open or closed?
 
@@ -437,3 +438,15 @@ spend) or LOW (save, leave exposed)? Currently `POLICY_FAIL_OPEN=true`. The
 argument for keeping it: a safety-oriented system that fails toward safety is
 defensible, and the cost of a wrong allocation is bounded by the QoD `duration`
 TTL.
+
+**Now actually implemented**, as of the same session that found it wasn't:
+until 2026-09-03 `POLICY_FAIL_OPEN` was read into `Settings` and never
+consulted anywhere — an `assess_criticality` failure surviving
+`_REASONING_RETRY`'s two attempts simply failed the whole workflow, with no
+policy applied and nothing decided. `run()` now catches that failure,
+branches on `policy_fail_open` (HIGH/safety-critical if open, LOW if
+closed), and still emits a normal, audited `CRITICALITY_ASSESSED` record —
+with `error` set, so the fallback is visible rather than indistinguishable
+from a real classification. Covered by
+`test_criticality_assessment_failure_fails_open_by_default` and
+`..._fails_closed_when_configured` in `test_workflow.py`.

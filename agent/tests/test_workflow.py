@@ -20,10 +20,11 @@ from flowguard_agent.activities.network import NetworkActivities
 from flowguard_agent.activities.reasoning import ReasoningActivities
 from flowguard_agent.graph.assessment_graph import build_assessment_graph
 from flowguard_agent.graph.evidence import HeuristicEvidenceGatherer
-from flowguard_agent.llm.client import MockClassifier
+from flowguard_agent.llm.client import CriticalityClassifier, MockClassifier
 from flowguard_agent.network.mock_provider import MockNetworkProvider
 from flowguard_agent.shared.constants import (
     ACTIVITY_EMIT_DECISION,
+    ACTIVITY_GET_POLICY_CONFIG,
     SIGNAL_CONGESTION_UPDATED,
     SIGNAL_OPERATION_COMPLETED,
     WORKFLOW_CRITICAL_OPERATION,
@@ -47,6 +48,32 @@ class RecordingEmit:
 
     def steps(self) -> list[str]:
         return [r["step"] for r in self.records]
+
+
+class FakePolicyConfig:
+    """Scripted policy settings instead of the real Settings/.env read.
+
+    Keeps these tests independent of whatever agent/.env happens to hold.
+    """
+
+    def __init__(
+        self, *, always_protect_safety_critical: bool = False, fail_open: bool = True
+    ) -> None:
+        self._config = {
+            "alwaysProtectSafetyCritical": always_protect_safety_critical,
+            "failOpen": fail_open,
+        }
+
+    @activity.defn(name=ACTIVITY_GET_POLICY_CONFIG)
+    async def get_policy_config(self) -> dict:
+        return self._config
+
+
+class FailingClassifier(CriticalityClassifier):
+    """Always raises — for exercising the fail-open/fail-closed path."""
+
+    async def classify(self, event, context=None, model=None):
+        raise RuntimeError("classifier unavailable")
 
 
 def crane_lift(**overrides) -> dict:
@@ -82,11 +109,21 @@ def drone_routine(**overrides) -> dict:
 class Harness:
     """Wires a worker with fully offline dependencies."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        classifier: CriticalityClassifier | None = None,
+        always_protect_safety_critical: bool = False,
+        fail_open: bool = True,
+    ) -> None:
         self.provider = MockNetworkProvider(simulate_latency=False)
         self.emit = RecordingEmit()
+        self.policy = FakePolicyConfig(
+            always_protect_safety_critical=always_protect_safety_critical,
+            fail_open=fail_open,
+        )
         graph = build_assessment_graph(
-            MockClassifier(),
+            classifier or MockClassifier(),
             evidence_gatherer=HeuristicEvidenceGatherer(),
             confidence_threshold=0.80,
         )
@@ -99,6 +136,7 @@ class Harness:
             task_queue=TASK_QUEUE,
             workflows=[CriticalOperationWorkflow],
             activities=[
+                self.policy.get_policy_config,
                 self.network.check_device_status,
                 self.network.query_congestion,
                 self.network.allocate,
@@ -338,6 +376,96 @@ async def test_congestion_signal_never_de_escalates(env: WorkflowEnvironment):
     assert result["released"] is True
     # Exactly one ALLOCATED record — nothing was re-decided downward.
     assert harness.emit.steps().count(DecisionStep.ALLOCATED.value) == 1
+
+
+# ── Policy config and fail-open/closed ──────────────────────────────
+
+
+async def test_always_protect_safety_critical_overrides_low_congestion(
+    env: WorkflowEnvironment,
+):
+    """PolicyConfig must actually reach decide() — it used to be bare defaults.
+
+    'crane-d' derives LOW congestion (SHA-256 of the device id, per
+    MockNetworkProvider._derive_congestion), which the default policy leaves
+    on standard connectivity even for a safety-critical lift
+    (HIGH_CRITICALITY_NETWORK_HEALTHY). With the operator's
+    always_protect_safety_critical policy on, the same operation must be
+    protected regardless.
+    """
+    harness = Harness(always_protect_safety_critical=True)
+    await harness.provider.bootstrap()
+    event = crane_lift(device={"id": "crane-d", "phoneNumber": "+99999991099"})
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+        await handle.signal(SIGNAL_OPERATION_COMPLETED)
+        result = await handle.result()
+
+    assert result["congestion"] == "Low", "the premise: congestion alone would say no action"
+    assert result["action"] in (NetworkAction.QOD.value, NetworkAction.QOD_AND_SLICE.value)
+    assert result["rule"] == "SAFETY_CRITICAL_ALWAYS_PROTECT"
+    assert result["released"] is True
+
+
+async def test_criticality_assessment_failure_fails_open_by_default(
+    env: WorkflowEnvironment,
+):
+    """The open decision (CLAUDE.md §10), actually implemented.
+
+    Assessment failing outright must not fail the *operation* outright —
+    fail_open (the default) treats the unknown as HIGH/safety-critical,
+    still a real, audited decision rather than a crash with no policy
+    applied at all.
+    """
+    harness = Harness(classifier=FailingClassifier())
+    await harness.provider.bootstrap()
+    event = crane_lift()
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+        await handle.signal(SIGNAL_OPERATION_COMPLETED)
+        result = await handle.result()
+
+    assert result["criticality"] == "HIGH"
+    assert result["action"] in (NetworkAction.QOD.value, NetworkAction.QOD_AND_SLICE.value)
+    assert result["released"] is True
+
+    assessed = next(
+        r for r in harness.emit.records if r["step"] == DecisionStep.CRITICALITY_ASSESSED.value
+    )
+    assert assessed.get("error"), "the fallback must be visible in the audit trail, not silent"
+
+
+async def test_criticality_assessment_failure_fails_closed_when_configured(
+    env: WorkflowEnvironment,
+):
+    """The other half of the open decision: POLICY_FAIL_OPEN=false."""
+    harness = Harness(classifier=FailingClassifier(), fail_open=False)
+    await harness.provider.bootstrap()
+    event = crane_lift()
+
+    async with harness.worker(env.client):
+        result = await env.client.execute_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+
+    assert result["criticality"] == "LOW"
+    assert result["action"] == NetworkAction.NONE.value
+    assert result["released"] is False
 
 
 # ── Audit trail ───────────────────────────────────────────────────────

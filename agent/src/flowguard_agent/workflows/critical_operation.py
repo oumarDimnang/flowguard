@@ -27,6 +27,7 @@ with workflow.unsafe.imports_passed_through():
         ACTIVITY_EMIT_DECISION,
         ACTIVITY_ESCALATE_TO_SLICE,
         ACTIVITY_EXTEND_QOD,
+        ACTIVITY_GET_POLICY_CONFIG,
         ACTIVITY_POLL_QOD,
         ACTIVITY_QUERY_CONGESTION,
         ACTIVITY_RELEASE,
@@ -156,16 +157,51 @@ class CriticalOperationWorkflow:
             operation_id, DecisionStep.CONGESTION_CHECKED, congestion=congestion.value
         )
 
+        # Read once, recorded in history here — never live inside workflow
+        # code, since a value that could change between the original run and
+        # a later replay (an operator edits .env and restarts the worker)
+        # would make that replay diverge from what actually happened.
+        policy_config_raw = await workflow.execute_activity(
+            ACTIVITY_GET_POLICY_CONFIG,
+            start_to_close_timeout=timedelta(seconds=15),
+            retry_policy=_READ_RETRY,
+        )
+        policy_config = PolicyConfig(
+            always_protect_safety_critical=bool(
+                policy_config_raw.get("alwaysProtectSafetyCritical")
+            )
+        )
+        fail_open = policy_config_raw.get("failOpen", True)
+
         # 3 ── The judgement. This is the only step a model is involved in, and
         #      it returns criticality only — never a network action.
-        assessment = await workflow.execute_activity(
-            ACTIVITY_ASSESS_CRITICALITY,
-            event,
-            start_to_close_timeout=timedelta(seconds=90),
-            retry_policy=_REASONING_RETRY,
-        )
-        criticality = Criticality(assessment["criticality"])
-        safety_critical = bool(assessment.get("safetyCritical"))
+        try:
+            assessment = await workflow.execute_activity(
+                ACTIVITY_ASSESS_CRITICALITY,
+                event,
+                start_to_close_timeout=timedelta(seconds=90),
+                retry_policy=_REASONING_RETRY,
+            )
+            criticality = Criticality(assessment["criticality"])
+            safety_critical = bool(assessment.get("safetyCritical"))
+            assessment_error: str | None = None
+        except Exception as exc:  # noqa: BLE001 - a decision, not a crash, either way
+            # The open decision (CLAUDE.md §10): assessment failing outright is
+            # not allowed to fail the *operation* outright. Fail open treats
+            # the unknown as HIGH/safety-critical (protect, spend, bounded by
+            # the QoD duration TTL); fail closed treats it as LOW (save,
+            # leave exposed). Either way it is a real, audited decision, not
+            # a crash with no policy applied at all.
+            criticality = Criticality.HIGH if fail_open else Criticality.LOW
+            safety_critical = fail_open
+            assessment = {
+                "reasoning": (
+                    f"Criticality assessment failed after retries ({exc}); "
+                    f"failing {'open (protect by default)' if fail_open else 'closed (standard connectivity)'} "
+                    "per POLICY_FAIL_OPEN."
+                )
+            }
+            assessment_error = str(exc)
 
         await self._emit(
             operation_id,
@@ -178,6 +214,7 @@ class CriticalOperationWorkflow:
             # them, which made the agent's reasoning invisible to any UI.
             graphTrace=assessment.get("graphTrace"),
             toolCalls=assessment.get("toolCalls"),
+            error=assessment_error,
         )
 
         # 4 ── The decision. A pure function, deliberately deterministic: the
@@ -188,7 +225,7 @@ class CriticalOperationWorkflow:
             device_reachable=True,
             safety_critical=safety_critical,
             slice_available=True,
-            config=PolicyConfig(),
+            config=policy_config,
         )
 
         await self._emit(
@@ -257,6 +294,7 @@ class CriticalOperationWorkflow:
                 criticality,
                 safety_critical,
                 congestion_baseline,
+                policy_config,
             )
 
         finally:
@@ -328,6 +366,7 @@ class CriticalOperationWorkflow:
         criticality: Criticality,
         safety_critical: bool,
         congestion_baseline: str | None,
+        policy_config: PolicyConfig,
     ) -> None:
         """Hold the guarantee until the operation reports completion.
 
@@ -376,6 +415,7 @@ class CriticalOperationWorkflow:
                     criticality,
                     safety_critical,
                     known_congestion,
+                    policy_config,
                 )
             except TimeoutError:
                 waited += chunk
@@ -405,6 +445,7 @@ class CriticalOperationWorkflow:
         criticality: Criticality,
         safety_critical: bool,
         congestion_value: str | None,
+        policy_config: PolicyConfig,
     ) -> NetworkAction:
         """Re-run the policy against updated congestion. Escalate only.
 
@@ -433,7 +474,7 @@ class CriticalOperationWorkflow:
                 device_reachable=True,
                 safety_critical=safety_critical,
                 slice_available=True,
-                config=PolicyConfig(),
+                config=policy_config,
             )
             wants_slice = policy.action is NetworkAction.QOD_AND_SLICE
 

@@ -20,6 +20,7 @@ SIGNAL_DEVICE_STATUS_CHANGED = "device_status_changed"
 QUERY_GET_STATE = "get_state"
 
 # Activity names — internal to the worker.
+ACTIVITY_GET_POLICY_CONFIG = "get_policy_config"
 ACTIVITY_CHECK_DEVICE_STATUS = "check_device_status"
 ACTIVITY_QUERY_CONGESTION = "query_congestion"
 ACTIVITY_ASSESS_CRITICALITY = "assess_criticality"
