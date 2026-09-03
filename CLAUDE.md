@@ -38,7 +38,7 @@ flowguard/
 
 | | Files | Tests | Notes |
 |---|---|---|---|
-| `server/` | 58 `.ts` | 12 passing | build clean, lint clean |
+| `server/` | 58 `.ts` | 13 passing | build clean, lint clean |
 | `agent/` | 44 `.py` | 110 passing | ruff clean |
 | `client/` | 0 | — | not started |
 
@@ -332,6 +332,20 @@ constant in `prompts/registry.py`. Content contracts are tested in
 Scenario runs generate fresh event IDs, because reusing one trips the
 idempotency guard and adopts the previous run's finished workflow.
 
+**Adding a decision-log field.** Four places, not three — it is easy to stop
+at the DTO/domain/schema triad and still lose the field silently:
+`RecordDecisionDto` (validation), `DecisionRecord` (domain interface),
+`DecisionRecordEntity` (Mongoose schema, `@Prop`-per-field — Mongoose drops
+anything not declared here), **and**
+`MongoDecisionLogRepository.toDomain()`. That last one is a hand-written
+field-by-field mapper with no compiler check tying it to the other three —
+adding `graphTrace`/`toolCalls` to the first three and skipping it produced a
+record that saved to Mongo correctly but came back from every read path
+(`findByOperation`, `findAll`, even `append()`'s own return value) with both
+fields silently missing. Caught only by a live end-to-end check, not by
+`decision-log.service.spec.ts`'s `FakeDecisionLogRepository`, which has no
+mapper to forget in the first place.
+
 **Testing approach.** `decide()` is pure, so its tests are exhaustive over the
 input space. The graph is driven by stub classifiers with no model or network.
 Workflow tests use Temporal's **time-skipping** `WorkflowEnvironment`, so a
@@ -368,17 +382,11 @@ through the assessment graph (§5, "LLM / LangGraph").
 
 1. **`client/` does not exist.** The decision trail is reachable only via the
    REST API and worker logs.
-2. **The agent's `graphTrace` and `toolCalls` never reach the server.**
-   `assess_criticality` returns them, but the workflow's `_emit` does not forward
-   them and `RecordDecisionDto` has no field for them. The reasoning path and the
-   agent's tool choices are therefore invisible to any UI. Fixing this means two
-   optional fields on the DTO, schema and domain type, plus passing them at the
-   `CRITICALITY_ASSESSED` step.
-3. **Mid-operation re-decision is not implemented.** `congestion_updated`
+2. **Mid-operation re-decision is not implemented.** `congestion_updated`
    signals arrive and are stored but do not re-trigger `decide()`. Correct for a
    fixed-position asset; leaves value on the table for a moving one. Roughly an
    hour in `_monitor()`.
-4. **No multi-tenancy.** One config, one task queue, one database, one
+3. **No multi-tenancy.** One config, one task queue, one database, one
    credential set. Consistent with per-facility deployment, which matches how the
    network operator relationship works.
 

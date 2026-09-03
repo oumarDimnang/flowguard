@@ -155,6 +155,13 @@ async def test_crane_lift_allocates_then_releases(env: WorkflowEnvironment):
     assert harness.provider._sessions == {}
     assert harness.provider._attachments == {}
 
+    # The graph's reasoning path and tool choices must reach the server, not
+    # just exist inside the activity result — this used to be dropped at the
+    # workflow's _emit call site.
+    assessed = next(r for r in harness.emit.records if r["step"] == DecisionStep.CRITICALITY_ASSESSED.value)
+    assert assessed["graphTrace"], "the graph's path must be forwarded, not dropped"
+    assert "toolCalls" in assessed
+
 
 async def test_routine_drone_work_allocates_nothing(env: WorkflowEnvironment):
     """The thesis, end to end: HIGH congestion, but routine work gets nothing."""

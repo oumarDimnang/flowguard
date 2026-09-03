@@ -172,6 +172,11 @@ class CriticalOperationWorkflow:
             criticality=criticality.value,
             criticalityConfidence=assessment.get("confidence"),
             reasoning=assessment.get("reasoning"),
+            # The graph's own path and any evidence it gathered — dropped
+            # here previously, even though the activity always returned
+            # them, which made the agent's reasoning invisible to any UI.
+            graphTrace=assessment.get("graphTrace"),
+            toolCalls=assessment.get("toolCalls"),
         )
 
         # 4 ── The decision. A pure function, deliberately deterministic: the
