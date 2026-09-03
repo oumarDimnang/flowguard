@@ -39,7 +39,7 @@ flowguard/
 | | Files | Tests | Notes |
 |---|---|---|---|
 | `server/` | 58 `.ts` | 13 passing | build clean, lint clean |
-| `agent/` | 44 `.py` | 110 passing | ruff clean |
+| `agent/` | 44 `.py` | 112 passing | ruff clean |
 | `client/` | 0 | — | not started |
 
 **Verified against a running Temporal dev server**, not only unit-tested: the
@@ -212,6 +212,40 @@ Each of these cost real time to discover. Do not re-derive them.
   call `retrieve_device_location` as evidence for the leak inspection with
   no prompting to do so.
 
+### Temporal
+
+- **Mid-operation re-decision is implemented** (`_reassess_congestion` in
+  `critical_operation.py`), triggered by `congestion_updated` signals during
+  `_monitor()`. It escalates only, never de-escalates — revoking protection
+  from an operation already under way is not a call this system makes on its
+  own. The reachable trigger is **not** "congestion rose enough to newly
+  justify a slice": `decide()` gates `QOD_AND_SLICE` purely on
+  `safety_critical` (fixed at classification, congestion-independent) and
+  `slice_available` (hardcoded `True` at the call site), so a safety-critical
+  operation that clears the QoD threshold gets `QOD_AND_SLICE` immediately,
+  never lingering at plain `QOD` waiting to escalate. The actually-reachable
+  case is a slice the policy *already wanted* but that had not finished
+  provisioning yet (slices take minutes — see Nokia facts above); each
+  congestion signal is a natural tick to retry the attachment. Both the retry
+  and the never-de-escalate guarantee are tested in
+  `test_workflow.py`'s "Mid-operation re-decision" section.
+- **A `congestion_updated` signal delivered during `_confirm_qos_available`
+  is invisible to a baseline captured inside `_monitor()`.** If `_monitor`
+  captures `self._latest_congestion` as its own starting point, a signal that
+  already landed during the preceding QoD-confirmation wait looks like "no
+  change" forever after — the baseline must be captured immediately after
+  the allocate activity returns, before any further `await`, and threaded
+  into `_monitor` as a parameter. Caught by
+  `test_congestion_signal_attaches_a_slice_that_was_not_ready_yet` timing out
+  before this fix.
+- **`WorkflowEnvironment`'s time-skipping only advances on `env.sleep(...)`**
+  (or a call with nothing left to wait on, like `execute_workflow`), never on
+  a plain `asyncio.sleep()` in the test itself — the latter just burns real
+  wall-clock time while the workflow stays parked inside a Temporal timer
+  (`_confirm_qos_available`'s 10-second wait, for instance). A test that
+  needs to poll for an intermediate step *and* let a workflow timer resolve
+  must poll with `await env.sleep(...)`, not `asyncio.sleep(...)`.
+
 ### Toolchain
 
 - **NestJS 12 packages are ESM-only** (`"type": "module"`, no CJS build). Jest's
@@ -382,13 +416,19 @@ through the assessment graph (§5, "LLM / LangGraph").
 
 1. **`client/` does not exist.** The decision trail is reachable only via the
    REST API and worker logs.
-2. **Mid-operation re-decision is not implemented.** `congestion_updated`
-   signals arrive and are stored but do not re-trigger `decide()`. Correct for a
-   fixed-position asset; leaves value on the table for a moving one. Roughly an
-   hour in `_monitor()`.
-3. **No multi-tenancy.** One config, one task queue, one database, one
+2. **No multi-tenancy.** One config, one task queue, one database, one
    credential set. Consistent with per-facility deployment, which matches how the
    network operator relationship works.
+3. **`PolicyConfig` never reads `Settings`.** `policy_always_protect_safety_critical`
+   and `policy_fail_open` are real, documented env-configurable fields on
+   `Settings` (`agent/.env.example` lists both), but every `decide()` call
+   site in `critical_operation.py` constructs a bare `PolicyConfig()` —
+   the env vars are read into memory and then never consulted. The "flip a
+   value and re-run a scenario live" claim in §6 is aspirational until this
+   is wired through (an activity read at the top of `run()`, recorded once in
+   history — workflow code cannot read env vars directly without breaking
+   replay determinism). Found while implementing mid-operation re-decision
+   below; out of scope to fix at the same time.
 
 ### Open decision: fail open or closed?
 

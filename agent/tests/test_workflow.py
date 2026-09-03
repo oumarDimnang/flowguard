@@ -24,6 +24,7 @@ from flowguard_agent.llm.client import MockClassifier
 from flowguard_agent.network.mock_provider import MockNetworkProvider
 from flowguard_agent.shared.constants import (
     ACTIVITY_EMIT_DECISION,
+    SIGNAL_CONGESTION_UPDATED,
     SIGNAL_OPERATION_COMPLETED,
     WORKFLOW_CRITICAL_OPERATION,
 )
@@ -101,6 +102,7 @@ class Harness:
                 self.network.check_device_status,
                 self.network.query_congestion,
                 self.network.allocate,
+                self.network.escalate_to_slice,
                 self.network.poll_qod,
                 self.network.extend_qod,
                 self.network.release,
@@ -108,6 +110,26 @@ class Harness:
                 self.emit.emit_decision,
             ],
         )
+
+
+async def _wait_for_steps(
+    env: WorkflowEnvironment, harness: Harness, step: str, count: int = 1, timeout_seconds: float = 30.0
+) -> None:
+    """Poll the recording emit stub, advancing the time-skipping clock between checks.
+
+    A plain ``asyncio.sleep`` never nudges the time-skipping test server
+    forward — it only advances on an explicit ``env.sleep`` (or a call with
+    nothing left to do but wait), so a workflow parked inside a Temporal timer
+    (``_confirm_qos_available``'s 10-second wait, for instance) would never
+    resolve while this polls in real time alone.
+    """
+    elapsed = 0.0
+    step_size = 1.0
+    while sum(1 for r in harness.emit.steps() if r == step) < count:
+        await env.sleep(step_size)
+        elapsed += step_size
+        if elapsed > timeout_seconds:
+            raise AssertionError(f"timed out waiting for step {step!r} x{count}")
 
 
 @pytest.fixture
@@ -230,6 +252,92 @@ async def test_release_happens_even_without_a_completion_signal(env: WorkflowEnv
     assert result["released"] is True
     assert harness.provider._sessions == {}, "session must not outlive the workflow"
     assert DecisionStep.RELEASED.value in harness.emit.steps()
+
+
+# ── Mid-operation re-decision ────────────────────────────────────────
+
+
+async def test_congestion_signal_attaches_a_slice_that_was_not_ready_yet(
+    env: WorkflowEnvironment,
+):
+    """The value a fixed-position asset never left on the table.
+
+    A slice takes minutes to provision (CLAUDE.md §5) and is not always ready
+    the instant a safety-critical operation needs one — here it is not
+    provisioned at all when the crane lift starts, so allocation degrades to
+    plain QoD even though the policy wants QOD_AND_SLICE. The slice finishes
+    provisioning mid-operation; a congestion_updated signal (the only thing
+    that used to be silently stored and ignored) is what gives the workflow a
+    reason to check again and attach it.
+    """
+    harness = Harness()
+    # Deliberately no bootstrap(): the slice is still "provisioning" when the
+    # operation starts.
+    event = crane_lift(expectedDurationSeconds=120)
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+
+        await _wait_for_steps(env, harness, DecisionStep.ALLOCATED.value)
+        first_allocation = next(
+            r for r in harness.emit.records if r["step"] == DecisionStep.ALLOCATED.value
+        )
+        assert first_allocation.get("sliceId") is None, "nothing was provisioned yet"
+
+        # The slice finishes provisioning; a congestion reading arrives next,
+        # as it periodically would in production.
+        await harness.provider.bootstrap()
+        await handle.signal(SIGNAL_CONGESTION_UPDATED, {"level": "High"})
+
+        await _wait_for_steps(env, harness, DecisionStep.ALLOCATED.value, count=2)
+        await handle.signal(SIGNAL_OPERATION_COMPLETED)
+        result = await handle.result()
+
+    assert result["released"] is True
+    allocated = [r for r in harness.emit.records if r["step"] == DecisionStep.ALLOCATED.value]
+    assert len(allocated) == 2, "the mid-operation escalation is its own audit entry"
+    assert allocated[1]["sliceId"] == harness.provider.slice_id
+    assert allocated[1]["action"] == NetworkAction.QOD_AND_SLICE.value
+
+    # Fully released at the end, including the slice attached mid-flight.
+    assert harness.provider._sessions == {}
+    assert harness.provider._attachments == {}
+
+
+async def test_congestion_signal_never_de_escalates(env: WorkflowEnvironment):
+    """Improving congestion must never retract protection already granted.
+
+    Revoking connectivity from a safety-critical operation already under way
+    is not a call this system makes on its own — a value left on the table is
+    always safer than a guarantee withdrawn mid-flight.
+    """
+    harness = Harness()
+    await harness.provider.bootstrap()
+    event = crane_lift(expectedDurationSeconds=120)
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+
+        await _wait_for_steps(env, harness, DecisionStep.ALLOCATED.value)
+        await handle.signal(SIGNAL_CONGESTION_UPDATED, {"level": "Low"})
+        await env.sleep(2)  # give a (correctly absent) reaction time to happen
+
+        await handle.signal(SIGNAL_OPERATION_COMPLETED)
+        result = await handle.result()
+
+    assert result["released"] is True
+    # Exactly one ALLOCATED record — nothing was re-decided downward.
+    assert harness.emit.steps().count(DecisionStep.ALLOCATED.value) == 1
 
 
 # ── Audit trail ───────────────────────────────────────────────────────

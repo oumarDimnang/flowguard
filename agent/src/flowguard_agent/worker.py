@@ -130,6 +130,7 @@ async def run_worker() -> None:
             network_activities.check_device_status,
             network_activities.query_congestion,
             network_activities.allocate,
+            network_activities.escalate_to_slice,
             network_activities.poll_qod,
             network_activities.extend_qod,
             network_activities.release,
