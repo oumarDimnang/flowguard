@@ -32,6 +32,14 @@ export interface NetworkCallTrace {
   durationMs?: number;
 }
 
+/** One read-only tool call the agent chose to make while gathering evidence. */
+export interface ToolCall {
+  name: string;
+  arguments?: Record<string, unknown>;
+  result?: unknown;
+  failed?: boolean;
+}
+
 /**
  * One immutable entry in the decision trail.
  *
@@ -61,6 +69,10 @@ export interface DecisionRecord {
   action?: NetworkAction;
   /** Model-generated justification, rendered verbatim in the dashboard. */
   reasoning?: string;
+  /** The path the LangGraph assessment took — shown alongside `reasoning`. */
+  graphTrace?: string[];
+  /** Which read-only CAMARA signals the agent chose to consult, and what they said. */
+  toolCalls?: ToolCall[];
 
   qodSessionId?: string;
   qosStatus?: QosStatus;

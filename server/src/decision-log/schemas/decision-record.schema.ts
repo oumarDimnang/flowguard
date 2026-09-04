@@ -8,7 +8,7 @@ import {
   QosStatus,
   QosStatusInfo,
 } from '../../common/domain/enums';
-import { DecisionStep, type NetworkCallTrace } from '../domain/decision-record';
+import { DecisionStep, type NetworkCallTrace, type ToolCall } from '../domain/decision-record';
 
 export type DecisionRecordDocument = HydratedDocument<DecisionRecordEntity>;
 
@@ -55,6 +55,12 @@ export class DecisionRecordEntity {
 
   @Prop()
   reasoning?: string;
+
+  @Prop({ type: [String] })
+  graphTrace?: string[];
+
+  @Prop({ type: [Object] })
+  toolCalls?: ToolCall[];
 
   @Prop()
   qodSessionId?: string;

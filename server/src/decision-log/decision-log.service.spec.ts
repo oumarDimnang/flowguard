@@ -19,11 +19,13 @@ import { DecisionLogRepository, type AppendResult } from './ports/decision-log.r
 class FakeDecisionLogRepository extends DecisionLogRepository {
   private readonly seen = new Set<string>();
   appended: string[] = [];
+  received: Omit<DecisionRecord, 'recordedAt'>[] = [];
 
   async append(record: Omit<DecisionRecord, 'recordedAt'>): Promise<AppendResult> {
     const inserted = !this.seen.has(record.idempotencyKey);
     this.seen.add(record.idempotencyKey);
     if (inserted) this.appended.push(record.idempotencyKey);
+    this.received.push(record);
     return { record: { ...record, recordedAt: new Date() }, inserted };
   }
 
@@ -190,5 +192,35 @@ describe('DecisionLogService', () => {
     const patch = operations.lastPatch();
     expect(patch?.status).toBe(OperationStatus.COMPLETED);
     expect(patch?.completedAt).toBeInstanceOf(Date);
+  });
+
+  /**
+   * The agent's reasoning trace used to be dropped between the workflow and
+   * the DTO. Once forwarded, it must actually reach the persisted record —
+   * this is what makes it visible to a future dashboard.
+   */
+  it('persists the reasoning trace and tool calls, not just the verdict', async () => {
+    await service.record(
+      decision({
+        step: DecisionStep.CRITICALITY_ASSESSED,
+        criticality: Criticality.HIGH,
+        graphTrace: ['classify(attempt=1, model=x) -> HIGH @ 0.99', 'validate(ok)'],
+        toolCalls: [
+          {
+            name: 'retrieve_device_location',
+            arguments: {},
+            result: 'Device is at 26.15, 50.62.',
+            failed: false,
+          },
+        ],
+      }),
+    );
+
+    expect(repository.received[0]).toMatchObject({
+      graphTrace: ['classify(attempt=1, model=x) -> HIGH @ 0.99', 'validate(ok)'],
+      toolCalls: [
+        expect.objectContaining({ name: 'retrieve_device_location', failed: false }),
+      ],
+    });
   });
 });

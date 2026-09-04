@@ -130,6 +130,8 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
       deviceReachable: doc.deviceReachable,
       action: doc.action,
       reasoning: doc.reasoning,
+      graphTrace: doc.graphTrace,
+      toolCalls: doc.toolCalls,
       qodSessionId: doc.qodSessionId,
       qosStatus: doc.qosStatus,
       qosStatusInfo: doc.qosStatusInfo,

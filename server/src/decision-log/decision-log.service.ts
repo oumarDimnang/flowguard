@@ -61,6 +61,8 @@ export class DecisionLogService {
       deviceReachable: dto.deviceReachable,
       action: dto.action,
       reasoning: dto.reasoning,
+      graphTrace: dto.graphTrace,
+      toolCalls: dto.toolCalls,
       qodSessionId: dto.qodSessionId,
       qosStatus: dto.qosStatus,
       qosStatusInfo: dto.qosStatusInfo,

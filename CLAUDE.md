@@ -38,8 +38,8 @@ flowguard/
 
 | | Files | Tests | Notes |
 |---|---|---|---|
-| `server/` | 58 `.ts` | 12 passing | build clean, lint clean |
-| `agent/` | 44 `.py` | 110 passing | ruff clean |
+| `server/` | 58 `.ts` | 13 passing | build clean, lint clean |
+| `agent/` | 45 `.py` | 115 passing | ruff clean |
 | `client/` | 0 | — | not started |
 
 **Verified against a running Temporal dev server**, not only unit-tested: the
@@ -47,9 +47,24 @@ drone contrast pair, false-claim detection via location, duplicate-event
 idempotency, release surviving a missing completion signal, and each service
 completing correctly with the other side down.
 
-**Never run: a real LLM.** `LLM_PROVIDER=mock` throughout, so the offline
-keyword classifier — not a model — produced every result so far. Treat any claim
-about model behaviour as unvalidated.
+**Server and agent have now completed a real run together** (2026-09-03,
+first time — see §10 for how long this was blocked): `temporal server
+start-dev`, `npm run start:dev`, and `uv run flowguard-worker` all up
+simultaneously, Mongo Atlas reachable, a `crane-lift` scenario triggered via
+`POST /simulator/scenarios/crane-lift/run`, classified `HIGH` by a real
+OpenRouter model, and the full decision trail (`DEVICE_CHECKED` →
+`CONGESTION_CHECKED` → `CRITICALITY_ASSESSED` → `DECIDED` → `ALLOCATED` →
+`QOS_STATUS_CHANGED` → `RELEASED`) persisted to Mongo and readable back via
+`GET /decision-log/:operationId`. Workflow completed with `action:
+QOD_AND_SLICE`, `rule: SAFETY_CRITICAL_CONGESTED_SLICE`, `released: true`.
+
+The `drone-contrast` pair was then run live through the same stack, not just
+time-skipped: `drone-3-routine` classified `LOW` and decided `NONE` (no
+allocation, nothing more in its trail); `drone-3-leak`, same device, 30
+seconds later, classified `HIGH` and ran the full `ALLOCATED` →
+`QOS_STATUS_CHANGED` → `RELEASED` cycle. The core invariant (§1 — criticality
+triggers action, congestion never does on its own) is now demonstrated with
+real infrastructure end to end, not only asserted by a unit test.
 
 ---
 
@@ -197,6 +212,50 @@ Each of these cost real time to discover. Do not re-derive them.
   call `retrieve_device_location` as evidence for the leak inspection with
   no prompting to do so.
 
+### Temporal
+
+- **Mid-operation re-decision is implemented** (`_reassess_congestion` in
+  `critical_operation.py`), triggered by `congestion_updated` signals during
+  `_monitor()`. It escalates only, never de-escalates — revoking protection
+  from an operation already under way is not a call this system makes on its
+  own. The reachable trigger is **not** "congestion rose enough to newly
+  justify a slice": `decide()` gates `QOD_AND_SLICE` purely on
+  `safety_critical` (fixed at classification, congestion-independent) and
+  `slice_available` (hardcoded `True` at the call site), so a safety-critical
+  operation that clears the QoD threshold gets `QOD_AND_SLICE` immediately,
+  never lingering at plain `QOD` waiting to escalate. The actually-reachable
+  case is a slice the policy *already wanted* but that had not finished
+  provisioning yet (slices take minutes — see Nokia facts above); each
+  congestion signal is a natural tick to retry the attachment. Both the retry
+  and the never-de-escalate guarantee are tested in
+  `test_workflow.py`'s "Mid-operation re-decision" section.
+- **A `congestion_updated` signal delivered during `_confirm_qos_available`
+  is invisible to a baseline captured inside `_monitor()`.** If `_monitor`
+  captures `self._latest_congestion` as its own starting point, a signal that
+  already landed during the preceding QoD-confirmation wait looks like "no
+  change" forever after — the baseline must be captured immediately after
+  the allocate activity returns, before any further `await`, and threaded
+  into `_monitor` as a parameter. Caught by
+  `test_congestion_signal_attaches_a_slice_that_was_not_ready_yet` timing out
+  before this fix.
+- **`WorkflowEnvironment`'s time-skipping only advances on `env.sleep(...)`**
+  (or a call with nothing left to wait on, like `execute_workflow`), never on
+  a plain `asyncio.sleep()` in the test itself — the latter just burns real
+  wall-clock time while the workflow stays parked inside a Temporal timer
+  (`_confirm_qos_available`'s 10-second wait, for instance). A test that
+  needs to poll for an intermediate step *and* let a workflow timer resolve
+  must poll with `await env.sleep(...)`, not `asyncio.sleep(...)`.
+- **Config a workflow needs must be read by an activity, not live.**
+  `PolicyConfig` used to be constructed bare (`PolicyConfig()`) at every
+  `decide()` call site — `Settings.policy_always_protect_safety_critical`
+  and `.policy_fail_open` were real, env-configurable fields that nothing
+  ever consulted. The fix is `activities/policy_config.py`'s
+  `get_policy_config`, called once near the top of `run()`; its *result* is
+  what Temporal records in history, so a replay sees exactly what the
+  original run saw rather than whatever `.env` says now. This is the same
+  "no I/O in workflow code" rule already applied to every CAMARA read,
+  just applied to configuration.
+
 ### Toolchain
 
 - **NestJS 12 packages are ESM-only** (`"type": "module"`, no CJS build). Jest's
@@ -274,6 +333,7 @@ network conditions — randomness would destroy the comparison.
 |---|---|
 | `workflows/critical_operation.py` | the lifecycle; `finally: release` is the guarantee |
 | `policy/rules.py` | `decide()` — the auditable decision |
+| `activities/policy_config.py` | reads `PolicyConfig`/fail-open once per run, recorded in history |
 | `graph/assessment_graph.py` | LangGraph: classify → gather evidence → escalate → validate |
 | `graph/evidence.py` | which tool to call; heuristic and LLM implementations |
 | `tools/network_tools.py` | the read-only toolbox — the safety boundary |
@@ -317,6 +377,20 @@ constant in `prompts/registry.py`. Content contracts are tested in
 Scenario runs generate fresh event IDs, because reusing one trips the
 idempotency guard and adopts the previous run's finished workflow.
 
+**Adding a decision-log field.** Four places, not three — it is easy to stop
+at the DTO/domain/schema triad and still lose the field silently:
+`RecordDecisionDto` (validation), `DecisionRecord` (domain interface),
+`DecisionRecordEntity` (Mongoose schema, `@Prop`-per-field — Mongoose drops
+anything not declared here), **and**
+`MongoDecisionLogRepository.toDomain()`. That last one is a hand-written
+field-by-field mapper with no compiler check tying it to the other three —
+adding `graphTrace`/`toolCalls` to the first three and skipping it produced a
+record that saved to Mongo correctly but came back from every read path
+(`findByOperation`, `findAll`, even `append()`'s own return value) with both
+fields silently missing. Caught only by a live end-to-end check, not by
+`decision-log.service.spec.ts`'s `FakeDecisionLogRepository`, which has no
+mapper to forget in the first place.
+
 **Testing approach.** `decide()` is pure, so its tests are exhaustive over the
 input space. The graph is driven by stub classifiers with no model or network.
 Workflow tests use Temporal's **time-skipping** `WorkflowEnvironment`, so a
@@ -353,23 +427,7 @@ through the assessment graph (§5, "LLM / LangGraph").
 
 1. **`client/` does not exist.** The decision trail is reachable only via the
    REST API and worker logs.
-2. **The agent's `graphTrace` and `toolCalls` never reach the server.**
-   `assess_criticality` returns them, but the workflow's `_emit` does not forward
-   them and `RecordDecisionDto` has no field for them. The reasoning path and the
-   agent's tool choices are therefore invisible to any UI. Fixing this means two
-   optional fields on the DTO, schema and domain type, plus passing them at the
-   `CRITICALITY_ASSESSED` step.
-3. **Mid-operation re-decision is not implemented.** `congestion_updated`
-   signals arrive and are stored but do not re-trigger `decide()`. Correct for a
-   fixed-position asset; leaves value on the table for a moving one. Roughly an
-   hour in `_monitor()`.
-4. **Server and agent have not yet completed a run together.** As of
-   2026-09-02, both sides install and boot cleanly and the Temporal dev
-   server, `npm run start:dev`, and `uv run flowguard-worker` all start —
-   the server currently fails at Mongo connection (Atlas IP allowlist,
-   pending a teammate adding access) rather than anything code-level. Each
-   side remains independently verified in the meantime.
-5. **No multi-tenancy.** One config, one task queue, one database, one
+2. **No multi-tenancy.** One config, one task queue, one database, one
    credential set. Consistent with per-facility deployment, which matches how the
    network operator relationship works.
 
@@ -380,3 +438,15 @@ spend) or LOW (save, leave exposed)? Currently `POLICY_FAIL_OPEN=true`. The
 argument for keeping it: a safety-oriented system that fails toward safety is
 defensible, and the cost of a wrong allocation is bounded by the QoD `duration`
 TTL.
+
+**Now actually implemented**, as of the same session that found it wasn't:
+until 2026-09-03 `POLICY_FAIL_OPEN` was read into `Settings` and never
+consulted anywhere — an `assess_criticality` failure surviving
+`_REASONING_RETRY`'s two attempts simply failed the whole workflow, with no
+policy applied and nothing decided. `run()` now catches that failure,
+branches on `policy_fail_open` (HIGH/safety-critical if open, LOW if
+closed), and still emits a normal, audited `CRITICALITY_ASSESSED` record —
+with `error` set, so the fallback is visible rather than indistinguishable
+from a real classification. Covered by
+`test_criticality_assessment_failure_fails_open_by_default` and
+`..._fails_closed_when_configured` in `test_workflow.py`.

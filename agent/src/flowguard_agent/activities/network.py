@@ -18,6 +18,7 @@ from ..network.provider import NetworkProvider
 from ..shared.constants import (
     ACTIVITY_ALLOCATE,
     ACTIVITY_CHECK_DEVICE_STATUS,
+    ACTIVITY_ESCALATE_TO_SLICE,
     ACTIVITY_EXTEND_QOD,
     ACTIVITY_POLL_QOD,
     ACTIVITY_QUERY_CONGESTION,
@@ -111,6 +112,25 @@ class NetworkActivities:
                 result["sliceUnavailable"] = True
 
         return result
+
+    @activity.defn(name=ACTIVITY_ESCALATE_TO_SLICE)
+    async def escalate_to_slice(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Attach an already-running operation's device to the pre-provisioned slice.
+
+        For a device that moves into worse congestion mid-operation while
+        already holding plain QoD — the mirror of the slice branch in
+        ``allocate()``, without creating a second QoD session for the same
+        operation.
+        """
+        device = DeviceRef.from_wire(payload["device"])
+
+        slice_id = self._provider.slice_id
+        if not slice_id:
+            logger.warning("Mid-operation slice escalation retried, but still no slice is provisioned")
+            return {"sliceId": None, "attachmentId": None, "sliceUnavailable": True}
+
+        attachment = await self._provider.attach_device_to_slice(device, slice_id)
+        return {"sliceId": attachment.slice_id, "attachmentId": attachment.attachment_id}
 
     @activity.defn(name=ACTIVITY_POLL_QOD)
     async def poll_qod(self, session_id: str) -> dict[str, Any]:
