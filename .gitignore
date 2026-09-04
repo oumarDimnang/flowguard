@@ -1,0 +1,2 @@
+# Local Temporal dev-server persistence (created by `temporal server start-dev --db-filename temporal.db`)
+temporal.db

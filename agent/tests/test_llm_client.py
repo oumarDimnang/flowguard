@@ -6,6 +6,11 @@ version of this code passed ``extra_body={"models": [...], "sort": "latency"}``
 — a field the package does not have — so model fallbacks and latency routing
 were quietly discarded on every call, with nothing to notice.
 
+Routing it through ``model_kwargs`` instead is not a fix: that dict is spread
+straight into the SDK's ``send()``, which has no ``extra_body`` parameter and
+raises ``TypeError`` on the first real classification — a failure that never
+appears under ``LLM_PROVIDER=mock``.
+
 These tests read the settings back off a constructed instance rather than
 trusting that passing them worked.
 """

@@ -20,6 +20,7 @@ from temporalio.worker import Worker
 
 from .activities.emit import EmitActivities
 from .activities.network import NetworkActivities
+from .activities.policy_config import get_policy_config
 from .activities.reasoning import ReasoningActivities
 from .config import Settings, get_settings
 from .graph.assessment_graph import build_assessment_graph
@@ -127,9 +128,11 @@ async def run_worker() -> None:
         task_queue=settings.temporal_task_queue,
         workflows=[CriticalOperationWorkflow],
         activities=[
+            get_policy_config,
             network_activities.check_device_status,
             network_activities.query_congestion,
             network_activities.allocate,
+            network_activities.escalate_to_slice,
             network_activities.poll_qod,
             network_activities.extend_qod,
             network_activities.release,

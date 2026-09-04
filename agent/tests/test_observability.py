@@ -20,6 +20,7 @@ from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
 from flowguard_agent.activities.network import NetworkActivities
+from flowguard_agent.activities.policy_config import get_policy_config
 from flowguard_agent.activities.reasoning import ReasoningActivities
 from flowguard_agent.graph.assessment_graph import build_assessment_graph
 from flowguard_agent.graph.evidence import HeuristicEvidenceGatherer
@@ -147,6 +148,7 @@ async def _run_workflow(env: WorkflowEnvironment, interceptors: list) -> dict:
         interceptors=interceptors,
         workflows=[CriticalOperationWorkflow],
         activities=[
+            get_policy_config,
             network.check_device_status,
             network.query_congestion,
             network.allocate,

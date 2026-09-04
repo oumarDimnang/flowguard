@@ -25,7 +25,9 @@ with workflow.unsafe.imports_passed_through():
         ACTIVITY_ASSESS_CRITICALITY,
         ACTIVITY_CHECK_DEVICE_STATUS,
         ACTIVITY_EMIT_DECISION,
+        ACTIVITY_ESCALATE_TO_SLICE,
         ACTIVITY_EXTEND_QOD,
+        ACTIVITY_GET_POLICY_CONFIG,
         ACTIVITY_POLL_QOD,
         ACTIVITY_QUERY_CONGESTION,
         ACTIVITY_RELEASE,
@@ -155,16 +157,51 @@ class CriticalOperationWorkflow:
             operation_id, DecisionStep.CONGESTION_CHECKED, congestion=congestion.value
         )
 
+        # Read once, recorded in history here — never live inside workflow
+        # code, since a value that could change between the original run and
+        # a later replay (an operator edits .env and restarts the worker)
+        # would make that replay diverge from what actually happened.
+        policy_config_raw = await workflow.execute_activity(
+            ACTIVITY_GET_POLICY_CONFIG,
+            start_to_close_timeout=timedelta(seconds=15),
+            retry_policy=_READ_RETRY,
+        )
+        policy_config = PolicyConfig(
+            always_protect_safety_critical=bool(
+                policy_config_raw.get("alwaysProtectSafetyCritical")
+            )
+        )
+        fail_open = policy_config_raw.get("failOpen", True)
+
         # 3 ── The judgement. This is the only step a model is involved in, and
         #      it returns criticality only — never a network action.
-        assessment = await workflow.execute_activity(
-            ACTIVITY_ASSESS_CRITICALITY,
-            event,
-            start_to_close_timeout=timedelta(seconds=90),
-            retry_policy=_REASONING_RETRY,
-        )
-        criticality = Criticality(assessment["criticality"])
-        safety_critical = bool(assessment.get("safetyCritical"))
+        try:
+            assessment = await workflow.execute_activity(
+                ACTIVITY_ASSESS_CRITICALITY,
+                event,
+                start_to_close_timeout=timedelta(seconds=90),
+                retry_policy=_REASONING_RETRY,
+            )
+            criticality = Criticality(assessment["criticality"])
+            safety_critical = bool(assessment.get("safetyCritical"))
+            assessment_error: str | None = None
+        except Exception as exc:  # noqa: BLE001 - a decision, not a crash, either way
+            # The open decision (CLAUDE.md §10): assessment failing outright is
+            # not allowed to fail the *operation* outright. Fail open treats
+            # the unknown as HIGH/safety-critical (protect, spend, bounded by
+            # the QoD duration TTL); fail closed treats it as LOW (save,
+            # leave exposed). Either way it is a real, audited decision, not
+            # a crash with no policy applied at all.
+            criticality = Criticality.HIGH if fail_open else Criticality.LOW
+            safety_critical = fail_open
+            assessment = {
+                "reasoning": (
+                    f"Criticality assessment failed after retries ({exc}); "
+                    f"failing {'open (protect by default)' if fail_open else 'closed (standard connectivity)'} "
+                    "per POLICY_FAIL_OPEN."
+                )
+            }
+            assessment_error = str(exc)
 
         await self._emit(
             operation_id,
@@ -172,6 +209,12 @@ class CriticalOperationWorkflow:
             criticality=criticality.value,
             criticalityConfidence=assessment.get("confidence"),
             reasoning=assessment.get("reasoning"),
+            # The graph's own path and any evidence it gathered — dropped
+            # here previously, even though the activity always returned
+            # them, which made the agent's reasoning invisible to any UI.
+            graphTrace=assessment.get("graphTrace"),
+            toolCalls=assessment.get("toolCalls"),
+            error=assessment_error,
         )
 
         # 4 ── The decision. A pure function, deliberately deterministic: the
@@ -182,7 +225,7 @@ class CriticalOperationWorkflow:
             device_reachable=True,
             safety_critical=safety_critical,
             slice_available=True,
-            config=PolicyConfig(),
+            config=policy_config,
         )
 
         await self._emit(
@@ -226,6 +269,12 @@ class CriticalOperationWorkflow:
             self._qos_status = allocation.get("qosStatus")
             self._state = {"status": "ALLOCATED", "action": policy.action.value}
 
+            # Captured now, before any further await — a congestion_updated
+            # signal delivered while allocation was in flight is folded into
+            # this baseline; anything after this point is a genuine, newly
+            # observable change for _monitor to react to.
+            congestion_baseline = self._latest_congestion
+
             await self._emit(
                 operation_id,
                 DecisionStep.ALLOCATED,
@@ -236,7 +285,17 @@ class CriticalOperationWorkflow:
             )
 
             await self._confirm_qos_available(operation_id, allocation)
-            await self._monitor(operation_id, allocation, expected_duration)
+            await self._monitor(
+                operation_id,
+                device,
+                allocation,
+                policy.action,
+                expected_duration,
+                criticality,
+                safety_critical,
+                congestion_baseline,
+                policy_config,
+            )
 
         finally:
             # The release guarantee. Runs on success, on failure, and on
@@ -298,15 +357,40 @@ class CriticalOperationWorkflow:
             self._state = {"status": "MONITORING", "qosStatus": self._qos_status}
 
     async def _monitor(
-        self, operation_id: str, allocation: dict[str, Any], expected_duration: int
+        self,
+        operation_id: str,
+        device: dict[str, Any],
+        allocation: dict[str, Any],
+        action: NetworkAction,
+        expected_duration: int,
+        criticality: Criticality,
+        safety_critical: bool,
+        congestion_baseline: str | None,
+        policy_config: PolicyConfig,
     ) -> None:
         """Hold the guarantee until the operation reports completion.
 
         Extends in place if the operation overruns, and gives up after a bounded
         multiple of the expected duration so a lost completion signal cannot
         leave capacity held indefinitely.
+
+        Also wakes on every ``congestion_updated`` signal and re-runs the
+        policy against it. Correct for a fixed-position asset is not correct
+        for one that moves — the conditions a drone sees at minute eight can
+        differ from what it saw at minute zero. Only ever an *upgrade*, QoD to
+        a dedicated slice: de-escalation is never automatic. Revoking
+        protection from an operation already underway is not a call this
+        system makes on its own; a value left on the table is safer than a
+        guarantee withdrawn mid-flight.
+
+        ``congestion_baseline`` is captured by the caller immediately after
+        allocation, not re-read here — reading ``self._latest_congestion``
+        fresh at this point would miss a signal delivered while
+        ``_confirm_qos_available`` was still waiting, since it would already
+        look like "no change" against a baseline taken this late.
         """
         session_id = allocation.get("qodSessionId")
+        known_congestion = congestion_baseline
         max_wait = expected_duration * _MAX_OPERATION_MULTIPLIER
         waited = 0
         chunk = max(expected_duration, 30)
@@ -314,9 +398,25 @@ class CriticalOperationWorkflow:
         while not self._completed and waited < max_wait:
             try:
                 await workflow.wait_condition(
-                    lambda: self._completed, timeout=timedelta(seconds=chunk)
+                    lambda kc=known_congestion: self._completed or self._latest_congestion != kc,
+                    timeout=timedelta(seconds=chunk),
                 )
-                break
+                if self._completed:
+                    break
+
+                # Woke early because a congestion signal arrived, not because
+                # the operation finished — re-decide before waiting again.
+                known_congestion = self._latest_congestion
+                action = await self._reassess_congestion(
+                    operation_id,
+                    device,
+                    allocation,
+                    action,
+                    criticality,
+                    safety_critical,
+                    known_congestion,
+                    policy_config,
+                )
             except TimeoutError:
                 waited += chunk
                 if session_id and waited < max_wait:
@@ -335,6 +435,76 @@ class CriticalOperationWorkflow:
                 "Operation %s never reported completion; releasing on safety valve",
                 operation_id,
             )
+
+    async def _reassess_congestion(
+        self,
+        operation_id: str,
+        device: dict[str, Any],
+        allocation: dict[str, Any],
+        action: NetworkAction,
+        criticality: Criticality,
+        safety_critical: bool,
+        congestion_value: str | None,
+        policy_config: PolicyConfig,
+    ) -> NetworkAction:
+        """Re-run the policy against updated congestion. Escalate only.
+
+        Two reachable cases, both handled the same way — attempt the slice
+        attachment the operation is missing:
+
+        - The original decision already wanted ``QOD_AND_SLICE``, but a slice
+          takes minutes to provision (CLAUDE.md §5) and was not ready at
+          allocation time, so the operation is running on plain QoD instead.
+          Each congestion signal is a natural tick to retry.
+        - Rising congestion now makes ``decide()`` want a slice it did not
+          need before.
+
+        Never de-escalates: revoking protection from an operation already
+        under way is not a call this system makes on its own. Returns the
+        (possibly unchanged) action currently in force.
+        """
+        if not congestion_value or allocation.get("sliceId"):
+            return action
+
+        wants_slice = action is NetworkAction.QOD_AND_SLICE
+        if not wants_slice:
+            policy = decide(
+                criticality=criticality,
+                congestion=CongestionLevel(congestion_value),
+                device_reachable=True,
+                safety_critical=safety_critical,
+                slice_available=True,
+                config=policy_config,
+            )
+            wants_slice = policy.action is NetworkAction.QOD_AND_SLICE
+
+        if not wants_slice:
+            return action
+
+        attachment = await workflow.execute_activity(
+            ACTIVITY_ESCALATE_TO_SLICE,
+            {"device": device},
+            start_to_close_timeout=timedelta(seconds=45),
+            retry_policy=_ALLOCATE_RETRY,
+        )
+        if attachment.get("sliceUnavailable"):
+            # Still not ready (or genuinely unsupported) — try again on the
+            # next signal rather than giving up.
+            return action
+
+        allocation["sliceId"] = attachment.get("sliceId")
+        allocation["attachmentId"] = attachment.get("attachmentId")
+
+        await self._emit(
+            operation_id,
+            DecisionStep.ALLOCATED,
+            action=NetworkAction.QOD_AND_SLICE.value,
+            congestion=congestion_value,
+            qodSessionId=allocation.get("qodSessionId"),
+            sliceId=allocation.get("sliceId"),
+            reasoning="Mid-operation re-decision: dedicated slice now available.",
+        )
+        return NetworkAction.QOD_AND_SLICE
 
     async def _release(self, operation_id: str, allocation: dict[str, Any]) -> None:
         if not allocation.get("qodSessionId") and not allocation.get("attachmentId"):

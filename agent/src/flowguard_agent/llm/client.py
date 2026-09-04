@@ -275,6 +275,12 @@ def _openrouter_kwargs(model: str, fallbacks: list[str]) -> dict[str, object]:
     discarded both the fallback list and latency routing. The real fields are
     ``openrouter_provider`` for provider preferences and ``model_kwargs`` for
     anything added to the request body.
+
+    Nor is routing it through ``model_kwargs`` a workaround: that dict is
+    spread verbatim into the underlying SDK's ``send()``/``send_async()``,
+    which has no ``extra_body`` parameter either and would raise ``TypeError``
+    on the first real classification. ``models`` and ``provider`` *are*
+    parameters there, which is why these two keys work.
     """
     kwargs: dict[str, object] = {
         "model": model,

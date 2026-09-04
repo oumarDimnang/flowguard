@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsISO8601,
@@ -43,6 +44,30 @@ export class NetworkCallTraceDto {
   @IsNumber()
   @Min(0)
   durationMs?: number;
+}
+
+/**
+ * One read-only tool call the agent chose to make while gathering evidence
+ * — which CAMARA signal it decided to look at, and what it saw.
+ */
+export class ToolCallDto {
+  @IsString()
+  @MaxLength(80)
+  name!: string;
+
+  @IsOptional()
+  @IsObject()
+  arguments?: Record<string, unknown>;
+
+  // Deliberately untyped: each of the four read tools returns a different
+  // shape (a plain string summary for some, a structured object for
+  // others), mirroring the dynamic dict the agent actually sends.
+  @IsOptional()
+  result?: unknown;
+
+  @IsOptional()
+  @IsBoolean()
+  failed?: boolean;
 }
 
 /**
@@ -94,6 +119,23 @@ export class RecordDecisionDto {
   @IsString()
   @MaxLength(4000)
   reasoning?: string;
+
+  // The path the LangGraph assessment took (e.g. "classify" -> "gather_evidence"
+  // -> "escalate" -> "validate"), shown alongside `reasoning` so the dashboard
+  // can evidence *how* the judgement was reached, not just what it concluded.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  graphTrace?: string[];
+
+  // Which read-only CAMARA signals the agent chose to consult as evidence,
+  // and what they returned. Always empty for a low-confidence-free
+  // classification; the toolbox itself has no write capability regardless.
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ToolCallDto)
+  toolCalls?: ToolCallDto[];
 
   @IsOptional()
   @IsString()
