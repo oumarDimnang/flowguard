@@ -211,16 +211,11 @@ class OpenRouterClassifier(CriticalityClassifier):
                 "Install the 'openrouter' extra, or set LLM_PROVIDER=mock."
             ) from exc
 
+        # temperature=0 in _openrouter_kwargs: this is classification, not
+        # creative writing, and the same event must classify the same way.
         chat = ChatOpenRouter(
-            model=model,
             api_key=self._api_key,
-            # Classification, not creative writing — determinism matters more
-            # than variety, and the same event should classify the same way.
-            temperature=0,
-            max_retries=2,
-            # Route to the lowest-latency endpoint: the decision sits inside a
-            # ~2 second budget shared with several network calls.
-            extra_body={"models": [model, *self._fallbacks], "sort": "latency"},
+            **_openrouter_kwargs(model, self._fallbacks),
         )
 
         # method="json_schema" is required. Without it LangChain falls back to
@@ -259,6 +254,43 @@ class OpenRouterClassifier(CriticalityClassifier):
         )
 
 
+#: Provider routing preferences sent on every call.
+#:
+#: ``sort`` picks the lowest-latency endpoint — the decision sits inside a
+#: roughly two-second budget shared with several network calls. ``data_collection``
+#: keeps operational prompts out of training corpora, which matters for the
+#: industrial and healthcare contexts this runs in.
+OPENROUTER_PROVIDER_PREFS: dict[str, object] = {
+    "sort": "latency",
+    "data_collection": "deny",
+}
+
+
+def _openrouter_kwargs(model: str, fallbacks: list[str]) -> dict[str, object]:
+    """Build ChatOpenRouter arguments using its actual field names.
+
+    ``ChatOpenRouter`` is a Pydantic model configured with ``extra="ignore"``,
+    so an unrecognised keyword is **silently dropped rather than rejected**.
+    Passing ``extra_body=...`` — which the package has no field for — quietly
+    discarded both the fallback list and latency routing. The real fields are
+    ``openrouter_provider`` for provider preferences and ``model_kwargs`` for
+    anything added to the request body.
+    """
+    kwargs: dict[str, object] = {
+        "model": model,
+        "temperature": 0,
+        "max_retries": 2,
+        "openrouter_provider": dict(OPENROUTER_PROVIDER_PREFS),
+    }
+
+    if fallbacks:
+        # Model-level failover: if the primary errors, rate-limits or refuses,
+        # OpenRouter tries the next in order.
+        kwargs["model_kwargs"] = {"models": [model, *fallbacks]}
+
+    return kwargs
+
+
 def build_chat_model(settings):
     """Raw chat model for tool binding.
 
@@ -274,14 +306,8 @@ def build_chat_model(settings):
         ) from exc
 
     return ChatOpenRouter(
-        model=settings.llm_model,
         api_key=settings.openrouter_api_key,
-        temperature=0,
-        max_retries=2,
-        extra_body={
-            "models": [settings.llm_model, *settings.fallback_models],
-            "sort": "latency",
-        },
+        **_openrouter_kwargs(settings.llm_model, settings.fallback_models),
     )
 
 
