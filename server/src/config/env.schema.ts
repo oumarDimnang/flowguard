@@ -45,5 +45,22 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     throw new Error(`Invalid environment configuration:\n${details}\n`);
   }
 
+  // Write validated values back into process.env.
+  //
+  // The `registerAs` factories in configuration.ts read `process.env` directly,
+  // which never sees the defaults declared above — Zod returns them, it does not
+  // apply them. Without this, any variable omitted from .env resolves to
+  // `undefined` in its namespace despite having a default here.
+  //
+  // That is how MONGODB_DB_NAME reached Mongoose as undefined, leaving the
+  // driver to pick a database itself and write to `local`, which no user may
+  // write to. Every failure was reported as an authorisation error rather than
+  // a missing database name.
+  for (const [key, value] of Object.entries(result.data)) {
+    if (value !== undefined && process.env[key] === undefined) {
+      process.env[key] = String(value);
+    }
+  }
+
   return result.data;
 }
