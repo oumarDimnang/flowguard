@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { Criticality, NetworkAction } from '../../common/domain/enums';
+import { CongestionLevel, Criticality, NetworkAction } from '../../common/domain/enums';
 import type { Paginated, PaginationDto } from '../../common/dto/pagination.dto';
 import { DecisionStep, type DecisionRecord } from '../domain/decision-record';
 import {
@@ -73,8 +73,19 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
     // operation that passed through several stages.
     const decided = { step: DecisionStep.DECIDED };
 
-    const [byActionRows, byCriticalityRows, criticalProtected, criticalUnprotected, avoided] =
-      await Promise.all([
+    // Congestion at or above the allocation threshold. A HIGH-criticality
+    // operation below this was never at risk, so it belongs in neither side of
+    // the protection ratio.
+    const atRisk = { congestion: { $in: [CongestionLevel.MEDIUM, CongestionLevel.HIGH] } };
+
+    const [
+      byActionRows,
+      byCriticalityRows,
+      criticalProtected,
+      criticalUnprotected,
+      avoided,
+      criticalNotAtRisk,
+    ] = await Promise.all([
         this.model
           .aggregate<{ _id: string | null; count: number }>([
             { $match: decided },
@@ -90,15 +101,29 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
         this.model
           .countDocuments({
             ...decided,
+            ...atRisk,
             criticality: Criticality.HIGH,
             action: { $in: [NetworkAction.QOD, NetworkAction.QOD_AND_SLICE] },
           })
           .exec(),
         this.model
-          .countDocuments({ ...decided, criticality: Criticality.HIGH, action: NetworkAction.NONE })
+          .countDocuments({
+            ...decided,
+            ...atRisk,
+            criticality: Criticality.HIGH,
+            action: NetworkAction.NONE,
+          })
           .exec(),
         this.model
           .countDocuments({ ...decided, criticality: Criticality.LOW, action: NetworkAction.NONE })
+          .exec(),
+        this.model
+          .countDocuments({
+            ...decided,
+            criticality: Criticality.HIGH,
+            action: NetworkAction.NONE,
+            congestion: CongestionLevel.LOW,
+          })
           .exec(),
       ]);
 
@@ -114,6 +139,7 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
       criticalProtected,
       criticalUnprotected,
       unnecessaryQodAvoided: avoided,
+      criticalNotAtRisk,
     };
   }
 

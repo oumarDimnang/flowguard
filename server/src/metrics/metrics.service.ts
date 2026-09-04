@@ -19,13 +19,20 @@ export interface ImpactMetrics {
   premiumReductionPct: number;
 
   /**
-   * Percent of HIGH-criticality operations that received enhanced
-   * connectivity. The headline 97% figure.
+   * Percent of **at-risk** HIGH-criticality operations that received enhanced
+   * connectivity.
+   *
+   * The denominator counts only operations where the network was actually
+   * congested. A critical operation on a healthy network needed nothing, and
+   * including it would score correct restraint as a protection failure.
    */
   criticalOperationsProtectedPct: number;
 
-  /** HIGH-criticality operations that did NOT get premium — the failure mode. */
+  /** At-risk HIGH-criticality operations that received nothing — the real miss. */
   criticalUnprotected: number;
+
+  /** Critical operations correctly withheld because the network was healthy. */
+  criticalNotAtRisk: number;
 
   /** LOW-criticality operations correctly left on standard connectivity. */
   unnecessaryQodAvoided: number;
@@ -55,14 +62,16 @@ export class MetricsService {
 
     const totalDecisions = Object.values(counts.byAction).reduce((sum, n) => sum + n, 0);
 
-    const criticalTotal = counts.criticalProtected + counts.criticalUnprotected;
+    // Only at-risk operations belong in the protection ratio.
+    const criticalAtRisk = counts.criticalProtected + counts.criticalUnprotected;
 
     return {
       totalDecisions,
       premiumGranted,
       premiumReductionPct: percent(totalDecisions - premiumGranted, totalDecisions),
-      criticalOperationsProtectedPct: percent(counts.criticalProtected, criticalTotal),
+      criticalOperationsProtectedPct: percent(counts.criticalProtected, criticalAtRisk),
       criticalUnprotected: counts.criticalUnprotected,
+      criticalNotAtRisk: counts.criticalNotAtRisk,
       unnecessaryQodAvoided: counts.unnecessaryQodAvoided,
       byAction: counts.byAction,
       byCriticality: counts.byCriticality,

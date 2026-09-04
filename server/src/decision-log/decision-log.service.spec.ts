@@ -40,6 +40,7 @@ class FakeDecisionLogRepository extends DecisionLogRepository {
       criticalProtected: 0,
       criticalUnprotected: 0,
       unnecessaryQodAvoided: 0,
+      criticalNotAtRisk: 0,
     };
   }
 }

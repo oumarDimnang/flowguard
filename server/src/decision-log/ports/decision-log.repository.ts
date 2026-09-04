@@ -11,12 +11,31 @@ export interface AppendResult {
 export interface DecisionCounts {
   byAction: Record<string, number>;
   byCriticality: Record<string, number>;
-  /** Operations where criticality was HIGH and QoD was granted. */
+
+  /**
+   * HIGH-criticality operations that were genuinely **at risk** — the network
+   * was congested at or above the allocation threshold — and received
+   * protection.
+   *
+   * "At risk" is load-bearing. A critical operation on an uncongested network
+   * is correctly left alone; counting that as a protection failure would score
+   * the agent's best behaviour as its worst.
+   */
   criticalProtected: number;
-  /** Operations where criticality was HIGH but no QoD was granted. */
+
+  /** At-risk HIGH-criticality operations that received nothing. The real miss. */
   criticalUnprotected: number;
-  /** Low-criticality operations correctly left on standard connectivity. */
+
+  /** LOW-criticality operations correctly left on standard connectivity. */
   unnecessaryQodAvoided: number;
+
+  /**
+   * HIGH-criticality operations withheld because the network was healthy.
+   *
+   * A saving, not a failure — the operation mattered, the network did not need
+   * help, and no money was spent.
+   */
+  criticalNotAtRisk: number;
 }
 
 export abstract class DecisionLogRepository {
