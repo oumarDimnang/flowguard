@@ -10,6 +10,7 @@ import { OperationsModule } from './operations/operations.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SimulatorModule } from './simulator/simulator.module';
 import { TemporalModule } from './temporal/temporal.module';
+import { TerminalModule } from './terminal/terminal.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 /**
@@ -35,6 +36,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     WebhooksModule,
     MetricsModule,
     SimulatorModule,
+    TerminalModule,
     HealthModule,
   ],
 })

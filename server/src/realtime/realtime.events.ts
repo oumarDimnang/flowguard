@@ -13,6 +13,10 @@ export const LIVE_EVENTS = {
   DECISION_RECORDED: 'decision.recorded',
   /** A CAMARA QoD session changed status (REQUESTED -> AVAILABLE), see D8. */
   QOD_STATUS_CHANGED: 'qod.status_changed',
+  /** A container move advanced through the crane's physical sequence. */
+  TERMINAL_MOVE_UPDATED: 'terminal.move_updated',
+  /** The berth work queue was reset back to its planned state. */
+  TERMINAL_QUEUE_RESET: 'terminal.queue_reset',
 } as const;
 
 export type LiveEventName = (typeof LIVE_EVENTS)[keyof typeof LIVE_EVENTS];
