@@ -5,6 +5,7 @@ export const appConfig = registerAs('app', () => ({
   port: Number(process.env.PORT),
   corsOrigin: process.env.CORS_ORIGIN as string,
   internalApiToken: process.env.INTERNAL_API_TOKEN as string,
+  sessionSecret: process.env.SESSION_SECRET as string,
 }));
 
 export const mongoConfig = registerAs('mongo', () => ({

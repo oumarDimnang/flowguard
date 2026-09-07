@@ -15,6 +15,7 @@ describe('validateEnv', () => {
     TEMPORAL_ADDRESS: 'localhost:7233',
     NOKIA_WEBHOOK_TOKEN: 'token',
     INTERNAL_API_TOKEN: 'token',
+    SESSION_SECRET: 'a'.repeat(32),
   };
 
   const TOUCHED = [

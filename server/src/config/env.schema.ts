@@ -27,6 +27,13 @@ export const envSchema = z.object({
 
   NOKIA_WEBHOOK_TOKEN: z.string().min(1, 'NOKIA_WEBHOOK_TOKEN is required'),
   INTERNAL_API_TOKEN: z.string().min(1, 'INTERNAL_API_TOKEN is required'),
+
+  // Signs the session cookie. A short secret is a forgeable session, so the
+  // floor is enforced here rather than trusted to whoever writes the .env —
+  // and it fails at boot, not on the first login attempt during a demo.
+  SESSION_SECRET: z
+    .string()
+    .min(32, 'SESSION_SECRET must be at least 32 characters'),
 });
 
 export type Env = z.infer<typeof envSchema>;
