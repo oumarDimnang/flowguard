@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+
+<!-- State index (design reference, not product UI) -->
+<nav data-screen-label="State index" style="max-width:1440px;margin:0 auto;padding:12px 40px;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 24px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+  <span>state</span>
+  <sc-for list="{{ states }}" as="s" hint-placeholder-count="7">
+    <button onClick="{{ s.onClick }}" style="font:inherit;letter-spacing:inherit;text-transform:inherit;background:transparent;border:0;padding:0 0 2px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;color:{{ s.color }};border-bottom:1px solid {{ s.underline }}">{{ s.glyph }}{{ s.label }}</button>
+  </sc-for>
+</nav>
+
+<!-- A · Masthead -->
+<header data-screen-label="A Masthead" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div style="max-width:1440px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:32px;align-items:center;height:56px">
+    <div style="display:flex;align-items:baseline;gap:12px;white-space:nowrap"><span style="font-family:var(--mono);font-size:15px;font-weight:500;letter-spacing:.12em">FLOWGUARD</span><span style="font-size:12px;color:var(--muted-foreground)">per-lift connectivity decisions, on the record</span></div>
+    <div style="display:flex;justify-content:center;font-size:13px">
+      <a href="FlowGuard Control Room.dc.html" style="text-decoration:none;padding:0 16px;font-weight:500;border-bottom:1px solid var(--foreground);line-height:24px">Control Room</a>
+      <a href="FlowGuard Operations History.dc.html" style="text-decoration:none;padding:0 16px;border-left:1px solid var(--border);line-height:24px">Operations</a>
+      <a href="FlowGuard The Policy.dc.html" style="text-decoration:none;padding:0 16px;border-left:1px solid var(--border);line-height:24px">Policy</a>
+      <a href="FlowGuard The Contrast.dc.html" style="text-decoration:none;padding:0 16px;border-left:1px solid var(--border);line-height:24px">Thesis</a>
+      <a href="FlowGuard Impact.dc.html" style="text-decoration:none;padding:0 16px;border-left:1px solid var(--border);line-height:24px">Impact</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px;font-family:var(--mono);font-size:11px;color:var(--muted-foreground);white-space:nowrap">
+      <span style="display:inline-block;min-width:22ch;text-align:right">{{ envText }}</span>
+      <div style="position:relative">
+        <button onClick="{{ toggleMenu }}" style="font:inherit;color:var(--foreground);background:transparent;border:0;padding:0;cursor:pointer">Run scenario ▾</button>
+        <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:28px;right:0;background:var(--background);border-top:1px solid var(--foreground);border-bottom:1px solid var(--foreground);min-width:240px;z-index:2;display:flex;flex-direction:column">
+            <button style="font:inherit;text-align:left;color:var(--foreground);background:transparent;border:0;padding:8px 0;cursor:pointer;display:flex;justify-content:space-between;gap:16px" style-hover="color:var(--primary)"><span>crane-lift</span><span style="color:var(--muted-foreground)">4 moves</span></button>
+            <button style="font:inherit;text-align:left;color:var(--foreground);background:transparent;border:0;border-top:1px solid var(--border);padding:8px 0;cursor:pointer;display:flex;justify-content:space-between;gap:16px" style-hover="color:var(--primary)"><span>drone-contrast</span><span style="color:var(--muted-foreground)">2 flights</span></button>
+            <button style="font:inherit;text-align:left;color:var(--foreground);background:transparent;border:0;border-top:1px solid var(--border);padding:8px 0;cursor:pointer;display:flex;justify-content:space-between;gap:16px" style-hover="color:var(--primary)"><span>ambulance-telemedicine</span><span style="color:var(--muted-foreground)">1 run</span></button>
+          </div>
+        </sc-if>
+      </div>
+      <span style="display:inline-flex;align-items:center;gap:8px;min-width:20ch;color:{{ liveColor }}">{{ liveGlyph }}{{ liveText }}</span>
+      <button onClick="{{ toggleTheme }}" style="font:inherit;color:var(--foreground);background:transparent;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px">{{ themeGlyph }}{{ themeText }}</button>
+      <span style="border-left:1px solid var(--border);padding-left:20px;color:var(--foreground)">Terminal Supervisor <span style="color:var(--muted-foreground)">· Berth 3 · context, not a login</span></span>
+    </div>
+  </div>
+</header>
+
+<!-- C · Disconnected band -->
+<sc-if value="{{ isDisconnected }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="C Disconnected band" style="border-bottom:1px solid var(--foreground)">
+  <div style="max-width:1440px;margin:0 auto;padding:12px 40px;display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:0 16px;align-items:baseline">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">09:42:31.204</span>
+    <div style="display:flex;flex-wrap:wrap;gap:0 12px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600"><i style="display:inline-block;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)"></i>LIVE UPDATES HAVE STOPPED</span><span>Socket disconnected. The page shows the last data received at <span style="font-family:var(--mono)">09:42:31.204</span> and will not change until the connection returns. Values below are stale.</span></div>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">reconnect attempt <span style="display:inline-block;width:2ch;text-align:right">3</span> · next in <span style="display:inline-block;width:2ch;text-align:right">4</span> s</span>
+  </div>
+</div>
+</sc-if>
+
+<!-- D · Server unreachable band -->
+<sc-if value="{{ isUnreachable }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="D Unreachable band" style="border-bottom:1px solid var(--destructive)">
+  <div style="max-width:1440px;margin:0 auto;padding:12px 40px;display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:0 16px;align-items:baseline">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">09:43:02.117</span>
+    <div style="display:flex;flex-wrap:wrap;gap:0 12px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--destructive)"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>SERVER UNREACHABLE</span><span>The FlowGuard API is not answering. <span style="font-family:var(--mono)">GET /api/health → ECONNREFUSED 10.40.3.2:8080</span>. Nothing on this page can be trusted as current.</span></div>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">failing for <span style="display:inline-block;width:8ch;text-align:right">00:01:29</span></span>
+  </div>
+</div>
+</sc-if>
+
+<main style="max-width:1440px;margin:0 auto;padding:24px 40px 64px">
+
+<!-- Shared berth header (B, C, E, F) -->
+<sc-if value="{{ showBerth }}" hint-placeholder-val="{{ true }}">
+<section data-screen-label="Berth header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:24px">
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Control Room</div>
+    <h1 style="margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em">Khalifa Bin Salman Port — Berth 3</h1>
+    <div style="display:flex;flex-wrap:wrap;gap:0 12px;font-size:15px"><span>vessel <span style="font-family:var(--mono)">MV GULF TRADER</span></span><span style="color:var(--muted-foreground)">·</span><span>target <span style="font-family:var(--mono)">32</span> moves/hour</span></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:0 16px;font-family:var(--mono);font-size:12px">
+    <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>Mongo ok</span>
+    <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>Temporal ok</span>
+    <span style="display:inline-flex;align-items:center;gap:8px">{{ rtGlyph }}Realtime <span style="display:inline-block;width:1ch;text-align:right">{{ rtClients }}</span> client</span>
+  </div>
+</section>
+</sc-if>
+
+<!-- B · Empty -->
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ true }}">
+<section data-screen-label="B Empty" style="display:flex;flex-direction:column">
+  <div style="border-top:1px solid var(--border);padding:32px 0 40px;display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Premium sessions held now</div>
+    <div style="display:flex;align-items:baseline;gap:20px">
+      <div style="font-family:var(--mono);font-size:120px;line-height:1;font-weight:500;width:1ch;text-align:right;margin-top:12px">0</div>
+      <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:10px">
+        <div style="font-family:var(--mono);font-size:15px"><span style="display:inline-block;width:1ch;text-align:right">0</span> QoD <span style="color:var(--muted-foreground)">·</span> <span style="display:inline-block;width:1ch;text-align:right">0</span> slices</div>
+        <div style="font-size:12px;color:var(--muted-foreground)">nothing held · nothing to release · ready</div>
+      </div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--border);padding-top:24px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px"><h2 style="margin:0;font-size:20px;font-weight:600">Work queue</h2><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-block;width:1ch">4</span> moves · <span style="display:inline-block;width:1ch">0</span> running</span></div>
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;padding-bottom:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span>id</span><span>crane</span><span>container</span><span style="text-align:right">weight</span><span>flags</span><span>from → to</span><span style="text-align:right">action</span></div>
+    <sc-for list="{{ queue }}" as="m" hint-placeholder-count="4">
+      <div style="border-top:1px solid var(--border);padding:14px 0;display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+        <span style="font-weight:500">{{ m.id }}</span><span>{{ m.crane }}</span><span>{{ m.container }}</span><span style="text-align:right">{{ m.weight }}</span><span style="font-size:13px">{{ m.flags }}</span><span style="font-size:13px">{{ m.route }}</span>
+        <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--foreground)">Dispatch</button></span>
+      </div>
+    </sc-for>
+    <div style="border-top:1px solid var(--border)"></div>
+  </div>
+  <div style="padding-top:48px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px"><h2 style="margin:0;font-size:20px;font-weight:600">Decision feed</h2><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-block;width:2ch;text-align:right">0</span> entries</span></div>
+    <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:14px 0;display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px"><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">—</span><span style="color:var(--muted-foreground)">No decisions yet. Dispatch a move above and the first entry will be <span style="font-family:var(--mono)">DEVICE_CHECKED</span>.</span></div>
+  </div>
+</section>
+</sc-if>
+
+<!-- C · Disconnected content -->
+<sc-if value="{{ isDisconnected }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="C Disconnected content" style="display:flex;flex-direction:column">
+  <div style="border-top:1px solid var(--border);padding:32px 0 40px;display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Premium sessions held now <span style="margin-left:12px;display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)"></i>stale · as of 09:42:31.204</span></div>
+    <div style="display:flex;align-items:baseline;gap:20px">
+      <div style="font-family:var(--mono);font-size:120px;line-height:1;font-weight:500;width:1ch;text-align:right;margin-top:12px;color:var(--muted-foreground)">1</div>
+      <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:10px;color:var(--muted-foreground)">
+        <div style="font-family:var(--mono);font-size:15px"><span style="display:inline-block;width:1ch;text-align:right">1</span> QoD · <span style="display:inline-block;width:1ch;text-align:right">0</span> slices</div>
+        <div style="font-size:12px">last known: held by <span style="font-family:var(--mono)">move-4-9b1e44a0</span> · may have been released since</div>
+      </div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--border);padding-top:24px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px"><h2 style="margin:0;font-size:20px;font-weight:600">Decision feed</h2><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>not live · last entry 09:42:31.204</span></div>
+    <div style="display:grid;grid-template-columns:120px 200px 160px minmax(0,1fr);gap:0 16px;align-items:baseline;border-top:1px solid var(--border);padding:10px 0;font-size:13px;color:var(--muted-foreground)"><span style="font-family:var(--mono);font-size:12px">09:42:31.204</span><span style="font-family:var(--mono);font-size:12px;font-weight:500">CRITICALITY_ASSESSED</span><span style="font-family:var(--mono);font-size:12px">move-2-30377efc</span><span>IMDG 3 + over walkway → critical · score 0.91</span></div>
+    <div style="display:grid;grid-template-columns:120px 200px 160px minmax(0,1fr);gap:0 16px;align-items:baseline;border-top:1px solid var(--border);padding:10px 0;font-size:13px;color:var(--muted-foreground)"><span style="font-family:var(--mono);font-size:12px">09:42:31.118</span><span style="font-family:var(--mono);font-size:12px;font-weight:500">CONGESTION_CHECKED</span><span style="font-family:var(--mono);font-size:12px">move-2-30377efc</span><span>cell 3 load 71% · premium capacity available</span></div>
+    <div style="border-top:1px solid var(--border)"></div>
+  </div>
+</section>
+</sc-if>
+
+<!-- D · Unreachable content -->
+<sc-if value="{{ isUnreachable }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="D Unreachable content" style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px;padding-top:8px">
+  <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">Check</span>
+  <div style="display:flex;flex-direction:column;gap:24px;max-width:760px">
+    <p style="margin:0;font-size:20px;line-height:1.4;text-wrap:pretty">No data is shown because none can be fetched. The last successful response was at <span style="font-family:var(--mono);font-size:17px">09:42:31.204</span>. The cranes are unaffected — FlowGuard never blocks a lift, so operations continue unprotected until the API returns.</p>
+    <div style="display:flex;flex-direction:column">
+      <div style="display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:0 16px;align-items:baseline;border-top:1px solid var(--border);padding:10px 0"><span style="font-family:var(--mono);font-size:15px;font-weight:500">1</span><span>API process is running on <span style="font-family:var(--mono)">10.40.3.2:8080</span></span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">docker compose ps api</span></div>
+      <div style="display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:0 16px;align-items:baseline;border-top:1px solid var(--border);padding:10px 0"><span style="font-family:var(--mono);font-size:15px;font-weight:500">2</span><span>This workstation can reach the API host</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">curl -sS http://10.40.3.2:8080/api/health</span></div>
+      <div style="display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:0 16px;align-items:baseline;border-top:1px solid var(--border);padding:10px 0"><span style="font-family:var(--mono);font-size:15px;font-weight:500">3</span><span>Temporal and Mongo are up — the API refuses to start without them</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">docker compose logs api --tail 50</span></div>
+      <div style="display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:0 16px;align-items:baseline;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 0"><span style="font-family:var(--mono);font-size:15px;font-weight:500">4</span><span><span style="font-family:var(--mono)">API_BASE_URL</span> in this page's environment points at the right host</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">currently http://10.40.3.2:8080</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;cursor:pointer" style-hover="border-color:var(--foreground)">Retry now</button><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">retrying automatically every <span style="display:inline-block;width:2ch;text-align:right">10</span> s · <span style="display:inline-block;width:2ch;text-align:right">9</span> attempts</span></div>
+  </div>
+</section>
+</sc-if>
+
+<!-- E · Loading -->
+<sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="E Loading" style="display:flex;flex-direction:column">
+  <div style="border-top:1px solid var(--border);padding:32px 0 40px;display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Premium sessions held now</div>
+    <div style="display:flex;align-items:baseline;gap:20px">
+      <div style="font-family:var(--mono);font-size:120px;line-height:1;font-weight:500;width:1ch;text-align:right;margin-top:12px;color:var(--muted-foreground)">–</div>
+      <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:10px">
+        <div style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground)"><span style="display:inline-block;width:1ch;text-align:right">–</span> QoD · <span style="display:inline-block;width:1ch;text-align:right">–</span> slices</div>
+        <div style="font-size:12px;color:var(--muted-foreground)">waiting for first snapshot from <span style="font-family:var(--mono)">GET /api/state</span></div>
+      </div>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--border);padding-top:24px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px"><h2 style="margin:0;font-size:20px;font-weight:600">Work queue</h2><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-block;width:1ch">–</span> moves · <span style="display:inline-block;width:1ch">–</span> running</span></div>
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;padding-bottom:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span>id</span><span>crane</span><span>container</span><span style="text-align:right">weight</span><span>flags</span><span>from → to</span><span style="text-align:right">action</span></div>
+    <sc-for list="{{ four }}" as="i" hint-placeholder-count="4">
+      <div style="border-top:1px solid var(--border);padding:14px 0;display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:center;height:22px;box-sizing:content-box">
+        <span style="display:block;height:11px;width:6ch;background:var(--muted)"></span><span style="display:block;height:11px;width:7ch;background:var(--muted)"></span><span style="display:block;height:11px;width:11ch;background:var(--muted)"></span><span style="display:block;height:11px;width:8ch;background:var(--muted);justify-self:end"></span><span style="display:block;height:11px;width:60%;background:var(--muted)"></span><span style="display:block;height:11px;width:80%;background:var(--muted)"></span><span style="display:block;height:11px;width:100%;background:var(--muted)"></span>
+      </div>
+    </sc-for>
+    <div style="border-top:1px solid var(--border)"></div>
+    <div style="display:flex;align-items:center;gap:8px;padding-top:12px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span>placeholder rows are 51 px tall, identical to a populated row · nothing shifts when data lands</div>
+  </div>
+</section>
+</sc-if>
+
+<!-- F · Action failure -->
+<sc-if value="{{ isFailure }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="F Action failure" style="border-top:1px solid var(--border);padding-top:24px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px"><h2 style="margin:0;font-size:20px;font-weight:600">Work queue</h2><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-block;width:1ch">4</span> moves · <span style="display:inline-block;width:1ch">1</span> running</span></div>
+  <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;padding-bottom:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span>id</span><span>crane</span><span>container</span><span style="text-align:right">weight</span><span>flags</span><span>from → to</span><span style="text-align:right">action</span></div>
+  <div style="border-top:1px solid var(--border);padding:14px 0;display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+    <span style="font-weight:500">move-1</span><span>crane-a</span><span>MSCU4823157</span><span style="text-align:right">2,300 kg</span><span style="color:var(--muted-foreground)">—</span><span style="font-size:13px">BAY 22 ROW 04 TIER 82 <span style="color:var(--muted-foreground)">→</span> YARD A-12-3</span>
+    <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--foreground)">Dispatch</button></span>
+  </div>
+  <div style="border-top:1px solid var(--border);padding:14px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+      <span style="font-weight:500">move-2</span><span>crane-a</span><span>MAEU7391024</span><span style="text-align:right">40,100 kg</span><span style="font-size:13px">IMDG 3 · over walkway</span><span style="font-size:13px">BAY 22 ROW 06 TIER 84 <span style="color:var(--muted-foreground)">→</span> YARD H-04-1</span>
+      <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--destructive);color:var(--destructive)">Abort</button></span>
+    </div>
+    <div style="display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:0 16px;align-items:baseline;border-top:1px solid var(--destructive);padding-top:10px">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">09:42:40.512</span>
+      <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--destructive)"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>409 CONFLICT</span><span>Dispatch ignored — move-2 is already running as <span style="font-family:var(--mono)">move-2-30377efc</span>, currently at <span style="font-family:var(--mono)">TWISTLOCK</span>. Abort it first if you need to re-dispatch.</span></div>
+      <button style="font-family:var(--sans);font-size:12px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;border-bottom:1px solid var(--border)">Dismiss</button>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--border);padding:14px 0;display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+    <span style="font-weight:500">move-3</span><span>crane-b</span><span>CMAU2210896</span><span style="text-align:right">28,400 kg</span><span style="font-size:13px">reefer</span><span style="font-size:13px">BAY 18 ROW 02 TIER 86 <span style="color:var(--muted-foreground)">→</span> REEFER STACK R-03-2</span>
+    <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--foreground)">Dispatch</button></span>
+  </div>
+  <div style="border-top:1px solid var(--border);padding:14px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px;color:var(--muted-foreground)">
+      <span style="font-weight:500">move-5</span><span>—</span><span>—</span><span style="text-align:right">—</span><span style="font-size:13px">—</span><span style="font-size:13px">typed id · not in this berth's queue</span>
+      <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--muted-foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:not-allowed">Dispatch</button></span>
+    </div>
+    <div style="display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:0 16px;align-items:baseline;border-top:1px solid var(--destructive);padding-top:10px">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">09:42:44.088</span>
+      <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--destructive)"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>404 NOT FOUND</span><span>No move with id <span style="font-family:var(--mono)">move-5</span> in the Berth 3 queue. The queue holds move-1 to move-4; nothing was dispatched.</span></div>
+      <button style="font-family:var(--sans);font-size:12px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;border-bottom:1px solid var(--border)">Dismiss</button>
+    </div>
+  </div>
+  <div style="border-top:1px solid var(--border)"></div>
+</section>
+</sc-if>
+
+<!-- G · 404 -->
+<sc-if value="{{ isNotFound }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="G 404" style="border-top:1px solid var(--border);padding-top:32px;display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px">
+  <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:6px">404</span>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <p style="margin:0;font-size:20px;line-height:1.4">No page at <span style="font-family:var(--mono);font-size:17px">/berth-3/movs</span>.</p>
+    <a href="FlowGuard Control Room.dc.html" style="font-size:15px;font-weight:500;text-decoration:none;border-bottom:1px solid var(--foreground);align-self:flex-start">← Control Room</a>
+  </div>
+</section>
+</sc-if>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;A masthead&quot;,&quot;B empty&quot;,&quot;C disconnected&quot;,&quot;D unreachable&quot;,&quot;E loading&quot;,&quot;F action failure&quot;,&quot;G 404&quot;],&quot;default&quot;:&quot;A masthead&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;State&quot;}}">
+class Component extends DCLogic {
+  state = { view: null, dark: null, menu: null };
+  glyph(kind) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    if (kind === 'hollow') return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+    return React.createElement('i', { style: { ...base, background: 'linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)' } });
+  }
+  renderVals() {
+    const dark = this.state.dark ?? ((this.props.theme ?? 'light') === 'dark');
+    const view = this.state.view ?? (this.props.state ?? 'A masthead');
+    const menuOpen = this.state.menu ?? (view === 'A masthead');
+    const keys = ['A masthead', 'B empty', 'C disconnected', 'D unreachable', 'E loading', 'F action failure', 'G 404'];
+    const states = keys.map(k => ({ label: k, onClick: () => this.setState({ view: k, menu: null }),
+      color: k === view ? 'var(--primary)' : 'var(--muted-foreground)', underline: k === view ? 'var(--primary)' : 'transparent', glyph: this.glyph(k === view ? 'filled' : 'hollow') }));
+    const isEmpty = view === 'A masthead' || view === 'B empty';
+    const isDisconnected = view === 'C disconnected', isUnreachable = view === 'D unreachable', isLoading = view === 'E loading', isFailure = view === 'F action failure', isNotFound = view === 'G 404';
+    const offline = isUnreachable;
+    const live = !isDisconnected && !isUnreachable && !isLoading;
+    const queue = [
+      { id: 'move-1', crane: 'crane-a', container: 'MSCU4823157', weight: '2,300 kg', flags: '—', route: 'BAY 22 ROW 04 TIER 82 → YARD A-12-3' },
+      { id: 'move-2', crane: 'crane-a', container: 'MAEU7391024', weight: '40,100 kg', flags: 'IMDG 3 · over walkway', route: 'BAY 22 ROW 06 TIER 84 → YARD H-04-1' },
+      { id: 'move-3', crane: 'crane-b', container: 'CMAU2210896', weight: '28,400 kg', flags: 'reefer', route: 'BAY 18 ROW 02 TIER 86 → REEFER STACK R-03-2' },
+      { id: 'move-4', crane: 'crane-b', container: 'HLXU8845213', weight: '36,800 kg', flags: 'twin-lift · over walkway', route: 'BAY 18 ROW 08 TIER 82 → YARD C-07-2' },
+    ];
+    return {
+      rootClass: dark ? 'dark' : '', states, queue, four: [1, 2, 3, 4],
+      isEmpty, isDisconnected, isUnreachable, isLoading, isFailure, isNotFound,
+      showBerth: isEmpty || isDisconnected || isLoading || isFailure,
+      envText: offline ? 'mock · offline' : 'nokia · gpt-5.6-luna',
+      menuOpen, toggleMenu: () => this.setState({ menu: !menuOpen }),
+      liveGlyph: this.glyph(live ? 'filled' : isLoading ? 'hollow' : 'slash'),
+      liveText: live ? 'socket connected' : isLoading ? 'socket connecting' : 'socket disconnected',
+      liveColor: live ? 'var(--primary)' : 'var(--foreground)',
+      rtGlyph: this.glyph(live ? 'filled' : 'slash'), rtClients: live ? '1' : '0',
+      toggleTheme: () => this.setState({ dark: !dark }),
+      themeGlyph: this.glyph(dark ? 'filled' : 'hollow'), themeText: dark ? 'dark' : 'light',
+    };
+  }
+}
+</script>
+</body>
+</html>

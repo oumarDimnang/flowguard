@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+@keyframes fg-blink{0%,100%{opacity:1}50%{opacity:.25}}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1440px;margin:0 auto;padding:32px 40px 64px;display:flex;flex-direction:column;gap:0">
+
+<!-- A · Berth header -->
+<header data-screen-label="A Berth header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">FlowGuard · Control Room</div>
+    <h1 style="margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em">Khalifa Bin Salman Port — Berth 3</h1>
+    <div style="display:flex;flex-wrap:wrap;gap:0 12px;font-size:15px">
+      <span>vessel <span style="font-family:var(--mono)">MV GULF TRADER</span></span>
+      <span style="color:var(--muted-foreground)">·</span>
+      <span>target <span style="font-family:var(--mono)">32</span> moves/hour</span>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+    <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:0 16px;font-family:var(--mono);font-size:12px">
+      <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>Mongo ok</span>
+      <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>Temporal ok</span>
+      <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>Realtime <span style="display:inline-block;width:1ch;text-align:right">1</span> client</span>
+      <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>uptime <span style="display:inline-block;width:8ch">04:12:37</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px"><i style="display:inline-block;width:8px;height:8px;background:var(--primary)"></i>socket connected <span style="color:var(--muted-foreground)">ws · 12 ms</span></span>
+      <button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;cursor:pointer" style-hover="border-color:var(--foreground)">Reset berth</button>
+    </div>
+  </div>
+</header>
+
+<!-- B · Holdings readout -->
+<section data-screen-label="B Holdings" style="border-top:1px solid var(--border);padding:32px 0 40px;display:grid;grid-template-columns:minmax(320px,auto) minmax(0,1fr);gap:64px;align-items:end">
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Premium sessions held now</div>
+    <div style="display:flex;align-items:baseline;gap:20px">
+      <div style="font-family:var(--mono);font-size:120px;line-height:1;font-weight:500;width:1ch;margin-top:12px;text-align:right;color:{{ heldColor }}">{{ held }}</div>
+      <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:10px">
+        <div style="font-family:var(--mono);font-size:15px"><span style="display:inline-block;width:1ch;text-align:right">{{ held }}</span> QoD <span style="color:var(--muted-foreground)">·</span> <span style="display:inline-block;width:1ch;text-align:right">0</span> slices</div>
+        <sc-if value="{{ isHeld }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:12px;color:var(--muted-foreground)">held by <span style="font-family:var(--mono);color:var(--foreground)">move-4-9b1e44a0</span> since <span style="font-family:var(--mono)">09:42:29.311</span></div>
+        </sc-if>
+        <sc-if value="{{ isZero }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px;color:var(--muted-foreground)">returned to 0 at <span style="font-family:var(--mono)">09:41:12.560</span> · every session released</div>
+        </sc-if>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--muted-foreground);max-width:38ch;text-wrap:pretty">Rises when a lift is protected. Returns to 0 the moment the lift lands — nothing is held longer than the operation that needed it.</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+    <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span>Held sessions · last 30 min</span><span>09:12 — 09:42</span></div>
+    <svg viewBox="0 0 640 96" width="100%" height="96" style="display:block;overflow:visible;font-family:var(--mono)" data-om-raster="true">
+      <line x1="0" y1="72" x2="640" y2="72" stroke="var(--border)" stroke-width="1"></line>
+      <line x1="0" y1="36" x2="640" y2="36" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"></line>
+      <text x="0" y="90" font-size="10" fill="var(--muted-foreground)">0</text>
+      <text x="0" y="31" font-size="10" fill="var(--muted-foreground)">1</text>
+      <polyline fill="none" stroke="var(--foreground)" stroke-width="1.25" points="16,72 88,72 88,36 142,36 142,72 236,72 236,36 268,36 268,72 352,72 352,36 410,36 410,72 498,72 498,36 512,36 512,72 596,72"></polyline>
+      <polyline fill="none" stroke="var(--primary)" stroke-width="1.5" points="596,72 596,36 640,36"></polyline>
+      <line x1="410" y1="72" x2="410" y2="20" stroke="var(--muted-foreground)" stroke-width="1"></line>
+      <line x1="410" y1="20" x2="440" y2="20" stroke="var(--muted-foreground)" stroke-width="1"></line>
+      <text x="444" y="23" font-size="10" fill="var(--muted-foreground)" letter-spacing="1">RELEASED → 0</text>
+      <line x1="596" y1="36" x2="596" y2="4" stroke="var(--primary)" stroke-width="1"></line>
+      <text x="640" y="4" text-anchor="end" font-size="10" fill="var(--primary)" letter-spacing="1">ALLOCATED · MOVE-4</text>
+    </svg>
+  </div>
+</section>
+
+<!-- C · Work queue -->
+<section data-screen-label="C Work queue" style="border-top:1px solid var(--border);padding-top:24px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px">
+    <h2 style="margin:0;font-size:20px;font-weight:600">Work queue</h2>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-block;width:1ch;text-align:right">4</span> moves · <span style="display:inline-block;width:1ch;text-align:right">2</span> running · <span style="display:inline-block;width:1ch;text-align:right">1</span> held at twistlock</div>
+  </div>
+  <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;padding:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <span>id</span><span>crane</span><span>container</span><span style="text-align:right">weight</span><span>flags</span><span>from → to</span><span style="text-align:right">action</span>
+  </div>
+
+  <!-- move-1 · RELEASED -->
+  <article data-screen-label="move-1" style="border-top:1px solid var(--border);padding:16px 0 20px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+      <span style="font-weight:500">move-1</span><span>crane-a</span><span>MSCU4823157</span><span style="text-align:right;width:100%;display:inline-block">2,300 kg</span><span style="color:var(--muted-foreground)">—</span><span style="font-size:13px">BAY 22 ROW 04 TIER 82 <span style="color:var(--muted-foreground)">→</span> YARD A-12-3</span>
+      <span style="text-align:right;font-family:var(--sans);font-size:12px;color:var(--muted-foreground)">complete</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0;font-family:var(--mono);font-size:11px;letter-spacing:.06em">
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>QUEUED</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>GANTRY</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>TROLLEY</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>SPREADER</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%);display:block"></i>TWISTLOCK</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>HOISTING</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>LANDING</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative;font-weight:500"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>RELEASED</div>
+    </div>
+    <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px;font-size:13px">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">09:40:58.618</span>
+      <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:500"><i style="display:inline-block;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)"></i>HOIST AUTHORISED — timeout · lifted unprotected</span><span style="color:var(--muted-foreground)">no decision within <span style="font-family:var(--mono)">2.000 s</span>; crane proceeded on schedule. Decision arrived <span style="font-family:var(--mono)">+412 ms</span> late and was recorded.</span></div>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:4px">09:41:12.560</span>
+      <div style="padding-top:4px;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:500"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>RELEASED</span><span style="color:var(--muted-foreground)">landed at YARD A-12-3 · nothing held, nothing to release · op <span style="font-family:var(--mono)">move-1-5c07d2ee</span></span></div>
+    </div>
+  </article>
+
+  <!-- move-2 · held at TWISTLOCK -->
+  <article data-screen-label="move-2" style="border-top:1px solid var(--border);padding:16px 0 20px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+      <span style="font-weight:500">move-2</span><span>crane-a</span><span>MAEU7391024</span><span style="text-align:right;width:100%;display:inline-block">40,100 kg</span><span style="font-size:13px">IMDG 3 · over walkway</span><span style="font-size:13px">BAY 22 ROW 06 TIER 84 <span style="color:var(--muted-foreground)">→</span> YARD H-04-1</span>
+      <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--destructive);color:var(--destructive)">Abort</button></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0;font-family:var(--mono);font-size:11px;letter-spacing:.06em">
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>QUEUED</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>GANTRY</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>TROLLEY</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>SPREADER</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative;color:var(--primary);font-weight:500">{{ blinkGlyph }}TWISTLOCK · HOLD</div>
+      <div style="border-top:1px solid var(--border);padding:10px 8px 0 0;position:relative;color:var(--muted-foreground)"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box;display:block;background:var(--background)"></i>HOISTING</div>
+      <div style="border-top:1px solid var(--border);padding:10px 8px 0 0;position:relative;color:var(--muted-foreground)"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box;display:block;background:var(--background)"></i>LANDING</div>
+      <div style="border-top:1px solid var(--border);padding:10px 8px 0 0;position:relative;color:var(--muted-foreground)"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box;display:block;background:var(--background)"></i>RELEASED</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0">
+      <div style="grid-column:1 / 9;display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px 32px;align-items:start;padding-top:4px">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Decision window remaining</div>
+          <div style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500;color:var(--primary);width:7ch">0.784<span style="font-size:20px;color:var(--muted-foreground)"> s</span></div>
+          <div style="position:relative;height:2px;background:var(--border);width:100%;margin-top:8px"><div style="position:absolute;left:0;top:0;height:2px;width:61%;background:var(--primary)"></div></div>
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted-foreground)"><span>elapsed 1.216</span><span>deadline 2.000</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;min-width:0">
+          <div style="display:flex;flex-wrap:wrap;gap:0 8px"><span style="font-weight:500">PLC hold.</span><span style="color:var(--muted-foreground)">All four twistlock sensors confirmed <span style="font-family:var(--mono)">4/4</span>. Hoist is paused awaiting DECIDED for <span style="font-family:var(--mono);color:var(--foreground)">move-2-30377efc</span>.</span></div>
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">Resolves to one of</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:500"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>HOIST AUTHORISED — decision</span><span style="color:var(--muted-foreground)">a decision arrived in time; protected or best-effort as decided</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:500"><i style="display:inline-block;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)"></i>HOIST AUTHORISED — timeout · lifted unprotected</span><span style="color:var(--muted-foreground)">no decision by <span style="font-family:var(--mono)">2.000 s</span>; the crane lifts anyway. FlowGuard never blocks a crane.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- move-3 · QUEUED -->
+  <article data-screen-label="move-3" style="border-top:1px solid var(--border);padding:16px 0 20px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+      <span style="font-weight:500">move-3</span><span>crane-b</span><span>CMAU2210896</span><span style="text-align:right;width:100%;display:inline-block">28,400 kg</span><span style="font-size:13px">reefer</span><span style="font-size:13px">BAY 18 ROW 02 TIER 86 <span style="color:var(--muted-foreground)">→</span> REEFER STACK R-03-2</span>
+      <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--foreground)">Dispatch</button></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted-foreground)"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>QUEUED · waiting for crane-b to release move-4</div>
+  </article>
+
+  <!-- move-4 · HOISTING -->
+  <article data-screen-label="move-4" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:16px 0 20px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:grid;grid-template-columns:72px 72px 118px 92px minmax(0,0.8fr) minmax(0,1.4fr) 84px;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:15px">
+      <span style="font-weight:500">move-4</span><span>crane-b</span><span>HLXU8845213</span><span style="text-align:right;width:100%;display:inline-block">36,800 kg</span><span style="font-size:13px">twin-lift · over walkway</span><span style="font-size:13px">BAY 18 ROW 08 TIER 82 <span style="color:var(--muted-foreground)">→</span> YARD C-07-2</span>
+      <span style="text-align:right"><button style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--destructive);color:var(--destructive)">Abort</button></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0;font-family:var(--mono);font-size:11px;letter-spacing:.06em">
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>QUEUED</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>GANTRY</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>TROLLEY</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>SPREADER</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>TWISTLOCK</div>
+      <div style="border-top:1px solid var(--foreground);padding:10px 8px 0 0;position:relative;color:var(--primary);font-weight:500"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;background:currentColor;display:block"></i>HOISTING · NOW</div>
+      <div style="border-top:1px solid var(--border);padding:10px 8px 0 0;position:relative;color:var(--muted-foreground)"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box;display:block;background:var(--background)"></i>LANDING</div>
+      <div style="border-top:1px solid var(--border);padding:10px 8px 0 0;position:relative;color:var(--muted-foreground)"><i style="position:absolute;top:-4px;left:0;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box;display:block;background:var(--background)"></i>RELEASED</div>
+    </div>
+    <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px;font-size:13px">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">09:42:29.870</span>
+      <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="display:inline-flex;align-items:center;gap:8px;font-weight:500"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>HOIST AUTHORISED — decision</span><span style="color:var(--muted-foreground)">DECIDED at <span style="font-family:var(--mono)">1.104 s</span> of <span style="font-family:var(--mono)">2.000 s</span> · protect with QoD <span style="font-family:var(--mono)">qod-7f31</span> · session <span style="color:var(--primary);font-weight:500">held</span> until landing · op <span style="font-family:var(--mono)">move-4-9b1e44a0</span></span></div>
+    </div>
+  </article>
+</section>
+
+<!-- E · Live decision feed -->
+<section data-screen-label="E Decision feed" style="padding-top:48px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:16px">
+    <h2 style="margin:0;font-size:20px;font-weight:600">Decision feed</h2>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">reverse chronological · <span style="display:inline-block;width:2ch;text-align:right">11</span> entries · <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:var(--primary)"></i>live</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:120px 200px 160px minmax(0,1fr);gap:0 16px;padding-bottom:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <span>time</span><span>step</span><span>operation</span><span>summary</span>
+  </div>
+  <sc-for list="{{ feed }}" as="e" hint-placeholder-count="11">
+    <div style="display:grid;grid-template-columns:120px 200px 160px minmax(0,1fr);gap:0 16px;align-items:baseline;border-top:1px solid var(--border);padding:10px 0;font-size:13px">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">{{ e.t }}</span>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:8px;color:{{ e.color }}">{{ e.glyph }}{{ e.step }}</span>
+      <span style="font-family:var(--mono);font-size:12px">{{ e.op }}</span>
+      <span style="text-wrap:pretty">{{ e.msg }}</span>
+    </div>
+  </sc-for>
+  <div style="border-top:1px solid var(--border)"></div>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;heldSessions&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[0,1],&quot;default&quot;:1,&quot;tsType&quot;:&quot;0|1&quot;,&quot;section&quot;:&quot;State&quot;}}">
+class Component extends DCLogic {
+  glyph(kind, color) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    if (kind === 'hollow') return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+    return React.createElement('i', { style: { ...base, background: 'linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)' } });
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const held = Number(this.props.heldSessions ?? 1);
+    const fg = 'var(--foreground)', mf = 'var(--muted-foreground)';
+    const feed = [
+      { t: '09:42:31.204', step: 'CRITICALITY_ASSESSED', op: 'move-2-30377efc', msg: 'IMDG 3 + over walkway → critical · score 0.91 · candidate profile QOS_L', g: 'filled', color: fg },
+      { t: '09:42:31.118', step: 'CONGESTION_CHECKED', op: 'move-2-30377efc', msg: 'cell 3 load 71% · premium capacity available · 1 session already held on cell', g: 'filled', color: fg },
+      { t: '09:42:31.042', step: 'DEVICE_CHECKED', op: 'move-2-30377efc', msg: 'crane-a modem on 5G SA · device reachable · IMSI verified against berth roster', g: 'filled', color: fg },
+      { t: '09:42:29.870', step: 'QOS_STATUS_CHANGED', op: 'move-4-9b1e44a0', msg: 'QoD session qod-7f31 AVAILABLE · profile QOS_L · holdings 0 → 1', g: 'filled', color: 'var(--primary)' },
+      { t: '09:42:29.311', step: 'ALLOCATED', op: 'move-4-9b1e44a0', msg: 'QoD session requested for crane-b · duration bound to operation · budget 20 ms', g: 'filled', color: fg },
+      { t: '09:42:28.902', step: 'DECIDED', op: 'move-4-9b1e44a0', msg: 'protect: QoD · reason twin-lift over walkway · decided at 1.104 s of 2.000 s', g: 'filled', color: fg },
+      { t: '09:42:28.640', step: 'CRITICALITY_ASSESSED', op: 'move-4-9b1e44a0', msg: 'twin-lift + over walkway → critical · score 0.88', g: 'filled', color: fg },
+      { t: '09:42:28.415', step: 'CONGESTION_CHECKED', op: 'move-4-9b1e44a0', msg: 'cell 3 load 64% · premium capacity available', g: 'filled', color: fg },
+      { t: '09:42:28.301', step: 'DEVICE_CHECKED', op: 'move-4-9b1e44a0', msg: 'crane-b modem on 5G SA · device reachable', g: 'filled', color: fg },
+      { t: '09:41:12.560', step: 'RELEASED', op: 'move-1-5c07d2ee', msg: 'lift landed at YARD A-12-3 · no session was held · holdings remain 0', g: 'hollow', color: fg },
+      { t: '09:40:59.030', step: 'DECIDED', op: 'move-1-5c07d2ee', msg: 'arrived +412 ms after the 2.000 s deadline · outcome recorded as timeout · crane had already lifted unprotected', g: 'slash', color: mf },
+    ].map(e => ({ ...e, glyph: this.glyph(e.g) }));
+    const blinkGlyph = React.createElement('i', { style: { position: 'absolute', top: -4, left: 0, width: 8, height: 8, background: 'currentColor', display: 'block', animation: 'fg-blink 1.2s steps(1) infinite' } });
+    return {
+      rootClass: dark ? 'dark' : '',
+      held,
+      isHeld: held > 0,
+      isZero: held === 0,
+      heldColor: held > 0 ? 'var(--primary)' : 'var(--foreground)',
+      feed,
+      blinkGlyph,
+    };
+  }
+}
+</script>
+</body>
+</html>

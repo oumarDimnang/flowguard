@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1440px;margin:0 auto;padding:32px 40px 64px">
+
+<header data-screen-label="Contrast header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><a href="FlowGuard Control Room.dc.html" style="text-decoration:none">FlowGuard · Control Room</a> <span style="margin:0 6px">/</span> The Contrast</div>
+    <h1 style="margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em">Criticality triggers protection. Congestion never does on its own.</h1>
+    <p style="margin:0;font-size:15px;color:var(--muted-foreground);max-width:72ch;text-wrap:pretty">Same crane, same SIM, same cell, same congestion reading, minutes apart — opposite outcomes.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+    <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);text-align:right;display:inline-flex;align-items:center;gap:8px">{{ runGlyph }}<span style="display:inline-block;width:34ch;text-align:right">{{ runStatus }}</span></div>
+    <button onClick="{{ rerun }}" style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;cursor:pointer" style-hover="border-color:var(--foreground)">Re-run pair live</button>
+  </div>
+</header>
+
+<!-- Comparison -->
+<section data-screen-label="Comparison" style="border-top:1px solid var(--border)">
+  <div style="display:grid;grid-template-columns:120px 160px minmax(0,1fr) minmax(0,1fr) 140px;gap:0 16px;padding:12px 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <span>assessed</span><span>input</span>
+    <span style="color:var(--foreground);font-size:15px;letter-spacing:0;text-transform:none;font-weight:500">move-1 <span style="font-size:11px;color:var(--muted-foreground);font-weight:400">· move-1-5c07d2ee</span></span>
+    <span style="color:var(--foreground);font-size:15px;letter-spacing:0;text-transform:none;font-weight:500">move-2 <span style="font-size:11px;color:var(--muted-foreground);font-weight:400">· move-2-30377efc</span></span>
+    <span style="text-align:right">match</span>
+  </div>
+  <div style="display:grid;grid-template-columns:120px 160px minmax(0,1fr) minmax(0,1fr) 140px;gap:0 16px;padding:0 0 12px;font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">
+    <span></span><span></span><span>09:40:57.806</span><span>09:42:31.204</span><span style="text-align:right">Δ 1 min 33 s</span>
+  </div>
+
+  <sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+    <div style="display:grid;grid-template-columns:120px 160px minmax(0,1fr) minmax(0,1fr) 140px;gap:0 16px;align-items:baseline;border-top:1px solid var(--border);padding:{{ r.pad }}">
+      <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">{{ r.kind }}</span>
+      <span style="font-family:var(--mono);font-size:{{ r.labelSize }};color:{{ r.labelColor }};font-weight:{{ r.weight }}">{{ r.label }}</span>
+      <span style="font-family:var(--mono);font-size:{{ r.size }};color:{{ r.color }};font-weight:{{ r.weight }}">{{ r.a }}</span>
+      <span style="font-family:var(--mono);font-size:{{ r.size }};color:{{ r.color }};font-weight:{{ r.weight }}">{{ r.b }}</span>
+      <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:{{ r.matchColor }};display:inline-flex;justify-content:flex-end;align-items:center;gap:8px">{{ r.glyph }}{{ r.match }}</span>
+    </div>
+  </sc-for>
+  <div style="border-top:1px solid var(--border)"></div>
+
+  <div style="display:grid;grid-template-columns:120px 160px minmax(0,1fr) 140px;gap:0 16px;padding:12px 0 0">
+    <span></span><span></span>
+    <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span>4 of 7 inputs identical · container is an identifier, not an input · congestion High on both · only the load changed</div>
+  </div>
+</section>
+
+<!-- Reasoning -->
+<section data-screen-label="Reasoning" style="border-top:1px solid var(--border);margin-top:40px;padding-top:24px;display:grid;grid-template-columns:120px 160px minmax(0,1fr) minmax(0,1fr) 140px;gap:0 16px">
+  <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:4px">09:40:57.806</span>
+  <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:6px">model reasoning<br>verbatim</span>
+  <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div style="display:flex;flex-wrap:wrap;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-flex;align-items:center;gap:8px;color:var(--foreground);font-weight:500"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>LOW</span><span>confidence 0.92</span><span>openai/gpt-5.6-luna</span></div>
+    <p style="margin:0;font-size:17px;line-height:1.5;max-width:52ch;text-wrap:pretty">This lift is routine. The load is 2.3 tonnes with no hazardous cargo, and its path stays inside the yard without crossing a walkway. Congestion on the cell is high, but a brief degradation of the operator's feed during this move has no safety consequence and can be recovered by re-attempting the lift. No premium connectivity is warranted.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div style="display:flex;flex-wrap:wrap;gap:0 12px;align-items:baseline;font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-flex;align-items:center;gap:8px;color:var(--primary);font-weight:500"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>HIGH</span><span>confidence 0.94</span><span>openai/gpt-5.6-luna</span></div>
+    <p style="margin:0;font-size:17px;line-height:1.5;max-width:52ch;text-wrap:pretty">This lift is safety-critical because the load is 40.1 tonnes and its path crosses an active quay walkway. The operator is driving from the control room on a live uplink video feed, and interrupting that feed mid-lift cannot be undone safely.</p>
+  </div>
+  <span></span>
+</section>
+
+<footer data-screen-label="Caption" style="border-top:1px solid var(--border);margin-top:40px;padding-top:16px;display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px">
+  <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:3px">claim</span>
+  <p style="margin:0;font-size:15px;font-weight:500;max-width:80ch;text-wrap:pretty">With congestion held constant at High, the only variable that changed the action from NONE to QOD_AND_SLICE was the criticality of the lift — congestion alone never allocates.</p>
+</footer>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;showIdentifiers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+class Component extends DCLogic {
+  state = { running: false, runs: 0 };
+  glyph(kind) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    if (kind === 'hollow') return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+    return React.createElement('i', { style: { ...base, background: 'linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)' } });
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const showIds = this.props.showIdentifiers ?? true;
+    const fg = 'var(--foreground)', mf = 'var(--muted-foreground)', pr = 'var(--primary)';
+    const same = (kind, label, v) => ({ kind, label, a: v, b: v, match: 'same', glyph: this.glyph('hollow'), matchColor: mf, color: mf, labelColor: mf, size: '13px', labelSize: '12px', weight: 400, pad: '8px 0' });
+    const diff = (kind, label, a, b) => ({ kind, label, a, b, match: 'differs', glyph: this.glyph('filled'), matchColor: fg, color: fg, labelColor: fg, size: '15px', labelSize: '12px', weight: 500, pad: '10px 0' });
+    const out = (kind, label, a, b) => ({ kind, label, a, b, match: 'opposite', glyph: this.glyph('filled'), matchColor: pr, color: pr, labelColor: fg, size: '24px', labelSize: '13px', weight: 500, pad: '14px 0' });
+    const rows = [
+      same('input', 'crane', 'crane-a'),
+      same('input', 'SIM', '+99999991001'),
+      showIds ? { ...diff('id', 'container', 'MSCU4823157', 'MAEU7391024'), match: 'identifier', glyph: this.glyph('hollow'), matchColor: mf, color: mf, labelColor: mf, size: '13px', weight: 400, pad: '8px 0' } : null,
+      diff('input', 'weight', '2,300 kg', '40,100 kg'),
+      diff('input', 'hazard', '—', 'IMDG class 3'),
+      diff('input', 'over walkway', 'no', 'yes'),
+      same('input', 'congestion', 'High'),
+      same('input', 'device reachable', 'true'),
+      out('→ output', '→ criticality', 'LOW (0.92)', 'HIGH (0.94)'),
+      out('→ output', '→ action', 'NONE', 'QOD_AND_SLICE'),
+    ].filter(Boolean);
+    const running = this.state.running;
+    return {
+      rootClass: dark ? 'dark' : '',
+      rows,
+      runGlyph: running ? React.createElement('i', { style: { display: 'inline-block', width: 8, height: 8, background: pr } }) : this.glyph('filled'),
+      runStatus: running ? 're-running both assessments…' : (this.state.runs ? `re-run ×${this.state.runs} · both outcomes reproduced` : 'last run 09:42:31.204 · outcomes reproducible'),
+      rerun: () => { if (running) return; this.setState({ running: true }); setTimeout(() => this.setState(s => ({ running: false, runs: s.runs + 1 })), 1800); },
+    };
+  }
+}
+</script>
+</body>
+</html>

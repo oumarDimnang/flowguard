@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+input::placeholder{color:var(--muted-foreground)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1440px;margin:0 auto;padding:32px 40px 64px">
+
+<header data-screen-label="Impact header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><a href="FlowGuard Control Room.dc.html" style="text-decoration:none">FlowGuard · Control Room</a> <span style="margin:0 6px">/</span> Impact</div>
+    <h1 style="margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em">Impact — Berth 3, this shift</h1>
+    <p style="margin:0;font-size:15px;color:var(--muted-foreground)">Values read live from the running system. Nothing on this page is projected.</p>
+  </div>
+  <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);text-align:right">window <span style="color:var(--foreground)">06:00:00 — 09:44:07</span> · <span style="display:inline-block;width:2ch;text-align:right">11</span> decisions</div>
+</header>
+
+<!-- Figures -->
+<section data-screen-label="Figures" style="border-top:1px solid var(--border);display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px;padding:24px 0 32px">
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">Figures</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px 32px">
+    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--foreground);padding-top:8px"><span style="font-size:12px;color:var(--muted-foreground)">total decisions</span><span style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500">11</span></div>
+    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--foreground);padding-top:8px"><span style="font-size:12px;color:var(--muted-foreground)">premium granted</span><span style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500">7</span></div>
+    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--foreground);padding-top:8px"><span style="font-size:12px;color:var(--muted-foreground)">critical operations protected</span><span style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500">100<span style="font-size:20px;color:var(--muted-foreground)">%</span></span></div>
+    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--foreground);padding-top:8px"><span style="font-size:12px;color:var(--muted-foreground)">critical unprotected</span><span style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500">0</span></div>
+    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--foreground);padding-top:8px"><span style="font-size:12px;color:var(--muted-foreground)">critical correctly withheld <span style="font-family:var(--mono)">(network healthy)</span></span><span style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500">1</span></div>
+    <div style="display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--foreground);padding-top:8px"><span style="font-size:12px;color:var(--muted-foreground)">unnecessary allocation avoided</span><span style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500">3</span></div>
+  </div>
+</section>
+
+<!-- Centrepiece -->
+<section data-screen-label="Your cost" style="border-top:1px solid var(--border);display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px;padding:32px 0 40px">
+  <div style="display:flex;flex-direction:column;gap:24px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">In your money</div>
+    <p style="margin:0;font-size:12px;line-height:1.5;color:var(--muted-foreground);text-wrap:pretty;max-width:18ch">Caveat: this counts operations protected while genuinely at risk — not accidents prevented.</p>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:32px 64px;align-items:end">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label for="cost" style="font-size:15px;font-weight:500">Your cost of a stopped crane, per hour</label>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--foreground);padding-bottom:6px">
+        <input id="cost" type="text" inputMode="numeric" value="{{ costText }}" onChange="{{ onCost }}" spellCheck="{{ false }}" style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500;color:var(--foreground);background:transparent;border:0;outline:0;padding:0;width:12ch;font-variant-numeric:tabular-nums" style-focus="color:var(--primary)">
+        <span style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground)">/ hour</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span>type to change · your assumption, not ours · default 50,000</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:15px;font-weight:500">Crane time protected this shift, at your rate</div>
+      <div style="display:flex;align-items:baseline;gap:12px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+        <span style="font-family:var(--mono);font-size:44px;line-height:1;font-weight:500;color:var(--primary);display:inline-block;min-width:12ch;text-align:right">{{ moneyText }}</span>
+        <span style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground)">= 7 × <span style="display:inline-block;width:3ch;text-align:right">{{ secondsPerMove }}</span> s ÷ 3600 × <span style="display:inline-block;min-width:6ch">{{ costText }}</span></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span>recalculates as you type · 7 protected operations · 1 move ≈ <span style="display:inline-block;width:3ch;text-align:right">{{ secondsPerMove }}</span> s</div>
+    </div>
+  </div>
+</section>
+
+<!-- As moves -->
+<section data-screen-label="As moves" style="border-top:1px solid var(--border);display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px;padding:24px 0 32px">
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">As moves</div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <p style="margin:0;font-size:15px;max-width:72ch;text-wrap:pretty">A quay crane runs 25–40 moves per hour, so roughly 90 seconds is one move. Every protected operation is one lift that completed on a guaranteed uplink.</p>
+    <div style="display:grid;grid-template-columns:max-content max-content minmax(0,1fr);gap:4px 24px;font-family:var(--mono);font-size:13px;align-items:baseline">
+      <span style="color:var(--muted-foreground)">protected operations</span><span style="text-align:right;font-weight:500">7</span><span style="color:var(--muted-foreground)">moves</span>
+      <span style="color:var(--muted-foreground)">crane time under protection</span><span style="text-align:right;font-weight:500;display:inline-block;min-width:8ch">{{ protectedTime }}</span><span style="color:var(--muted-foreground)">at <span style="display:inline-block;width:3ch;text-align:right">{{ secondsPerMove }}</span> s per move</span>
+      <span style="color:var(--muted-foreground)">of a 32 moves/hour target</span><span style="text-align:right;font-weight:500;display:inline-block;min-width:8ch">{{ pctOfHour }}</span><span style="color:var(--muted-foreground)">of one crane-hour</span>
+    </div>
+  </div>
+</section>
+
+<!-- Distributions -->
+<section data-screen-label="Distributions" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px;padding:24px 0 32px">
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">Distribution</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:32px 64px">
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--foreground);padding-bottom:6px"><span style="font-size:15px;font-weight:500">by action</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">n = 11</span></div>
+      <sc-for list="{{ byAction }}" as="b" hint-placeholder-count="3">
+        <div style="display:grid;grid-template-columns:140px minmax(0,1fr) 3ch;gap:0 16px;align-items:center;border-bottom:1px solid var(--border);padding:10px 0">
+          <span style="font-family:var(--mono);font-size:13px;display:inline-flex;align-items:center;gap:8px">{{ b.glyph }}{{ b.label }}</span>
+          <span style="display:block;height:8px;background:var(--foreground);width:{{ b.width }}"></span>
+          <span style="font-family:var(--mono);font-size:13px;text-align:right;font-weight:500">{{ b.n }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--foreground);padding-bottom:6px"><span style="font-size:15px;font-weight:500">by criticality</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">n = 11</span></div>
+      <sc-for list="{{ byCrit }}" as="b" hint-placeholder-count="3">
+        <div style="display:grid;grid-template-columns:140px minmax(0,1fr) 3ch;gap:0 16px;align-items:center;border-bottom:1px solid var(--border);padding:10px 0">
+          <span style="font-family:var(--mono);font-size:13px;display:inline-flex;align-items:center;gap:8px">{{ b.glyph }}{{ b.label }}</span>
+          <span style="display:block;height:8px;background:var(--foreground);width:{{ b.width }}"></span>
+          <span style="font-family:var(--mono);font-size:13px;text-align:right;font-weight:500">{{ b.n }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;secondsPerMove&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:90,&quot;min&quot;:60,&quot;max&quot;:150,&quot;step&quot;:5,&quot;unit&quot;:&quot;s&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Assumptions&quot;}}">
+class Component extends DCLogic {
+  state = { costText: '50,000' };
+  glyph(kind) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+  }
+  fmt(n, d = 0) { return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const spm = Number(this.props.secondsPerMove ?? 90);
+    const protectedOps = 7;
+    const cost = Number(String(this.state.costText).replace(/[^\d.]/g, '')) || 0;
+    const hours = protectedOps * spm / 3600;
+    const money = cost * hours;
+    const secs = protectedOps * spm;
+    const bar = (label, n, total, kind) => ({ label, n, width: (n / total * 100).toFixed(1) + '%', glyph: this.glyph(kind) });
+    return {
+      rootClass: dark ? 'dark' : '',
+      secondsPerMove: spm,
+      costText: this.state.costText,
+      onCost: (e) => this.setState({ costText: e.target.value }),
+      moneyText: this.fmt(money, money < 1000 ? 2 : 0),
+      protectedTime: `${Math.floor(secs / 60)} min ${String(secs % 60).padStart(2, '0')} s`,
+      pctOfHour: this.fmt(hours * 100, 1) + ' %',
+      byAction: [bar('NONE', 4, 11, 'hollow'), bar('QOD', 1, 11, 'filled'), bar('QOD_AND_SLICE', 6, 11, 'filled')],
+      byCrit: [bar('HIGH', 7, 11, 'filled'), bar('MEDIUM', 1, 11, 'filled'), bar('LOW', 3, 11, 'hollow')],
+    };
+  }
+}
+</script>
+</body>
+</html>

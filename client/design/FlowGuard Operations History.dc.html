@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1440px;margin:0 auto;padding:32px 40px 64px">
+
+<header data-screen-label="History header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><a href="FlowGuard Control Room.dc.html" style="text-decoration:none">FlowGuard · Control Room</a> <span style="margin:0 6px">/</span> Operations History</div>
+    <h1 style="margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em">Operations History</h1>
+    <p style="margin:0;font-size:15px;color:var(--muted-foreground);max-width:72ch;text-wrap:pretty">Every operation the system has decided on, newest first. Each row opens its decision trail.</p>
+  </div>
+  <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);text-align:right">Khalifa Bin Salman Port — Berth 3 · <span style="display:inline-block;width:2ch;text-align:right">11</span> operations</div>
+</header>
+
+<!-- Filters -->
+<nav data-screen-label="Filters" style="border-top:1px solid var(--border);display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px;padding:12px 0">
+  <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:3px">filter</span>
+  <div style="display:flex;flex-wrap:wrap;gap:0 28px;font-size:15px">
+    <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+      <button onClick="{{ f.onClick }}" style="font-family:var(--sans);font-size:15px;background:transparent;border:0;padding:0 0 2px;cursor:pointer;display:inline-flex;align-items:baseline;gap:8px;color:{{ f.color }};font-weight:{{ f.weight }};border-bottom:1px solid {{ f.underline }}">{{ f.glyph }}<span>{{ f.label }}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);display:inline-block;width:2ch;text-align:right">{{ f.count }}</span></button>
+    </sc-for>
+  </div>
+</nav>
+
+<!-- Table -->
+<section data-screen-label="History table" style="border-top:1px solid var(--border)">
+  <div style="display:grid;grid-template-columns:88px minmax(164px,1.1fr) 92px 104px 72px minmax(0,1.2fr) 64px 60px;gap:0 12px;padding:12px 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <span>time</span><span>operation</span><span>device</span><span>criticality</span><span>congestion</span><span>action</span><span style="text-align:right">duration</span><span style="text-align:right">released</span>
+  </div>
+  <sc-for list="{{ rows }}" as="r" hint-placeholder-count="11">
+    <a href="{{ r.href }}" style="text-decoration:none;color:inherit;display:grid;grid-template-columns:88px minmax(164px,1.1fr) 92px 104px 72px minmax(0,1.2fr) 64px 60px;gap:0 12px;align-items:baseline;border-top:1px solid var(--border);padding:12px 0;font-family:var(--mono);font-size:13px" style-hover="color:var(--primary)">
+      <span style="font-size:12px;color:var(--muted-foreground)">{{ r.time }}</span>
+      <span style="font-weight:500;overflow-wrap:anywhere">{{ r.op }}</span>
+      <span>{{ r.device }}</span>
+      <span style="display:inline-flex;align-items:center;gap:8px">{{ r.critGlyph }}{{ r.crit }} <span style="color:var(--muted-foreground)">{{ r.conf }}</span></span>
+      <span>{{ r.congestion }}</span>
+      <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="display:inline-flex;align-items:center;gap:8px">{{ r.actGlyph }}{{ r.action }}</span><sc-if value="{{ r.hasNote }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-foreground);text-wrap:pretty">{{ r.note }}</span></sc-if></span>
+      <span style="text-align:right;display:inline-block;width:100%">{{ r.duration }}</span>
+      <span style="text-align:right;display:inline-block;width:100%">{{ r.released }}</span>
+    </a>
+  </sc-for>
+  <div style="border-top:1px solid var(--border)"></div>
+</section>
+
+<!-- Annotation -->
+<section data-screen-label="Annotation" style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px;padding:16px 0 0">
+  <span></span>
+  <div style="display:flex;flex-direction:column;gap:6px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>left alone · correct restraint — LOW criticality under High congestion. Congestion alone never allocates.</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span><i style="display:inline-block;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)"></i>left alone · network healthy — HIGH criticality but Low congestion. Nothing was needed; this is the system working, not a miss.</div>
+  </div>
+</section>
+
+<footer data-screen-label="Pagination" style="border-top:1px solid var(--border);margin-top:32px;padding-top:12px;display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:0 16px;font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">
+  <span>page 1</span>
+  <span>showing <span style="display:inline-block;width:2ch;text-align:right;color:var(--foreground)">{{ shown }}</span> of <span style="display:inline-block;width:2ch;text-align:right;color:var(--foreground)">11</span> operations{{ filterSuffix }}</span>
+  <span>oldest 00:58:47 · newest 02:14:07</span>
+</footer>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = { filter: 'all' };
+  glyph(kind) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    if (kind === 'hollow') return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+    return React.createElement('i', { style: { ...base, background: 'linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)' } });
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const data = [
+      ['02:14:07','move-2-30377efc','crane-a','HIGH','0.94','High','QOD_AND_SLICE','3m 04s','yes'],
+      ['02:11:52','move-1-a7fe7e7b','crane-a','LOW','0.92','High','NONE','—','—','restraint'],
+      ['01:58:20','drone-3-leak','drone-3','HIGH','0.91','High','QOD_AND_SLICE','2m 41s','yes'],
+      ['01:57:50','drone-3-routine','drone-3','LOW','0.88','High','NONE','—','—','restraint'],
+      ['01:44:11','crane-lift-a392-6b2f','crane-a','HIGH','0.94','High','QOD_AND_SLICE','3m 00s','yes'],
+      ['01:39:02','ambulance-1-inbound','ambulance-1','HIGH','0.96','Medium','QOD_AND_SLICE','4m 12s','yes'],
+      ['01:31:44','move-4-c81a2d90','crane-b','HIGH','0.89','High','QOD_AND_SLICE','2m 55s','yes'],
+      ['01:22:18','move-3-f4e07b11','crane-b','MEDIUM','0.71','High','QOD','2m 30s','yes'],
+      ['01:15:06','survey-drone-2-map','drone-2','LOW','0.85','Medium','NONE','—','—'],
+      ['01:09:33','inspect-riser-7','drone-1','HIGH','0.90','Low','NONE','—','—','healthy'],
+      ['00:58:47','gantry-reposition-b','crane-b','HIGH','0.87','High','QOD_AND_SLICE','2m 12s','yes'],
+    ].map(d => {
+      const [time, op, device, crit, conf, congestion, action, duration, released, tag] = d;
+      const protectedOp = action !== 'NONE';
+      const note = tag === 'restraint' ? 'left alone · correct restraint' : tag === 'healthy' ? 'left alone · network healthy — not a miss' : '';
+      return { time, op, device, crit, conf, congestion, action, duration, released, tag,
+        protectedOp, critical: crit === 'HIGH', hasNote: !!note, note,
+        critGlyph: this.glyph(crit === 'HIGH' ? 'filled' : 'hollow'),
+        actGlyph: this.glyph(protectedOp ? 'filled' : tag === 'healthy' ? 'slash' : 'hollow'),
+        href: op === 'move-2-30377efc' ? 'FlowGuard Decision Trail.dc.html' : 'FlowGuard Decision Trail.dc.html#' + op };
+    });
+    const preds = { all: () => true, protected: r => r.protectedOp, 'left alone': r => !r.protectedOp, 'safety-critical': r => r.critical };
+    const f = this.state.filter;
+    const rows = data.filter(preds[f]);
+    const filters = Object.keys(preds).map(k => {
+      const active = k === f;
+      return { label: k, count: data.filter(preds[k]).length, onClick: () => this.setState({ filter: k }),
+        color: active ? 'var(--primary)' : 'var(--foreground)', weight: active ? 500 : 400,
+        underline: active ? 'var(--primary)' : 'transparent', glyph: this.glyph(active ? 'filled' : 'hollow') };
+    });
+    return { rootClass: dark ? 'dark' : '', rows, filters, shown: rows.length, filterSuffix: f === 'all' ? '' : ` · filter ${f}` };
+  }
+}
+</script>
+</body>
+</html>

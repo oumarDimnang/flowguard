@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1440px;margin:0 auto;padding:32px 40px 64px">
+
+<!-- Header -->
+<header data-screen-label="Trail header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><a href="FlowGuard Control Room.dc.html" style="text-decoration:none">FlowGuard · Control Room</a> <span style="margin:0 6px">/</span> Decision Trail</div>
+    <h1 style="margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em;font-family:var(--mono)">move-2-30377efc</h1>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,max-content));gap:4px 32px;padding-top:8px">
+      <div style="display:flex;flex-direction:column"><span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">crane</span><span style="font-family:var(--mono);font-size:15px">crane-a</span></div>
+      <div style="display:flex;flex-direction:column"><span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">container</span><span style="font-family:var(--mono);font-size:15px">MAEU7391024</span></div>
+      <div style="display:flex;flex-direction:column"><span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">workflow</span><span style="font-family:var(--mono);font-size:15px">operation-move-2-30377efc</span></div>
+      <div style="display:flex;flex-direction:column"><span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">status</span><span style="font-family:var(--mono);font-size:15px;display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>COMPLETED</span></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+    <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);text-align:right"><span style="display:inline-block;width:1ch">7</span> steps · <span style="display:inline-block;width:1ch">3</span> network receipts · elapsed <span style="display:inline-block;width:9ch;text-align:right">96.424 s</span></div>
+    <div style="display:flex;gap:12px">
+      <button onClick="{{ toggleAll }}" style="font-family:var(--sans);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px;cursor:pointer" style-hover="border-color:var(--foreground)">{{ allLabel }}</button>
+      <button onClick="{{ toggleRaw }}" style="font-family:var(--sans);font-size:13px;font-weight:500;color:{{ rawBtnColor }};background:transparent;border:1px solid {{ rawBtnBorder }};border-radius:var(--radius);padding:6px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:{{ rawGlyphBg }};border:1px solid currentColor;box-sizing:border-box"></i>Raw execution</button>
+    </div>
+  </div>
+</header>
+
+<!-- Raw execution (Temporal) -->
+<sc-if value="{{ rawOpen }}" hint-placeholder-val="{{ true }}">
+<section data-screen-label="Raw execution" style="border-top:1px solid var(--border);padding:24px 0;display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px">
+  <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:2px">Temporal</div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="font-size:15px;font-weight:600">Authoritative record.</span><span style="color:var(--muted-foreground)">The trail below is a projection derived from this workflow history. Where they disagree, this record wins.</span></div>
+    <div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 24px;font-family:var(--mono);font-size:12px;max-width:760px">
+      <span style="color:var(--muted-foreground)">workflowId</span><span>operation-move-2-30377efc</span>
+      <span style="color:var(--muted-foreground)">runId</span><span>7c1e5a2b-3f0d-4e8a-9b61-2d4f8c0a11e9</span>
+      <span style="color:var(--muted-foreground)">status</span><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>COMPLETED</span>
+      <span style="color:var(--muted-foreground)">startedAt</span><span>2026-09-05T09:42:30.988Z</span>
+      <span style="color:var(--muted-foreground)">closedAt</span><span>2026-09-05T09:44:07.412Z</span>
+      <span style="color:var(--muted-foreground)">taskQueue</span><span>flowguard-ops</span>
+      <span style="color:var(--muted-foreground)">historyLength</span><span>41 events</span>
+    </div>
+  </div>
+</section>
+</sc-if>
+
+<!-- Trail -->
+<section data-screen-label="Trail" style="border-top:1px solid var(--border)">
+  <div style="display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:12px 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <span>time</span><span></span><span>step</span><span></span>
+  </div>
+
+  <!-- 1 DEVICE_CHECKED -->
+  <article data-screen-label="1 DEVICE_CHECKED" style="border-top:1px solid var(--border);display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:14px 0">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:3px">09:42:31.042</span>
+    <span style="padding-top:8px"><i style="display:block;width:8px;height:8px;background:currentColor"></i></span>
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div onClick="{{ t1 }}" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:0 16px;align-items:baseline"><span style="font-family:var(--mono);font-size:15px;font-weight:500">DEVICE_CHECKED</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">reachable <span style="color:var(--foreground)">true</span> · connectivity <span style="color:var(--foreground)">DATA</span></span></div>
+      <sc-if value="{{ o1 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 24px;font-family:var(--mono);font-size:12px">
+          <span style="color:var(--muted-foreground)">device</span><span>crane-a · +97336000482</span>
+          <span style="color:var(--muted-foreground)">reachable</span><span>true</span>
+          <span style="color:var(--muted-foreground)">connectivity</span><span>DATA</span>
+          <span style="color:var(--muted-foreground)">radio</span><span>5G SA · cell 3</span>
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ t1 }}" style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:right;align-self:start">{{ g1 }}</button>
+  </article>
+
+  <!-- 2 CONGESTION_CHECKED -->
+  <article data-screen-label="2 CONGESTION_CHECKED" style="border-top:1px solid var(--border);display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:14px 0">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:3px">09:42:31.118</span>
+    <span style="padding-top:8px"><i style="display:block;width:8px;height:8px;background:currentColor"></i></span>
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div onClick="{{ t2 }}" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:0 16px;align-items:baseline"><span style="font-family:var(--mono);font-size:15px;font-weight:500">CONGESTION_CHECKED</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">congestion <span style="color:var(--foreground)">High</span> · <span style="color:var(--foreground)">predicted</span> · confidence <span style="color:var(--foreground)">0.82</span></span></div>
+      <sc-if value="{{ o2 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Network receipt</div>
+          <div style="font-family:var(--mono);font-size:12px;display:grid;grid-template-columns:5ch minmax(0,1fr) 8ch 12ch;gap:0 16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px 0"><span style="font-weight:500">POST</span><span>/congestion-insights/v0/query</span><span style="text-align:right">128 ms</span><span style="text-align:right">200 OK</span></div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px;font-family:var(--mono);font-size:12px;line-height:1.6">
+            <div><div style="color:var(--muted-foreground);padding-bottom:4px">request</div><pre style="margin:0;font:inherit;white-space:pre-wrap">{ "device": { "phoneNumber": "+97336000482" },
+  "start": "2026-09-05T09:42:00Z",
+  "end":   "2026-09-05T09:47:00Z" }</pre></div>
+            <div><div style="color:var(--muted-foreground);padding-bottom:4px">response</div><pre style="margin:0;font:inherit;white-space:pre-wrap">[ { "timeIntervalStart": "2026-09-05T09:42:00Z",
+    "timeIntervalStop":  "2026-09-05T09:47:00Z",
+    "congestionLevel": "High",
+    "confidenceLevel": 82 } ]</pre></div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ t2 }}" style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:right;align-self:start">{{ g2 }}</button>
+  </article>
+
+  <!-- 3 CRITICALITY_ASSESSED -->
+  <article data-screen-label="3 CRITICALITY_ASSESSED" style="border-top:1px solid var(--border);display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:14px 0 32px">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:3px">09:42:31.204</span>
+    <span style="padding-top:8px"><i style="display:block;width:8px;height:8px;background:currentColor"></i></span>
+    <div style="display:flex;flex-direction:column;gap:24px;min-width:0">
+      <div onClick="{{ t3 }}" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:0 16px;align-items:baseline"><span style="font-family:var(--mono);font-size:15px;font-weight:500">CRITICALITY_ASSESSED</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">verdict <span style="color:var(--foreground)">HIGH</span> · confidence <span style="color:var(--foreground)">0.94</span> · <span style="color:var(--foreground)">safety-critical</span> · model <span style="color:var(--foreground)">openai/gpt-5.6-luna</span></span></div>
+      <sc-if value="{{ o3 }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:32px">
+
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 24px">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:6px">Reasoning · verbatim</div>
+            <p style="margin:0;font-size:20px;line-height:1.5;font-weight:400;max-width:62ch;text-wrap:pretty">This lift is safety-critical because the load is 40.1 tonnes and its path crosses an active quay walkway. The operator is driving from the control room on a live uplink video feed, and interrupting that feed mid-lift cannot be undone safely.</p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 24px">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">Graph path</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0;font-family:var(--mono);font-size:13px">
+                <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>classify</span>
+                <span style="display:inline-block;width:40px;height:1px;background:var(--foreground);margin:0 8px"></span>
+                <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>gather_evidence</span>
+                <span style="display:inline-block;width:40px;height:1px;background:var(--foreground);margin:0 8px"></span>
+                <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>classify</span>
+                <span style="display:inline-block;width:40px;height:1px;background:var(--foreground);margin:0 8px"></span>
+                <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>validate</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span>looped once · classify ran twice · second pass had the device location in hand</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 24px">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">Tool calls · toolbox</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:32px 48px;align-items:start">
+
+              <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+                <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline"><span style="font-family:var(--mono);font-size:13px;font-weight:500">1 call</span><span style="color:var(--muted-foreground)">chosen by the model itself during gather_evidence. Nothing in the prompt asked for it.</span></div>
+                <div style="border-top:1px solid var(--border);padding-top:10px;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 24px;font-family:var(--mono);font-size:12px;line-height:1.6">
+                  <span style="color:var(--muted-foreground)">tool</span><span style="display:inline-flex;align-items:center;gap:8px;font-weight:500"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>retrieve_device_location</span>
+                  <span style="color:var(--muted-foreground)">arguments</span><pre style="margin:0;font:inherit;white-space:pre-wrap">{ "device": { "phoneNumber": "+97336000482" },
+  "maxAge": 60 }</pre>
+                  <span style="color:var(--muted-foreground)">result</span><pre style="margin:0;font:inherit;white-space:pre-wrap">{ "lastLocationTime": "2026-09-05T09:42:31Z",
+  "area": { "areaType": "CIRCLE",
+            "center": { "latitude": 26.1876, "longitude": 50.6104 },
+            "radius": 35 } }</pre>
+                  <span style="color:var(--muted-foreground)">latency</span><span>212 ms</span>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:0;min-width:0">
+                <div style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;padding-bottom:12px"><span style="font-family:var(--mono);font-size:13px;font-weight:500">Complete toolbox</span><span style="color:var(--muted-foreground)">every tool the model could reach</span></div>
+                <div style="display:grid;grid-template-columns:max-content minmax(180px,1fr);gap:0 24px;border-top:1px solid var(--foreground)">
+                  <div style="display:flex;flex-direction:column;gap:0;padding-top:8px">
+                    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;display:flex;justify-content:space-between"><span>Read</span><span style="color:var(--muted-foreground)">4</span></div>
+                    <div style="display:flex;flex-direction:column;gap:6px;padding-top:10px;font-family:var(--mono);font-size:12px">
+                      <span style="display:inline-flex;align-items:center;gap:8px;color:var(--muted-foreground)"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>verify_device_location</span>
+                      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:500"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>retrieve_device_location</span>
+                      <span style="display:inline-flex;align-items:center;gap:8px;color:var(--muted-foreground)"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>check_device_status</span>
+                      <span style="display:inline-flex;align-items:center;gap:8px;color:var(--muted-foreground)"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>check_network_congestion</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;padding-top:16px">
+                      <span style="display:block;width:1px;height:20px;background:var(--muted-foreground)"></span>
+                      <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);text-wrap:pretty;max-width:22ch">■ used · □ available, not called · observation only</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:0;padding-top:8px;border-left:1px solid var(--border);padding-left:24px">
+                    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;display:flex;justify-content:space-between"><span>Write</span><span style="color:var(--muted-foreground)">0</span></div>
+                    <div style="padding-top:10px;font-family:var(--mono);font-size:12px;color:var(--muted-foreground);display:flex;flex-direction:column;gap:6px">
+                      <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)"></i>— none —</span>
+                      <span style="display:inline-flex;align-items:center;gap:8px;visibility:hidden"><i style="display:inline-block;width:8px;height:8px"></i>spacer</span>
+                      <span style="display:inline-flex;align-items:center;gap:8px;visibility:hidden"><i style="display:inline-block;width:8px;height:8px"></i>spacer</span>
+                      <span style="display:inline-flex;align-items:center;gap:8px;visibility:hidden"><i style="display:inline-block;width:8px;height:8px"></i>spacer</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;padding-top:16px">
+                      <span style="display:block;width:1px;height:20px;background:var(--foreground)"></span>
+                      <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;text-wrap:pretty">The model has no mechanism to allocate.</span>
+                      <span style="font-size:12px;color:var(--muted-foreground);text-wrap:pretty">It can only recommend. Allocation happens in DECIDED → ALLOCATED, by a rule, outside the model.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ t3 }}" style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:right;align-self:start">{{ g3 }}</button>
+  </article>
+
+  <!-- 4 DECIDED -->
+  <article data-screen-label="4 DECIDED" style="border-top:1px solid var(--border);display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:14px 0">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:3px">09:42:32.310</span>
+    <span style="padding-top:8px"><i style="display:block;width:8px;height:8px;background:currentColor"></i></span>
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div onClick="{{ t4 }}" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:0 16px;align-items:baseline"><span style="font-family:var(--mono);font-size:15px;font-weight:500">DECIDED</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">action <span style="color:var(--foreground)">QOD_AND_SLICE</span> · rule <span style="color:var(--foreground)">SAFETY_CRITICAL_CONGESTED_SLICE</span></span></div>
+      <sc-if value="{{ o4 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 24px;font-family:var(--mono);font-size:12px">
+          <span style="color:var(--muted-foreground)">action</span><span>QOD_AND_SLICE</span>
+          <span style="color:var(--muted-foreground)">rule</span><span>SAFETY_CRITICAL_CONGESTED_SLICE</span>
+          <span style="color:var(--muted-foreground)">inputs</span><span>criticality HIGH · safetyCritical true · congestion High</span>
+          <span style="color:var(--muted-foreground)">decided at</span><span>1.322 s of 2.000 s window</span>
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ t4 }}" style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:right;align-self:start">{{ g4 }}</button>
+  </article>
+
+  <!-- 5 ALLOCATED -->
+  <article data-screen-label="5 ALLOCATED" style="border-top:1px solid var(--border);display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:14px 0">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:3px">09:42:32.655</span>
+    <span style="padding-top:8px"><i style="display:block;width:8px;height:8px;background:currentColor"></i></span>
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div onClick="{{ t5 }}" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:0 16px;align-items:baseline"><span style="font-family:var(--mono);font-size:15px;font-weight:500">ALLOCATED</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">session <span style="color:var(--foreground)">0b3fdcd0-dea0-46a6-acdd-78be028320af</span> · profile <span style="color:var(--foreground)">DOWNLINK_M_UPLINK_L</span> · duration <span style="color:var(--foreground)">180s</span></span></div>
+      <sc-if value="{{ o5 }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Network receipt</div>
+          <div style="font-family:var(--mono);font-size:12px;display:grid;grid-template-columns:5ch minmax(0,1fr) 8ch 12ch;gap:0 16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px 0"><span style="font-weight:500">POST</span><span>/quality-on-demand/v1/sessions</span><span style="text-align:right">340 ms</span><span style="text-align:right">201 Created</span></div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px;font-family:var(--mono);font-size:12px;line-height:1.6">
+            <div><div style="color:var(--muted-foreground);padding-bottom:4px">request</div><pre style="margin:0;font:inherit;white-space:pre-wrap">{ "device": { "phoneNumber": "+97336000482" },
+  "applicationServer": { "ipv4Address": "10.40.3.12" },
+  "qosProfile": "DOWNLINK_M_UPLINK_L",
+  "duration": 180,
+  "sink": "https://flowguard.local/callbacks/qod" }</pre></div>
+            <div><div style="color:var(--muted-foreground);padding-bottom:4px">response</div><pre style="margin:0;font:inherit;white-space:pre-wrap">{ "sessionId": "0b3fdcd0-dea0-46a6-acdd-78be028320af",
+  "qosStatus": "REQUESTED",
+  "qosProfile": "DOWNLINK_M_UPLINK_L",
+  "duration": 180,
+  "startedAt": "2026-09-05T09:42:32Z" }</pre></div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ t5 }}" style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:right;align-self:start">{{ g5 }}</button>
+  </article>
+
+  <!-- 6 QOS_STATUS_CHANGED -->
+  <article data-screen-label="6 QOS_STATUS_CHANGED" style="border-top:1px solid var(--border);display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:14px 0">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:3px">09:42:32.998</span>
+    <span style="padding-top:8px"><i style="display:block;width:8px;height:8px;background:currentColor"></i></span>
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div onClick="{{ t6 }}" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:0 16px;align-items:baseline"><span style="font-family:var(--mono);font-size:15px;font-weight:500">QOS_STATUS_CHANGED</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="color:var(--foreground)">REQUESTED</span> → <span style="color:var(--foreground)">AVAILABLE</span></span></div>
+      <sc-if value="{{ o6 }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">Network receipt · attachment confirmed after status flip</div>
+          <div style="font-family:var(--mono);font-size:12px;display:grid;grid-template-columns:5ch minmax(0,1fr) 8ch 12ch;gap:0 16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px 0"><span style="font-weight:500">GET</span><span>/device-attach/v0/attachments</span><span style="text-align:right">210 ms</span><span style="text-align:right">200 OK</span></div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px;font-family:var(--mono);font-size:12px;line-height:1.6">
+            <div><div style="color:var(--muted-foreground);padding-bottom:4px">request</div><pre style="margin:0;font:inherit;white-space:pre-wrap">?device=%2B97336000482
+&sliceId=slice-quay-ops-01</pre></div>
+            <div><div style="color:var(--muted-foreground);padding-bottom:4px">response</div><pre style="margin:0;font:inherit;white-space:pre-wrap">{ "attachments": [ { "id": "att-4d21",
+    "sliceId": "slice-quay-ops-01",
+    "status": "ATTACHED",
+    "attachedAt": "2026-09-05T09:42:32Z" } ] }</pre></div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ t6 }}" style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:right;align-self:start">{{ g6 }}</button>
+  </article>
+
+  <!-- 7 RELEASED -->
+  <article data-screen-label="7 RELEASED" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:grid;grid-template-columns:120px 24px minmax(0,1fr) 40px;gap:0 16px;padding:14px 0">
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);padding-top:3px">09:44:07.412</span>
+    <span style="padding-top:8px"><i style="display:block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i></span>
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div onClick="{{ t7 }}" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:0 16px;align-items:baseline"><span style="font-family:var(--mono);font-size:15px;font-weight:500">RELEASED</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">qodReleased <span style="color:var(--foreground)">true</span> · sliceDetached <span style="color:var(--foreground)">true</span></span></div>
+      <sc-if value="{{ o7 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 24px;font-family:var(--mono);font-size:12px">
+          <span style="color:var(--muted-foreground)">trigger</span><span>LANDING confirmed by crane-a PLC</span>
+          <span style="color:var(--muted-foreground)">qodReleased</span><span>true · DELETE /quality-on-demand/v1/sessions/0b3fdcd0… · 96 ms</span>
+          <span style="color:var(--muted-foreground)">sliceDetached</span><span>true · att-4d21</span>
+          <span style="color:var(--muted-foreground)">held for</span><span>94.757 s of 180 s requested · holdings 1 → 0</span>
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ t7 }}" style="font-family:var(--mono);font-size:15px;color:var(--muted-foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:right;align-self:start">{{ g7 }}</button>
+  </article>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;rawExecution&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;}}">
+class Component extends DCLogic {
+  state = { open: { 3: true, 5: true, 6: true }, raw: null };
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const raw = this.state.raw ?? (this.props.rawExecution ?? true);
+    const o = this.state.open;
+    const vals = { rootClass: dark ? 'dark' : '', rawOpen: raw,
+      toggleRaw: () => this.setState({ raw: !raw }),
+      rawBtnColor: raw ? 'var(--primary)' : 'var(--foreground)',
+      rawBtnBorder: raw ? 'var(--primary)' : 'var(--border)',
+      rawGlyphBg: raw ? 'currentColor' : 'transparent' };
+    const allOpen = [1,2,3,4,5,6,7].every(i => o[i]);
+    vals.allLabel = allOpen ? 'Collapse all' : 'Expand all';
+    vals.toggleAll = () => { const n = {}; [1,2,3,4,5,6,7].forEach(i => n[i] = !allOpen); this.setState({ open: n }); };
+    for (let i = 1; i <= 7; i++) {
+      vals['o' + i] = !!o[i];
+      vals['g' + i] = o[i] ? '−' : '+';
+      vals['t' + i] = () => this.setState(s => ({ open: { ...s.open, [i]: !s.open[i] } }));
+    }
+    return vals;
+  }
+}
+</script>
+</body>
+</html>

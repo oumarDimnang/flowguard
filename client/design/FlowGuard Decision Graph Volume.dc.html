@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--void:oklch(0.16 0.008 95);--void-deep:oklch(0.11 0.006 95);--ink:oklch(0.88 0.012 93);--ink-dim:oklch(0.62 0.010 95);--agent:oklch(0.70 0.150 40);--agent-glow:oklch(0.62 0.170 42);--machine:oklch(0.82 0.030 220);--edge:oklch(0.40 0.010 95);--danger:oklch(0.64 0.208 25);--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+html,body{margin:0;padding:0;background:var(--void)}
+a{color:var(--ink)}a:hover{color:var(--agent)}
+button:focus-visible{outline:1px solid var(--ink);outline-offset:6px}
+@keyframes fg-breathe{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.06);filter:brightness(1.12)}}
+@keyframes fg-travel{from{left:0%}to{left:100%}}
+@keyframes fg-orbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.fg-anim{animation:none !important}}
+</style>
+</helmet>
+<div style="background:var(--void);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1440px;margin:0 auto;padding:28px 40px 40px;display:flex;flex-direction:column">
+
+<header data-screen-label="Header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:16px">
+  <div style="display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)"><a href="FlowGuard Control Room.dc.html" style="text-decoration:none">FlowGuard</a> <span style="margin:0 6px">/</span> Decision Graph</div>
+    <h1 style="margin:0;font-size:24px;font-weight:500;line-height:1.2;font-family:var(--mono)">move-2-30377efc</h1>
+    <div style="display:flex;flex-wrap:wrap;gap:0 12px;font-size:14px;color:var(--ink-dim)"><span>crane <span style="font-family:var(--mono);color:var(--ink)">crane-a</span></span><span>·</span><span>container <span style="font-family:var(--mono);color:var(--ink)">MAEU7391024</span> — <span style="font-family:var(--mono);color:var(--ink)">40,100 kg</span>, IMDG class 3, over an active walkway</span></div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-family:var(--mono);font-size:12px;color:var(--ink-dim)">
+    <span>duration <span style="color:var(--ink)">0m 25s</span></span>
+    <span style="display:inline-flex;align-items:center;gap:16px"><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 30%,oklch(0.9 0.1 45),var(--agent) 45%,oklch(0.4 0.12 40) 100%)"></i><span style="color:var(--ink)">4</span> agent decisions</span><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--machine) 40%,oklch(0.35 0.03 220) 100%)"></i><span style="color:var(--ink)">7</span> deterministic steps</span></span>
+  </div>
+</header>
+
+<div data-screen-label="Controls" style="border-top:1px solid var(--edge);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 24px;padding:10px 0;font-family:var(--mono);font-size:11px;color:var(--ink-dim)">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0 20px">
+    <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 30%,oklch(0.9 0.1 45),var(--agent) 45%,oklch(0.4 0.12 40) 100%);box-shadow:0 0 8px 2px oklch(0.62 0.17 42 / 0.5)"></i>agent-decided</span>
+    <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--machine) 40%,oklch(0.35 0.03 220) 100%)"></i>deterministic</span>
+    <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;border:1px solid var(--edge);box-sizing:border-box"></i>untaken · unlit</span>
+    <span style="display:inline-flex;align-items:center;gap:8px"><span style="display:inline-block;width:20px;height:1px;background:var(--machine)"></span>path taken</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0 20px">
+    <span>drag to orbit · scroll to dolly · arrows · enter · esc</span>
+    <button onClick="{{ replay }}" style="font:inherit;color:var(--ink);background:transparent;border:1px solid var(--edge);border-radius:4px;padding:4px 10px;cursor:pointer;min-width:14ch" style-hover="border-color:var(--ink-dim)">{{ replayLabel }}</button>
+    <button onClick="{{ resetView }}" style="font:inherit;color:var(--ink);background:transparent;border:1px solid var(--edge);border-radius:4px;padding:4px 10px;cursor:pointer" style-hover="border-color:var(--ink-dim)">reset view</button>
+  </div>
+</div>
+
+<div style="border-top:1px solid var(--edge);display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,22%)">
+  <div data-screen-label="Viewport" ref="{{ viewportRef }}" tabIndex="{{ 0 }}" onKeyDown="{{ onKey }}" style="position:relative;height:640px;perspective:1200px;perspective-origin:50% 45%;cursor:grab;outline:none;user-select:none;touch-action:none;overflow:clip;background:radial-gradient(ellipse at 50% 40%,var(--void) 0%,var(--void-deep) 100%);isolation:isolate">
+    <div ref="{{ sceneRef }}" style="position:absolute;left:50%;top:60%;width:0;height:0;transform-style:preserve-3d;transform:scale3d(var(--k,1),var(--k,1),var(--k,1)) rotateX(var(--rx,14deg)) rotateY(var(--ry,-24deg))">
+      <!-- starfield -->
+      <sc-for list="{{ stars }}" as="s" hint-placeholder-count="3">
+        <div style="position:absolute;left:-1400px;top:-1000px;width:2800px;height:2000px;transform:translate3d(0,0,{{ s.z }}px);background-image:{{ s.bg }};pointer-events:none"></div>
+      </sc-for>
+      <!-- straight edges -->
+      <sc-for list="{{ edges }}" as="e" hint-placeholder-count="14">
+        <div style="position:absolute;left:0;top:0;height:0;transform-origin:0 0;width:{{ e.len }}px;transform:{{ e.transform }};border-top:{{ e.border }}">
+          <sc-if value="{{ e.pulse }}" hint-placeholder-val="{{ false }}">
+            <div class="fg-anim" style="position:absolute;top:-2px;left:0;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:{{ e.pulseColor }};box-shadow:0 0 6px 1px {{ e.pulseColor }};animation:fg-travel {{ e.dur }} linear infinite;animation-delay:{{ e.delay }}"></div>
+          </sc-if>
+        </div>
+      </sc-for>
+      <!-- curved loop edge in plane B -->
+      <div style="position:absolute;left:0;top:0;transform:translate3d(-400px,-450px,-300px)">
+        <svg width="800" height="500" viewBox="0 0 800 500" style="display:block;overflow:visible">
+          <path d="M 290 160 Q 30 100 140 280" fill="none" stroke="oklch(0.70 0.15 40 / 0.6)" stroke-width="1"></path>
+          <circle r="2.5" fill="var(--agent)" style="filter:drop-shadow(0 0 4px var(--agent-glow))"><animateMotion dur="3.2s" repeatCount="indefinite" path="M 290 160 Q 30 100 140 280"></animateMotion></circle>
+        </svg>
+      </div>
+      <!-- loop label -->
+      <div style="position:absolute;left:0;top:0;transform:translate3d(-290px,-330px,-300px);transform-style:preserve-3d"><div style="transform:rotateY(calc(-1 * var(--ry,-24deg))) rotateX(calc(-1 * var(--rx,14deg))) translate(-50%,-50%) scale(var(--ik,1));font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--agent);white-space:nowrap">re-classify with evidence</div></div>
+      <!-- plane callouts -->
+      <sc-for list="{{ planes }}" as="p" hint-placeholder-count="3">
+        <div style="position:absolute;left:0;top:0;transform:{{ p.transform }};transform-style:preserve-3d"><div style="transform:rotateY(calc(-1 * var(--ry,-24deg))) rotateX(calc(-1 * var(--rx,14deg))) scale(var(--ik,1));transform-origin:0 0;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap;display:flex;flex-direction:column;gap:2px"><span style="display:block;width:20px;height:1px;background:var(--edge)"></span><span>{{ p.label }}</span><span style="color:var(--edge)">{{ p.sub }}</span></div></div>
+      </sc-for>
+      <!-- nodes -->
+      <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="16">
+        <div style="position:absolute;left:0;top:0;transform:translate3d({{ n.x }}px,{{ n.y }}px,{{ n.z }}px);transform-style:preserve-3d">
+          <div style="transform:rotateY(calc(-1 * var(--ry,-24deg))) rotateX(calc(-1 * var(--rx,14deg)));transform-style:preserve-3d">
+            <sc-if value="{{ n.ring }}" hint-placeholder-val="{{ false }}"><div class="fg-anim" style="position:absolute;left:{{ n.ringOff }}px;top:{{ n.ringOff }}px;width:{{ n.ringSize }}px;height:{{ n.ringSize }}px;border-radius:50%;border:1px solid oklch(0.70 0.15 40 / 0.35);border-top-color:transparent;pointer-events:none;animation:fg-orbit 14s linear infinite"></div></sc-if>
+            <button data-node="{{ n.id }}" aria-label="{{ n.aria }}" aria-pressed="{{ n.pressed }}" onClick="{{ n.onClick }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}" onFocus="{{ n.onEnter }}" onBlur="{{ n.onLeave }}" class="{{ n.cls }}" style="position:absolute;left:{{ n.off }}px;top:{{ n.off }}px;width:{{ n.size }}px;height:{{ n.size }}px;border-radius:50%;padding:0;cursor:pointer;background:{{ n.bg }};border:{{ n.borderCss }};box-shadow:{{ n.shadow }};filter:{{ n.filter }};outline:{{ n.outline }};outline-offset:6px;animation:{{ n.anim }};transition:filter .2s,box-shadow .2s"></button>
+            <div style="position:absolute;left:{{ n.labelLeft }}px;top:{{ n.labelTop }};bottom:{{ n.labelBottom }};width:200px;text-align:{{ n.align }};pointer-events:none;display:flex;flex-direction:{{ n.labelDir }};gap:0;transform:scale(var(--ik,1));transform-origin:{{ n.origin }}">
+              <span style="font-family:var(--mono);font-size:{{ n.nameSize }};font-weight:500;color:{{ n.nameColor }};white-space:nowrap">{{ n.name }}</span>
+              <span style="font-family:var(--mono);font-size:10px;color:{{ n.detailColor }};white-space:nowrap">{{ n.detail }}</span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <!-- vignette, outside the transformed subtree -->
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 45%,oklch(0.11 0.006 95 / 0.75) 100%)"></div>
+    <div style="position:absolute;left:16px;bottom:12px;font-family:var(--mono);font-size:11px;color:var(--ink-dim);pointer-events:none">rx <span style="display:inline-block;width:4ch;text-align:right;color:var(--ink)" ref="{{ rxRef }}">14</span>° · ry <span style="display:inline-block;width:4ch;text-align:right;color:var(--ink)" ref="{{ ryRef }}">-24</span>° · <span ref="{{ driftRef }}">drifting</span></div>
+  </div>
+
+  <aside data-screen-label="Inspector" style="border-left:1px solid var(--edge);padding:20px 0 20px 24px;display:flex;flex-direction:column;gap:18px;min-width:0;overflow:auto;max-height:640px;box-sizing:border-box">
+    <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)">node</div>
+        <div style="font-family:var(--mono);font-size:17px;font-weight:500;display:flex;align-items:center;gap:10px;overflow-wrap:anywhere">{{ selDot }}{{ sel.name }}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">{{ sel.statusText }}</div>
+      </div>
+      <div style="border-top:1px solid var(--ink-dim);padding-top:12px;display:flex;flex-direction:column;gap:4px">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)">who decided this</div>
+        <div style="font-size:17px;font-weight:600;color:{{ selWhoColor }}">{{ sel.who }}</div>
+        <p style="margin:0;color:var(--ink-dim);text-wrap:pretty">{{ sel.meaning }}</p>
+      </div>
+      <div style="border-top:1px solid var(--edge);padding-top:12px;display:flex;flex-direction:column;gap:4px">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)">what it did</div>
+        <p style="margin:0;text-wrap:pretty">{{ sel.did }}</p>
+      </div>
+      <div style="border-top:1px solid var(--edge);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)">payload</div>
+        <div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 16px;font-family:var(--mono);font-size:12px;line-height:1.6">
+          <sc-for list="{{ selPayload }}" as="kv" hint-placeholder-count="3"><span style="color:var(--ink-dim)">{{ kv.k }}</span><span style="overflow-wrap:anywhere">{{ kv.v }}</span></sc-for>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--edge);padding-top:12px;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 16px;font-family:var(--mono);font-size:12px">
+        <span style="color:var(--ink-dim)">when</span><span>{{ sel.at }}</span>
+        <sc-if value="{{ selIsAgent }}" hint-placeholder-val="{{ false }}"><span style="color:var(--ink-dim)">confidence</span><span>{{ sel.conf }}</span><span style="color:var(--ink-dim)">model</span><span>openai/gpt-5.6-luna</span></sc-if>
+      </div>
+      <sc-if value="{{ selIsAgent }}" hint-placeholder-val="{{ false }}">
+        <div style="border-top:1px solid var(--edge);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)">branches not taken</div>
+          <sc-for list="{{ selAlts }}" as="a" hint-placeholder-count="2"><div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 8px;align-items:baseline;font-size:12px"><span style="font-family:var(--mono);color:var(--ink);display:inline-flex;align-items:center;gap:6px"><i style="display:inline-block;width:6px;height:6px;border-radius:50%;border:1px solid var(--ink-dim);box-sizing:border-box"></i>{{ a.name }}</span><span style="color:var(--ink-dim)">{{ a.why }}</span></div></sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ selHasRule }}" hint-placeholder-val="{{ false }}">
+        <div style="border-top:1px solid var(--edge);padding-top:12px;display:flex;flex-direction:column;gap:4px">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)">rule that fired</div>
+          <div style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--machine);overflow-wrap:anywhere">SAFETY_CRITICAL_CONGESTED_SLICE</div>
+          <p style="margin:0;color:var(--ink-dim);text-wrap:pretty">Rule 7 of 8, first match in order. This branch was chosen by a pure function of the recorded inputs, not by the model. Same inputs, same rule, every run.</p>
+        </div>
+      </sc-if>
+      <button onClick="{{ deselect }}" style="align-self:flex-start;font-family:var(--sans);font-size:12px;color:var(--ink-dim);background:transparent;border:0;border-bottom:1px solid var(--edge);padding:0;cursor:pointer">Clear · Esc</button>
+    </sc-if>
+    <sc-if value="{{ noSel }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)">inspector</div>
+        <p style="margin:0;font-size:15px;text-wrap:pretty">Select a sphere to read who decided it, what it did, and its payload.</p>
+      </div>
+      <div style="border-top:1px solid var(--ink-dim);padding-top:12px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:flex-start;gap:12px"><i style="display:inline-block;width:18px;height:18px;border-radius:50%;flex:none;margin-top:2px;background:radial-gradient(circle at 35% 30%,oklch(0.9 0.1 45),var(--agent) 45%,oklch(0.4 0.12 40) 100%);box-shadow:0 0 12px 3px oklch(0.62 0.17 42 / 0.45)"></i><div><div style="font-weight:600;color:var(--agent)">Agent-decided</div><div style="color:var(--ink-dim);text-wrap:pretty">Larger, warm, breathing. The model chose this path; it differs run to run.</div></div></div>
+        <div style="display:flex;align-items:flex-start;gap:12px"><i style="display:inline-block;width:12px;height:12px;border-radius:50%;flex:none;margin:5px 3px 0;background:radial-gradient(circle at 35% 30%,#fff,var(--machine) 40%,oklch(0.35 0.03 220) 100%)"></i><div><div style="font-weight:600;color:var(--machine)">Deterministic</div><div style="color:var(--ink-dim);text-wrap:pretty">Small, cool, still. Machined beacons on a rail. Identical every run.</div></div></div>
+        <div style="display:flex;align-items:flex-start;gap:12px"><i style="display:inline-block;width:14px;height:14px;border-radius:50%;flex:none;margin:4px 2px 0;border:1px solid var(--edge);box-sizing:border-box"></i><div><div style="font-weight:600">Untaken</div><div style="color:var(--ink-dim);text-wrap:pretty">A ring where a sphere would be. Present, dark.</div></div></div>
+      </div>
+      <div style="border-top:1px solid var(--edge);padding-top:12px;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 16px;font-family:var(--mono);font-size:12px">
+        <span style="color:var(--ink-dim)">z 0</span><span>deterministic rail</span>
+        <span style="color:var(--ink-dim)">z −300</span><span>agent reasoning</span>
+        <span style="color:var(--ink-dim)">z −520</span><span>evidence &amp; toolbox</span>
+      </div>
+    </sc-if>
+  </aside>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;padding-top:12px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)"><span style="display:inline-block;width:24px;height:1px;background:var(--edge)"></span>the model chooses what to look at · deterministic code chooses what to do · the empty WRITE TOOLS socket is why</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { sel: null, hover: null, replayIdx: -1 };
+  viewportRef = React.createRef(); sceneRef = React.createRef(); rxRef = React.createRef(); ryRef = React.createRef(); driftRef = React.createRef();
+  D = { rx: 14, ry: -24, persp: 1200 };
+  cur = { rx: 14, ry: -24 }; tgt = { rx: 14, ry: -24 }; persp = 1200; lastInteract = 0; drag = null;
+  path = ['DEVICE_CHECKED', 'CONGESTION_CHECKED', 'CRITICALITY_ASSESSED', 'classify', 'gather_evidence', 'verify_device_location', 'classify', 'validate', 'DECIDED', 'ALLOCATED', 'QOS_STATUS_CHANGED', 'RELEASED'];
+  nav = {
+    DEVICE_CHECKED: { right: 'CONGESTION_CHECKED' }, CONGESTION_CHECKED: { left: 'DEVICE_CHECKED', right: 'CRITICALITY_ASSESSED' },
+    CRITICALITY_ASSESSED: { left: 'CONGESTION_CHECKED', right: 'DECIDED', up: 'classify' }, DECIDED: { left: 'CRITICALITY_ASSESSED', right: 'ALLOCATED' },
+    ALLOCATED: { left: 'DECIDED', right: 'QOS_STATUS_CHANGED' }, QOS_STATUS_CHANGED: { left: 'ALLOCATED', right: 'RELEASED' }, RELEASED: { left: 'QOS_STATUS_CHANGED' },
+    classify: { down: 'CRITICALITY_ASSESSED', up: 'gather_evidence', right: 'validate', left: 'escalate' }, gather_evidence: { down: 'classify', up: 'verify_device_location', left: 'retrieve_device_location', right: 'WRITE_TOOLS' },
+    validate: { left: 'classify', down: 'CRITICALITY_ASSESSED' }, escalate: { right: 'classify', down: 'CRITICALITY_ASSESSED' },
+    verify_device_location: { down: 'gather_evidence', left: 'check_device_status', right: 'WRITE_TOOLS' },
+    retrieve_device_location: { down: 'check_device_status', right: 'verify_device_location' }, check_device_status: { up: 'retrieve_device_location', down: 'check_network_congestion', right: 'verify_device_location' }, check_network_congestion: { up: 'check_device_status', right: 'gather_evidence' },
+    WRITE_TOOLS: { left: 'verify_device_location', down: 'gather_evidence' },
+  };
+  constructor(p) {
+    super(p);
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    this.stars = [[-900, 90, 0.55, 1.2], [-500, 70, 0.4, 1], [150, 45, 0.28, 0.9]].map(([z, n, a, sz]) => {
+      const dots = []; for (let i = 0; i < n; i++) dots.push(`radial-gradient(circle at ${(rnd() * 100).toFixed(1)}% ${(rnd() * 100).toFixed(1)}%, oklch(0.88 0.012 93 / ${a}) ${sz}px, transparent ${sz + 0.6}px)`);
+      return { z, bg: dots.join(',') };
+    });
+  }
+  data() {
+    const det = (id, detail, x, did, payload, at, extra = {}) => ({ id, kind: 'det', name: id, detail, x, y: 0, z: 0, status: 'reached', who: 'Deterministic', meaning: 'A durable workflow step. It runs identically on every operation, replays from history if the worker restarts, and is covered by table-driven tests.', did, payload, at, ...extra });
+    const agent = (id, detail, x, y, status, did, payload, at, conf, alts) => ({ id, kind: 'agent', name: id, detail, x, y, z: -300, status, who: 'Agent', meaning: 'The model chose this. It judged its own confidence and picked which evidence to fetch. Nobody scripted this path; it can differ run to run.', did, payload, at, conf, alts });
+    const tool = (id, detail, x, y, status, did, payload, at) => ({ id, kind: 'tool', name: id, detail, x, y, z: -520, status, who: status === 'reached' ? 'Agent' : 'Agent · not called', meaning: status === 'reached' ? 'The model selected this read-only tool on its own during gather_evidence. Nothing in the prompt asked for it.' : 'Available in the toolbox. The model chose not to call it on this run.', did, payload, at });
+    return [
+      det('DEVICE_CHECKED', 'reachable: true', -440, 'Confirmed crane-a is reachable on the 5G SA network before any decision was attempted.', { reachable: 'true', connectivity: 'DATA', device: '+97336000482' }, '09:42:31.042'),
+      det('CONGESTION_CHECKED', 'congestion: High', -300, 'Queried congestion insights for the serving cell over the next five minutes.', { congestion: 'High', predicted: 'true', confidence: '0.82' }, '09:42:31.118'),
+      det('CRITICALITY_ASSESSED', 'HIGH · confidence 0.99', -150, 'Ran the agent reasoning graph (z −300) and recorded its verdict. The step is deterministic; what happens inside it is not.', { criticality: 'HIGH', confidence: '0.99', safetyCritical: 'true', model: 'openai/gpt-5.6-luna', graphPath: 'classify → gather_evidence → classify → validate' }, '09:42:32.198'),
+      det('DECIDED', 'QOD_AND_SLICE · rule 7', 0, 'Evaluated eight named rules in order against the recorded inputs. Rule 7 matched first.', { action: 'QOD_AND_SLICE', rule: 'SAFETY_CRITICAL_CONGESTED_SLICE', inputs: 'HIGH · safetyCritical · High · reachable' }, '09:42:32.310', { rule: true }),
+      det('ALLOCATED', 'session 0b3fdcd0 · slice attached', 150, 'Requested a QoD session and attached the quay-ops slice for the duration of the lift.', { sessionId: '0b3fdcd0-dea0-46a6-acdd-78be028320af', profile: 'DOWNLINK_M_UPLINK_L', duration: '180 s', slice: 'slice-quay-ops-01' }, '09:42:32.655'),
+      det('QOS_STATUS_CHANGED', 'REQUESTED → AVAILABLE', 300, 'Received the network callback confirming the session is live.', { from: 'REQUESTED', to: 'AVAILABLE', latency: '343 ms' }, '09:42:32.998'),
+      det('RELEASED', 'connectivity released', 440, 'Landing confirmed by the crane PLC. Session deleted, slice detached, holdings returned to 0.', { qodReleased: 'true', sliceDetached: 'true', heldFor: '23.445 s' }, '09:42:56.100'),
+      agent('classify', 'attempt 1 → 2 · 0.71 → 0.99', -260, -170, 'reached', 'Classified the lift. Attempt 1 reached 0.71 and asked for evidence; attempt 2, with the device location in hand, reached 0.99.', { attempts: '2', 'attempt 1': 'HIGH · 0.71 · needs evidence', 'attempt 2': 'HIGH · 0.99 · safetyCritical' }, '09:42:31.230 · 09:42:31.930', '0.71 → 0.99', [{ name: 'escalate', why: 'costlier model — not needed at 0.99' }]),
+      agent('gather_evidence', '1 tool call · unprompted', -110, -290, 'reached', 'Decided the classification needed grounding and chose one read tool from four available.', { chosen: 'verify_device_location', available: '4 read · 0 write', prompted: 'no' }, '09:42:31.512', '—', [{ name: 'retrieve_device_location', why: 'not called' }, { name: 'check_device_status', why: 'not called' }, { name: 'check_network_congestion', why: 'not called' }]),
+      agent('validate', 'verdict accepted', -10, -130, 'reached', 'Checked the verdict against the schema and confidence floor, then returned it to the workflow.', { verdict: 'HIGH', floor: '0.80', passed: 'true' }, '09:42:32.150', '0.99', [{ name: 'classify', why: 'would re-run if below floor' }]),
+      agent('escalate', 'not taken · 0.99 ≥ 0.80', -470, -330, 'skipped', 'Would hand the case to a costlier model. Not taken: the agent was confident enough at 0.99 that it never needed one.', { condition: 'confidence < 0.80', observed: '0.99', taken: 'false' }, '—', '—', [{ name: 'classify', why: 'the path actually taken' }]),
+      tool('verify_device_location', 'CONFIRMED · within 3000 m', -110, -470, 'reached', 'Verified the crane is where the job says it is, which is what makes "over an active walkway" trustworthy.', { arguments: '{"latitude":26.1836,"longitude":50.6164,"radius_meters":3000}', result: 'CONFIRMED: within 3000m of the stated location.', latency: '212 ms' }, '09:42:31.724'),
+      tool('retrieve_device_location', 'read · not called', -400, -560, 'not', 'Not called on this run.', { access: 'read', called: 'false' }, '—'),
+      tool('check_device_status', 'read · not called', -400, -480, 'not', 'Not called on this run.', { access: 'read', called: 'false' }, '—'),
+      tool('check_network_congestion', 'read · not called', -400, -400, 'not', 'Not called on this run.', { access: 'read', called: 'false' }, '—'),
+      { id: 'WRITE_TOOLS', kind: 'write', name: 'WRITE TOOLS', detail: 'none exist', x: 260, y: -480, z: -520, status: 'not', who: 'Nobody — by construction', meaning: 'No tool in the model\'s toolbox can allocate, attach, or release network capacity. It cannot act on the network because no such mechanism exists for it to call.', did: 'Nothing. This socket is empty on purpose. Allocation happens in DECIDED → ALLOCATED, by a rule, outside the model.', payload: { 'write tools': '0', 'read tools': '4', 'allocation path': 'DECIDED (rule) → ALLOCATED (workflow)' }, at: '—' },
+    ];
+  }
+  edgesDef() {
+    return [
+      ['DEVICE_CHECKED', 'CONGESTION_CHECKED', 'rail'], ['CONGESTION_CHECKED', 'CRITICALITY_ASSESSED', 'rail'], ['CRITICALITY_ASSESSED', 'DECIDED', 'rail'], ['DECIDED', 'ALLOCATED', 'rail'], ['ALLOCATED', 'QOS_STATUS_CHANGED', 'rail'], ['QOS_STATUS_CHANGED', 'RELEASED', 'rail'],
+      ['CRITICALITY_ASSESSED', 'classify', 'agent'], ['classify', 'gather_evidence', 'agent'], ['classify', 'validate', 'agent'], ['classify', 'escalate', 'off'],
+      ['gather_evidence', 'verify_device_location', 'agent'],
+      ['gather_evidence', 'retrieve_device_location', 'off'], ['gather_evidence', 'check_device_status', 'off'], ['gather_evidence', 'check_network_congestion', 'off'], ['gather_evidence', 'WRITE_TOOLS', 'off'],
+    ];
+  }
+  componentDidMount() {
+    const vp = this.viewportRef.current, sc = this.sceneRef.current; if (!vp || !sc) return;
+    this.reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fit = () => { const k = Math.max(0.62, Math.min(1.1, (vp.clientWidth - 100) / 1080)); sc.style.setProperty('--k', k.toFixed(3)); sc.style.setProperty('--ik', (1 / k).toFixed(3)); };
+    this.ro = new ResizeObserver(fit); this.ro.observe(vp); fit();
+    vp.addEventListener('pointerdown', this.onDown = (e) => { if (e.target.closest('button')) return; vp.setPointerCapture(e.pointerId); this.drag = { x: e.clientX, y: e.clientY, rx: this.tgt.rx, ry: this.tgt.ry }; this.lastInteract = performance.now(); vp.style.cursor = 'grabbing'; });
+    vp.addEventListener('pointermove', this.onMove = (e) => { if (!this.drag) return; this.tgt.rx = Math.max(-30, Math.min(30, this.drag.rx + (e.clientY - this.drag.y) * 0.25)); this.tgt.ry = Math.max(-60, Math.min(60, this.drag.ry + (e.clientX - this.drag.x) * 0.25)); this.lastInteract = performance.now(); });
+    vp.addEventListener('pointerup', this.onUp = () => { this.drag = null; vp.style.cursor = 'grab'; this.lastInteract = performance.now(); });
+    vp.addEventListener('pointercancel', this.onUp);
+    vp.addEventListener('wheel', this.onWheel = (e) => { e.preventDefault(); this.persp = Math.max(600, Math.min(2600, this.persp + e.deltaY * 1.2)); vp.style.perspective = this.persp + 'px'; this.lastInteract = performance.now(); }, { passive: false });
+    this.base = { ...this.tgt };
+    const loop = (t) => {
+      const idle = !this.drag && t - this.lastInteract > 6000 && !this.reduced;
+      if (idle) { this.tgt.ry = this.base.ry + Math.sin(t / 7000) * 1.6; this.tgt.rx = this.base.rx + Math.sin(t / 9000) * 0.8; }
+      else if (!this.drag) this.base = { ...this.tgt };
+      this.cur.rx += (this.tgt.rx - this.cur.rx) * 0.12; this.cur.ry += (this.tgt.ry - this.cur.ry) * 0.12;
+      sc.style.setProperty('--rx', this.cur.rx.toFixed(2) + 'deg'); sc.style.setProperty('--ry', this.cur.ry.toFixed(2) + 'deg');
+      if (this.rxRef.current) { this.rxRef.current.textContent = this.cur.rx.toFixed(0); this.ryRef.current.textContent = this.cur.ry.toFixed(0); this.driftRef.current.textContent = idle ? 'drifting' : this.drag ? 'orbiting' : 'held'; }
+      this.raf = requestAnimationFrame(loop);
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); clearInterval(this.timer); this.ro && this.ro.disconnect(); }
+  focusNode(id) { const el = this.viewportRef.current && this.viewportRef.current.querySelector(`[data-node="${id}"]`); if (el) el.focus({ preventScroll: true }); }
+  renderVals() {
+    const { sel, hover, replayIdx } = this.state;
+    const replaying = replayIdx >= 0;
+    const lit = replaying ? this.path[replayIdx] : sel;
+    const seq = replaying ? this.path.slice(0, replayIdx + 1) : this.path;
+    const pathEdges = new Set(); for (let i = 1; i < seq.length; i++) pathEdges.add(seq[i - 1] + '>' + seq[i]);
+    const all = this.data(); const byId = Object.fromEntries(all.map(n => [n.id, n]));
+    const AG = 'radial-gradient(circle at 35% 30%, oklch(0.93 0.09 50) 0%, oklch(0.72 0.15 40) 38%, oklch(0.50 0.14 38) 75%, oklch(0.30 0.09 35) 100%)';
+    const AGfar = 'radial-gradient(circle at 35% 30%, oklch(0.84 0.07 50) 0%, oklch(0.64 0.11 40) 38%, oklch(0.44 0.10 38) 75%, oklch(0.27 0.06 35) 100%)';
+    const MC = 'radial-gradient(circle at 35% 28%, #ffffff 0%, oklch(0.84 0.03 220) 22%, oklch(0.55 0.03 220) 62%, oklch(0.26 0.02 220) 100%)';
+    const nodes = all.map(n => {
+      const isLit = lit === n.id, isHover = hover === n.id, dimmed = replaying && !seq.includes(n.id) && n.status === 'reached';
+      const on = n.status === 'reached';
+      let size, bg, shadow, borderCss = '0', anim = 'none', ring = false, cls = 'fg-anim';
+      if (n.kind === 'det') { size = 18; bg = MC; shadow = `0 0 ${isLit || isHover ? 14 : 6}px ${isLit || isHover ? 3 : 1}px oklch(0.82 0.03 220 / ${isLit || isHover ? 0.55 : 0.25}), inset -2px -3px 4px oklch(0.2 0.02 220 / 0.6)`; }
+      else if (n.kind === 'agent' && on) { size = 34; bg = AG; shadow = `0 0 ${isLit || isHover ? 56 : 40}px ${isLit || isHover ? 14 : 10}px oklch(0.62 0.17 42 / ${isLit || isHover ? 0.5 : 0.32}), 0 0 4px 1px oklch(0.62 0.17 42 / 0.5)`; anim = 'fg-breathe 4.4s ease-in-out infinite'; ring = true; }
+      else if (n.kind === 'tool' && on) { size = 26; bg = AGfar; shadow = `0 0 ${isLit || isHover ? 40 : 28}px ${isLit || isHover ? 10 : 7}px oklch(0.62 0.17 42 / 0.28)`; anim = 'fg-breathe 5.2s ease-in-out infinite'; ring = true; }
+      else if (n.kind === 'write') { size = 72; bg = 'transparent'; borderCss = `1px solid ${isLit || isHover ? 'var(--ink)' : 'var(--ink-dim)'}`; shadow = 'inset 0 0 24px 4px oklch(0.11 0.006 95 / 0.9)'; }
+      else { size = n.kind === 'agent' ? 30 : 24; bg = 'transparent'; borderCss = `1px solid ${isLit || isHover ? 'var(--ink-dim)' : 'var(--edge)'}`; shadow = 'none'; }
+      const far = n.z <= -520;
+      const filter = isLit || isHover ? 'brightness(1.3)' : dimmed ? 'brightness(0.55)' : far && on ? 'blur(0.5px) saturate(0.85)' : 'none';
+      const nameColor = isLit ? 'var(--ink)' : n.kind === 'write' ? 'var(--ink)' : on ? (n.kind === 'det' ? 'var(--machine)' : 'var(--agent)') : 'var(--ink-dim)';
+      return { id: n.id, name: n.name, detail: n.detail, x: n.x, y: n.y, z: n.z, size, off: -size / 2, bg, shadow, borderCss, filter, anim, cls, ring,
+        ringSize: size + 22, ringOff: -(size + 22) / 2,
+        outline: isLit ? '1px solid var(--ink)' : 'none', pressed: sel === n.id ? 'true' : 'false',
+        aria: `${n.name} — ${n.who}${n.detail ? ' — ' + n.detail : ''}`,
+        above: n.kind === 'det' && ['CONGESTION_CHECKED','DECIDED','QOS_STATUS_CHANGED'].includes(n.id),
+        nameSize: n.kind === 'write' ? '13px' : far ? '11px' : '12px', nameColor,
+        labelLeft: n.id === 'RELEASED' ? -190 : n.id === 'DEVICE_CHECKED' ? -10 : -100,
+        labelTop: (n.kind === 'det' && ['CONGESTION_CHECKED','DECIDED','QOS_STATUS_CHANGED'].includes(n.id)) ? 'auto' : (size / 2 + 8) + 'px',
+        labelBottom: (n.kind === 'det' && ['CONGESTION_CHECKED','DECIDED','QOS_STATUS_CHANGED'].includes(n.id)) ? (size / 2 + 8) + 'px' : 'auto',
+        labelDir: (n.kind === 'det' && ['CONGESTION_CHECKED','DECIDED','QOS_STATUS_CHANGED'].includes(n.id)) ? 'column-reverse' : 'column',
+        align: n.id === 'RELEASED' ? 'right' : n.id === 'DEVICE_CHECKED' ? 'left' : 'center', origin: (n.id === 'RELEASED' ? '100%' : n.id === 'DEVICE_CHECKED' ? '0' : '50%') + ((n.kind === 'det' && ['CONGESTION_CHECKED','DECIDED','QOS_STATUS_CHANGED'].includes(n.id)) ? ' 100%' : ' 0'),
+        detailColor: isLit ? 'var(--ink)' : far ? 'var(--edge)' : 'var(--ink-dim)',
+        onClick: (e) => { e.stopPropagation(); this.setState({ sel: n.id }); this.lastInteract = performance.now(); },
+        onEnter: () => this.setState({ hover: n.id }), onLeave: () => this.setState(s => s.hover === n.id ? { hover: null } : null) };
+    });
+    const edges = [];
+    this.edgesDef().forEach(([a, b, kind], i) => {
+      const A = byId[a], B = byId[b];
+      const dx = B.x - A.x, dy = B.y - A.y, dz = B.z - A.z; const h = Math.hypot(dx, dz), len = Math.hypot(h, dy);
+      const theta = Math.atan2(-dz, dx) * 180 / Math.PI, phi = Math.atan2(dy, h) * 180 / Math.PI;
+      const taken = kind !== 'off' && (!replaying || pathEdges.has(a + '>' + b));
+      const touch = hover === a || hover === b || sel === a || sel === b;
+      const c = kind === 'rail' ? 'oklch(0.82 0.03 220' : 'oklch(0.70 0.15 40';
+      const color = kind === 'off' ? (touch ? 'var(--ink-dim)' : 'var(--edge)') : `${c} / ${taken ? (touch ? 0.95 : 0.55) : 0.2})`;
+      edges.push({ len: len.toFixed(1), transform: `translate3d(${A.x}px,${A.y}px,${A.z}px) rotateY(${theta}deg) rotateZ(${phi}deg)`, border: `1px ${kind === 'off' ? 'dashed' : 'solid'} ${color}`,
+        pulse: taken && kind !== 'off', pulseColor: kind === 'rail' ? 'var(--machine)' : 'var(--agent)', dur: (len / 90).toFixed(1) + 's', delay: (-(i * 0.37) % 3).toFixed(2) + 's' });
+    });
+    const planes = [
+      { label: 'z 0 · deterministic rail', sub: 'seven steps, identical every run', transform: 'translate3d(-470px,50px,0px)' },
+      { label: 'z −300 · agent reasoning', sub: 'four nodes, path differs run to run', transform: 'translate3d(-560px,-230px,-300px)' },
+      { label: 'z −520 · evidence & toolbox', sub: 'four read tools, zero write tools', transform: 'translate3d(-560px,-620px,-520px)' },
+    ];
+    const S = sel ? byId[sel] : null;
+    const selDot = S ? React.createElement('i', { style: { display: 'inline-block', width: S.kind === 'det' ? 10 : 14, height: S.kind === 'det' ? 10 : 14, borderRadius: '50%', flex: 'none', background: S.status !== 'reached' ? 'transparent' : S.kind === 'det' ? MC : AG, border: S.status !== 'reached' ? '1px solid var(--ink-dim)' : 0, boxSizing: 'border-box' } }) : null;
+    return {
+      stars: this.stars, nodes, edges, planes, viewportRef: this.viewportRef, sceneRef: this.sceneRef, rxRef: this.rxRef, ryRef: this.ryRef, driftRef: this.driftRef,
+      onKey: (e) => {
+        const map = { ArrowRight: 'right', ArrowLeft: 'left', ArrowUp: 'up', ArrowDown: 'down' };
+        this.lastInteract = performance.now();
+        if (e.key === 'Escape') { clearInterval(this.timer); this.setState({ sel: null, replayIdx: -1 }); return; }
+        const cur = hover || sel;
+        if (map[e.key]) { e.preventDefault(); if (!cur) { this.setState({ hover: 'DEVICE_CHECKED' }); this.focusNode('DEVICE_CHECKED'); return; } const next = (this.nav[cur] || {})[map[e.key]]; if (next) { this.focusNode(next); this.setState(sel ? { hover: next, sel: next } : { hover: next }); } }
+        if (e.key === 'Enter' && cur) { e.preventDefault(); this.setState({ sel: cur }); }
+      },
+      resetView: () => { this.tgt = { rx: this.D.rx, ry: this.D.ry }; this.base = { ...this.tgt }; this.persp = this.D.persp; if (this.viewportRef.current) this.viewportRef.current.style.perspective = this.persp + 'px'; this.lastInteract = performance.now(); },
+      replay: () => { if (replaying) { clearInterval(this.timer); this.setState({ replayIdx: -1 }); return; } this.setState({ replayIdx: 0, sel: null }); this.timer = setInterval(() => this.setState(s => { if (s.replayIdx >= this.path.length - 1) { clearInterval(this.timer); return { replayIdx: -1, sel: 'RELEASED' }; } return { replayIdx: s.replayIdx + 1 }; }), 750); },
+      replayLabel: replaying ? `replay ${String(replayIdx + 1).padStart(2, '0')}/12` : 'replay path',
+      hasSel: !!S, noSel: !S, selDot,
+      sel: S ? { ...S, statusText: (S.status === 'reached' ? 'lit · reached on this run' : S.status === 'skipped' ? 'unlit · branch not taken' : 'unlit · not reached') + ' · z ' + S.z } : {},
+      selWhoColor: S ? (S.kind === 'det' ? 'var(--machine)' : S.kind === 'write' ? 'var(--ink)' : 'var(--agent)') : 'var(--ink)',
+      selPayload: S ? Object.entries(S.payload).map(([k, v]) => ({ k, v })) : [],
+      selAlts: S && S.alts ? S.alts : [],
+      selIsAgent: !!S && S.kind === 'agent', selHasRule: !!S && !!S.rule,
+      deselect: () => this.setState({ sel: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>
