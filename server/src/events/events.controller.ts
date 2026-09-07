@@ -1,5 +1,9 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 
+import { OrgId } from '../auth/decorators/current-user.decorator';
+import { RequireRole } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/domain/tenancy';
+
 import type { OperationAccepted } from './domain/business-event';
 import { CreateBusinessEventDto } from './dto/create-business-event.dto';
 import { EventsService } from './events.service';
@@ -21,15 +25,20 @@ export class EventsController {
    * request.
    */
   @Post()
+  @RequireRole(Role.OPERATOR)
   @HttpCode(HttpStatus.ACCEPTED)
-  create(@Body() dto: CreateBusinessEventDto): Promise<OperationAccepted> {
-    return this.events.accept(dto);
+  create(
+    @OrgId() organizationId: string,
+    @Body() dto: CreateBusinessEventDto,
+  ): Promise<OperationAccepted> {
+    return this.events.accept(organizationId, dto);
   }
 
   /** The facility reports the operation finished — triggers release. */
   @Post(':operationId/complete')
+  @RequireRole(Role.OPERATOR)
   @HttpCode(HttpStatus.ACCEPTED)
-  complete(@Param('operationId') operationId: string) {
-    return this.events.complete(operationId);
+  complete(@OrgId() organizationId: string, @Param('operationId') operationId: string) {
+    return this.events.complete(organizationId, operationId);
   }
 }

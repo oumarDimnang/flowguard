@@ -24,7 +24,7 @@ export class MongoOperationRepository extends OperationRepository {
     // produce a duplicate-key error that fails the activity.
     const doc = await this.model
       .findOneAndUpdate(
-        { operationId: operation.operationId },
+        { organizationId: operation.organizationId, operationId: operation.operationId },
         {
           $setOnInsert: {
             ...operation,
@@ -40,14 +40,14 @@ export class MongoOperationRepository extends OperationRepository {
     return this.toDomain(doc as OperationEntity);
   }
 
-  async findById(operationId: string): Promise<Operation | null> {
-    const doc = await this.model.findOne({ operationId }).lean().exec();
+  async findById(organizationId: string, operationId: string): Promise<Operation | null> {
+    const doc = await this.model.findOne({ organizationId, operationId }).lean().exec();
     return doc ? this.toDomain(doc as OperationEntity) : null;
   }
 
-  async findActive(): Promise<Operation[]> {
+  async findActive(organizationId: string): Promise<Operation[]> {
     const docs = await this.model
-      .find({ status: { $nin: TERMINAL_STATUSES } })
+      .find({ organizationId, status: { $nin: TERMINAL_STATUSES } })
       .sort({ startedAt: -1 })
       .lean()
       .exec();
@@ -55,9 +55,9 @@ export class MongoOperationRepository extends OperationRepository {
     return docs.map((d) => this.toDomain(d as OperationEntity));
   }
 
-  async findActiveByDevice(deviceId: string): Promise<Operation[]> {
+  async findActiveByDevice(organizationId: string, deviceId: string): Promise<Operation[]> {
     const docs = await this.model
-      .find({ deviceId, status: { $nin: TERMINAL_STATUSES } })
+      .find({ organizationId, deviceId, status: { $nin: TERMINAL_STATUSES } })
       .sort({ startedAt: -1 })
       .lean()
       .exec();
@@ -65,12 +65,23 @@ export class MongoOperationRepository extends OperationRepository {
     return docs.map((d) => this.toDomain(d as OperationEntity));
   }
 
-  async findAll(pagination: PaginationDto): Promise<Paginated<Operation>> {
+  async findAll(
+    organizationId: string,
+    pagination: PaginationDto,
+  ): Promise<Paginated<Operation>> {
     const { skip, limit } = pagination;
 
+    // The count is scoped too. An unscoped total would leak the size of every
+    // other tenant through a pagination footer.
     const [docs, total] = await Promise.all([
-      this.model.find().sort({ startedAt: -1 }).skip(skip).limit(limit).lean().exec(),
-      this.model.countDocuments().exec(),
+      this.model
+        .find({ organizationId })
+        .sort({ startedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.model.countDocuments({ organizationId }).exec(),
     ]);
 
     return {
@@ -81,20 +92,40 @@ export class MongoOperationRepository extends OperationRepository {
     };
   }
 
-  async patch(operationId: string, patch: OperationPatch): Promise<Operation | null> {
+  async patch(
+    organizationId: string,
+    operationId: string,
+    patch: OperationPatch,
+  ): Promise<Operation | null> {
     // Atomic read-modify-write. Two activities can report on the same operation
     // concurrently, so this must never be a read-then-save.
     const doc = await this.model
-      .findOneAndUpdate({ operationId }, { $set: patch }, { new: true })
+      .findOneAndUpdate({ organizationId, operationId }, { $set: patch }, { new: true })
       .lean()
       .exec();
 
     return doc ? this.toDomain(doc as OperationEntity) : null;
   }
 
-  async countByAction(): Promise<Record<string, number>> {
+  async findByIdForWebhook(operationId: string): Promise<Operation | null> {
+    const doc = await this.model.findOne({ operationId }).lean().exec();
+    return doc ? this.toDomain(doc as OperationEntity) : null;
+  }
+
+  async findActiveByDeviceForWebhook(deviceId: string): Promise<Operation[]> {
+    const docs = await this.model
+      .find({ deviceId, status: { $nin: TERMINAL_STATUSES } })
+      .sort({ startedAt: -1 })
+      .lean()
+      .exec();
+
+    return docs.map((d) => this.toDomain(d as OperationEntity));
+  }
+
+  async countByAction(organizationId: string): Promise<Record<string, number>> {
     const rows = await this.model
       .aggregate<{ _id: string | null; count: number }>([
+        { $match: { organizationId } },
         { $group: { _id: '$action', count: { $sum: 1 } } },
       ])
       .exec();
@@ -108,6 +139,7 @@ export class MongoOperationRepository extends OperationRepository {
   /** Persistence document -> domain model (S3). */
   private toDomain(doc: OperationEntity): Operation {
     return {
+      organizationId: doc.organizationId,
       operationId: doc.operationId,
       workflowId: doc.workflowId,
       runId: doc.runId,

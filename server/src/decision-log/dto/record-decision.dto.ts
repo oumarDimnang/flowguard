@@ -77,6 +77,19 @@ export class ToolCallDto {
  * agent/src/flowguard_agent/activities/emit.py.
  */
 export class RecordDecisionDto {
+  /**
+   * Which tenant this decision belongs to.
+   *
+   * Cross-language contract: set on the BusinessEvent when the workflow starts
+   * and echoed back by every emit. It arrives in the payload rather than from a
+   * session because the agent authenticates with the internal token and has no
+   * session at all.
+   */
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  organizationId!: string;
+
   @IsString()
   @MinLength(1)
   @MaxLength(128)
@@ -136,6 +149,25 @@ export class RecordDecisionDto {
   @ValidateNested({ each: true })
   @Type(() => ToolCallDto)
   toolCalls?: ToolCallDto[];
+
+  // Which branch of the agent's decide() fired, e.g.
+  // SAFETY_CRITICAL_CONGESTED_SLICE. The single most auditable field in the
+  // trail: it is the evidence that a readable rule made the call, not a model.
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  rule?: string;
+
+  // The pinned model id that produced the criticality judgement. "An AI
+  // decided" is not an answer; this makes it specific and reproducible.
+  //
+  // NOT named `model`: that key is reserved on a Mongoose document (it is
+  // Document.model(), the model-lookup method) and declaring a field with
+  // that name makes Model.create() fail to typecheck.
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  modelId?: string;
 
   @IsOptional()
   @IsString()

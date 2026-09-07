@@ -56,6 +56,14 @@ export interface DecisionRecord {
    */
   idempotencyKey: string;
 
+  /**
+   * The tenant this record belongs to.
+   *
+   * Arrives in the payload from the workflow rather than from a session — the
+   * agent posts with a machine token and has no session to read one from.
+   */
+  organizationId: string;
+
   operationId: string;
   workflowId: string;
   runId: string;
@@ -73,6 +81,11 @@ export interface DecisionRecord {
   graphTrace?: string[];
   /** Which read-only CAMARA signals the agent chose to consult, and what they said. */
   toolCalls?: ToolCall[];
+
+  /** Which branch of the agent's decide() fired — the auditable half. */
+  rule?: string;
+  /** Pinned model id behind the criticality judgement. Not `model` — reserved by Mongoose. */
+  modelId?: string;
 
   qodSessionId?: string;
   qosStatus?: QosStatus;

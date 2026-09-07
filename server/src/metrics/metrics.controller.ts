@@ -1,5 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 
+import { OrgId } from '../auth/decorators/current-user.decorator';
+
 import { MetricsService, type ImpactMetrics } from './metrics.service';
 
 @Controller('metrics')
@@ -8,7 +10,7 @@ export class MetricsController {
 
   /** Backs the dashboard metrics bar. */
   @Get()
-  impact(): Promise<ImpactMetrics> {
-    return this.metrics.impact();
+  impact(@OrgId() organizationId: string): Promise<ImpactMetrics> {
+    return this.metrics.impact(organizationId);
   }
 }

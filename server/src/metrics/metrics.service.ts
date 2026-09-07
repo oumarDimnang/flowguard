@@ -53,8 +53,8 @@ export interface ImpactMetrics {
 export class MetricsService {
   constructor(private readonly decisionLog: DecisionLogService) {}
 
-  async impact(): Promise<ImpactMetrics> {
-    const counts = await this.decisionLog.counts();
+  async impact(organizationId: string): Promise<ImpactMetrics> {
+    const counts = await this.decisionLog.counts(organizationId);
 
     const premiumGranted =
       (counts.byAction[NetworkAction.QOD] ?? 0) +

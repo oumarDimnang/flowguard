@@ -16,6 +16,15 @@ import type {
  * querying Temporal on every paint.
  */
 export interface Operation {
+  /**
+   * The tenant this operation belongs to.
+   *
+   * Every read is filtered on it. Set once at creation from the session of the
+   * user who dispatched, or from the workflow payload when the agent reports —
+   * never from a request body.
+   */
+  organizationId: string;
+
   /** Equals the originating business event id. */
   operationId: string;
   workflowId: string;
@@ -51,8 +60,10 @@ export interface Operation {
 
 export type OperationCreate = Pick<
   Operation,
-  'operationId' | 'workflowId' | 'assetType' | 'deviceId' | 'operationName'
+  'organizationId' | 'operationId' | 'workflowId' | 'assetType' | 'deviceId' | 'operationName'
 > &
   Partial<Pick<Operation, 'runId' | 'site' | 'status'>>;
 
-export type OperationPatch = Partial<Omit<Operation, 'operationId' | 'startedAt'>>;
+export type OperationPatch = Partial<
+  Omit<Operation, 'organizationId' | 'operationId' | 'startedAt'>
+>;

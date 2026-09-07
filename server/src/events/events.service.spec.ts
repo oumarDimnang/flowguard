@@ -23,16 +23,16 @@ class FakeOrchestrator extends WorkflowOrchestratorPort {
   alreadyRunning = false;
   missingWorkflow = false;
 
-  async startOperation(event: { id: string }) {
+  async startOperation(event: { id: string; organizationId: string }) {
     this.started.push(event);
     return {
-      workflowId: `operation-${event.id}`,
+      workflowId: `operation-${event.organizationId}-${event.id}`,
       runId: 'run-1',
       alreadyRunning: this.alreadyRunning,
     };
   }
 
-  async signalOperationCompleted(id: string): Promise<void> {
+  async signalOperationCompleted(_organizationId: string, id: string): Promise<void> {
     if (this.missingWorkflow) {
       throw new OperationWorkflowNotFoundError(`operation-${id}`);
     }
@@ -59,7 +59,11 @@ class FakeOperationsService {
     return operation as unknown as Operation;
   }
 
-  async applyIfPresent(id: string, patch: OperationPatch): Promise<Operation | null> {
+  async applyIfPresent(
+    _organizationId: string,
+    id: string,
+    patch: OperationPatch,
+  ): Promise<Operation | null> {
     this.patches.push({ id, patch });
     return null;
   }
@@ -73,6 +77,8 @@ const craneLift: CreateBusinessEventDto = {
   description: 'High-value container over an active walkway',
   expectedDurationSeconds: 180,
 };
+
+const ORG = 'org-port';
 
 describe('EventsService', () => {
   let service: EventsService;
@@ -95,19 +101,31 @@ describe('EventsService', () => {
   });
 
   it('starts a durable workflow and projects the operation', async () => {
-    const result = await service.accept(craneLift);
+    const result = await service.accept(ORG, craneLift);
 
-    expect(result.workflowId).toBe('operation-evt-1');
+    expect(result.workflowId).toBe(`operation-${ORG}-evt-1`);
     expect(orchestrator.started).toHaveLength(1);
     expect(operations.registered[0]).toMatchObject({
+      organizationId: ORG,
       operationId: 'evt-1',
       deviceId: 'crane-a',
       status: OperationStatus.PENDING,
     });
   });
 
+  /**
+   * The tenant is an argument, never a DTO field. If it were part of the body
+   * any signed-in user could file operations into another organization.
+   */
+  it('stamps the caller organization onto the business event', async () => {
+    await service.accept(ORG, craneLift);
+
+    const event = orchestrator.started[0] as { organizationId: string };
+    expect(event.organizationId).toBe(ORG);
+  });
+
   it('defaults occurredAt when the facility omits it', async () => {
-    await service.accept(craneLift);
+    await service.accept(ORG, craneLift);
     const event = orchestrator.started[0] as { occurredAt: string };
     expect(Date.parse(event.occurredAt)).not.toBeNaN();
   });
@@ -120,14 +138,14 @@ describe('EventsService', () => {
   it('reports a duplicate submission instead of starting a second workflow', async () => {
     orchestrator.alreadyRunning = true;
 
-    const result = await service.accept(craneLift);
+    const result = await service.accept(ORG, craneLift);
 
     expect(result.alreadyRunning).toBe(true);
-    expect(result.workflowId).toBe('operation-evt-1');
+    expect(result.workflowId).toBe(`operation-${ORG}-evt-1`);
   });
 
   it('signals completion and moves the operation to RELEASING', async () => {
-    await service.complete('evt-1');
+    await service.complete(ORG, 'evt-1');
 
     expect(orchestrator.completedSignals).toEqual(['evt-1']);
     expect(operations.patches[0]).toEqual({
@@ -143,6 +161,6 @@ describe('EventsService', () => {
   it('translates a missing workflow into NotFoundException', async () => {
     orchestrator.missingWorkflow = true;
 
-    await expect(service.complete('evt-nope')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.complete(ORG, 'evt-nope')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

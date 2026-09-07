@@ -20,8 +20,20 @@ export class EventsService {
     private readonly operations: OperationsService,
   ) {}
 
-  async accept(dto: CreateBusinessEventDto): Promise<OperationAccepted> {
+  /**
+   * Accept a business event on behalf of one organization.
+   *
+   * The tenant is a separate argument rather than a DTO field on purpose: a
+   * field could be supplied by whoever posts the body, and then any signed-in
+   * user could file operations into someone else's organization. It comes from
+   * the session, or from the facility system acting for that session.
+   */
+  async accept(
+    organizationId: string,
+    dto: CreateBusinessEventDto,
+  ): Promise<OperationAccepted> {
     const event: BusinessEvent = {
+      organizationId,
       id: dto.id,
       assetType: dto.assetType,
       device: dto.device,
@@ -39,6 +51,7 @@ export class EventsService {
     const started = await this.orchestrator.startOperation(event);
 
     await this.operations.register({
+      organizationId,
       operationId: event.id,
       workflowId: started.workflowId,
       runId: started.runId,
@@ -67,9 +80,12 @@ export class EventsService {
    * This is the signal that triggers release of enhanced connectivity — the
    * half of the loop the entire cost saving depends on.
    */
-  async complete(operationId: string): Promise<{ operationId: string; signalled: true }> {
+  async complete(
+    organizationId: string,
+    operationId: string,
+  ): Promise<{ operationId: string; signalled: true }> {
     try {
-      await this.orchestrator.signalOperationCompleted(operationId);
+      await this.orchestrator.signalOperationCompleted(organizationId, operationId);
     } catch (err) {
       // Translate the infrastructure error into a transport one at the service
       // boundary; the adapter itself stays HTTP-agnostic.
@@ -79,7 +95,9 @@ export class EventsService {
       throw err;
     }
 
-    await this.operations.applyIfPresent(operationId, { status: OperationStatus.RELEASING });
+    await this.operations.applyIfPresent(organizationId, operationId, {
+      status: OperationStatus.RELEASING,
+    });
 
     return { operationId, signalled: true };
   }

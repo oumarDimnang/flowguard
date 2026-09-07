@@ -5,6 +5,7 @@ import {
   DeviceStatusCallbackDto,
   QodCallbackDto,
 } from './dto/nac-callback.dto';
+import { Public } from '../auth/decorators/public.decorator';
 import { WebhookAuthGuard } from './webhook-auth.guard';
 import { WebhooksService, type DispatchResult } from './webhooks.service';
 
@@ -19,6 +20,7 @@ import { WebhooksService, type DispatchResult } from './webhooks.service';
  * logic belongs in the workflow.
  */
 @Controller('webhooks/nac')
+@Public()
 @UseGuards(WebhookAuthGuard)
 export class WebhooksController {
   constructor(private readonly webhooks: WebhooksService) {}

@@ -3,6 +3,7 @@ import { InjectConnection } from '@nestjs/mongoose';
 import type { Response } from 'express';
 import { Connection, ConnectionStates } from 'mongoose';
 
+import { Public } from '../auth/decorators/public.decorator';
 import { RealtimePublisherPort } from '../realtime/ports/realtime-publisher.port';
 import { WorkflowOrchestratorPort } from '../temporal/ports/workflow-orchestrator.port';
 
@@ -25,6 +26,7 @@ interface HealthReport {
  * getSystemInfo RPC against Temporal — rather than reporting that an object was
  * constructed.
  */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(
@@ -44,7 +46,9 @@ export class HealthController {
       checks: {
         mongo: { up: mongoUp, state: ConnectionStates[this.mongo.readyState] },
         temporal: { up: temporalUp },
-        realtime: { up: true, connectedClients: this.realtime.connectedClients() },
+        // Total, not per tenant: /health is an operational probe, and a
+        // per-organization count here would be tenant data on a public route.
+        realtime: { up: true, connectedClients: this.realtime.totalConnectedClients() },
       },
     };
 

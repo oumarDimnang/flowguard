@@ -31,14 +31,19 @@ export const QUERIES = {
 } as const;
 
 /**
- * Deterministic workflow ID derived from the business event (S7).
+ * Deterministic workflow ID derived from the tenant and the business event (S7).
  *
  * Temporal rejects a duplicate workflow ID while an execution is running, so a
  * double-submitted business event cannot start two workflows holding two QoD
  * sessions. This is idempotency on the exact path where duplication costs money.
+ *
+ * The organization is part of the id, not decoration. Without it two tenants
+ * submitting the same event id would collide — and because Temporal's response
+ * to a duplicate is to hand back the *running* execution, the second tenant
+ * would silently adopt the first one's workflow and its paid session.
  */
-export function operationWorkflowId(businessEventId: string): string {
-  return `operation-${businessEventId}`;
+export function operationWorkflowId(organizationId: string, businessEventId: string): string {
+  return `operation-${organizationId}-${businessEventId}`;
 }
 
 /** Singleton ID for the long-running bootstrap workflow (D5). */

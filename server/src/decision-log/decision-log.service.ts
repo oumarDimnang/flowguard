@@ -51,6 +51,9 @@ export class DecisionLogService {
       // Run ID plus step is stable across retries of the same activity but
       // distinct across genuine workflow steps.
       idempotencyKey: `${dto.runId}:${dto.step}`,
+      // From the workflow payload, not a session — the agent posts with a
+      // machine token and has no session to read a tenant from.
+      organizationId: dto.organizationId,
       operationId: dto.operationId,
       workflowId: dto.workflowId,
       runId: dto.runId,
@@ -63,6 +66,8 @@ export class DecisionLogService {
       reasoning: dto.reasoning,
       graphTrace: dto.graphTrace,
       toolCalls: dto.toolCalls,
+      rule: dto.rule,
+      modelId: dto.modelId,
       qodSessionId: dto.qodSessionId,
       qosStatus: dto.qosStatus,
       qosStatusInfo: dto.qosStatusInfo,
@@ -77,12 +82,16 @@ export class DecisionLogService {
       return { recorded: false, duplicate: true };
     }
 
-    await this.operations.applyIfPresent(dto.operationId, this.toOperationPatch(dto));
+    await this.operations.applyIfPresent(
+      dto.organizationId,
+      dto.operationId,
+      this.toOperationPatch(dto),
+    );
 
-    this.realtime.publish(LIVE_EVENTS.DECISION_RECORDED, record);
+    this.realtime.publish(dto.organizationId, LIVE_EVENTS.DECISION_RECORDED, record);
 
     if (dto.step === DecisionStep.QOS_STATUS_CHANGED) {
-      this.realtime.publish(LIVE_EVENTS.QOD_STATUS_CHANGED, {
+      this.realtime.publish(dto.organizationId, LIVE_EVENTS.QOD_STATUS_CHANGED, {
         operationId: dto.operationId,
         sessionId: dto.qodSessionId,
         qosStatus: dto.qosStatus,
@@ -93,16 +102,19 @@ export class DecisionLogService {
     return { recorded: true, duplicate: false };
   }
 
-  findByOperation(operationId: string): Promise<DecisionRecord[]> {
-    return this.repository.findByOperation(operationId);
+  findByOperation(organizationId: string, operationId: string): Promise<DecisionRecord[]> {
+    return this.repository.findByOperation(organizationId, operationId);
   }
 
-  findAll(pagination: PaginationDto): Promise<Paginated<DecisionRecord>> {
-    return this.repository.findAll(pagination);
+  findAll(
+    organizationId: string,
+    pagination: PaginationDto,
+  ): Promise<Paginated<DecisionRecord>> {
+    return this.repository.findAll(organizationId, pagination);
   }
 
-  counts(): Promise<DecisionCounts> {
-    return this.repository.counts();
+  counts(organizationId: string): Promise<DecisionCounts> {
+    return this.repository.counts(organizationId);
   }
 
   /** Decision event to read-model patch. Only sets what the event carries. */

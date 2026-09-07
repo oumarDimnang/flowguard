@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 
+import { Public } from '../auth/decorators/public.decorator';
 import { InternalTokenGuard } from '../common/guards/internal-token.guard';
 import { DecisionLogService, type RecordDecisionResult } from './decision-log.service';
 import { RecordDecisionDto } from './dto/record-decision.dto';
@@ -12,6 +13,7 @@ import { RecordDecisionDto } from './dto/record-decision.dto';
  * prefix makes the trust boundary obvious in logs.
  */
 @Controller('internal/decisions')
+@Public()
 @UseGuards(InternalTokenGuard)
 export class DecisionsController {
   constructor(private readonly decisionLog: DecisionLogService) {}

@@ -1,5 +1,9 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 
+import { OrgId } from '../auth/decorators/current-user.decorator';
+import { RequireRole } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/domain/tenancy';
+
 import type { Scenario } from './scenarios/scenario.definitions';
 import { SimulatorService, type ScenarioRun } from './simulator.service';
 
@@ -18,8 +22,12 @@ export class SimulatorController {
 
   /** 202: the scenario unfolds over time; watch it on the WebSocket. */
   @Post('scenarios/:scenarioId/run')
+  @RequireRole(Role.OPERATOR)
   @HttpCode(HttpStatus.ACCEPTED)
-  run(@Param('scenarioId') scenarioId: string): ScenarioRun {
-    return this.simulator.run(scenarioId);
+  run(
+    @OrgId() organizationId: string,
+    @Param('scenarioId') scenarioId: string,
+  ): ScenarioRun {
+    return this.simulator.run(organizationId, scenarioId);
   }
 }

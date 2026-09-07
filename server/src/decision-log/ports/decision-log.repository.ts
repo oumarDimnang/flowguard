@@ -42,9 +42,15 @@ export abstract class DecisionLogRepository {
   /** Idempotent append (S1). Never updates an existing record. */
   abstract append(record: Omit<DecisionRecord, 'recordedAt'>): Promise<AppendResult>;
 
-  abstract findByOperation(operationId: string): Promise<DecisionRecord[]>;
+  abstract findByOperation(
+    organizationId: string,
+    operationId: string,
+  ): Promise<DecisionRecord[]>;
 
-  abstract findAll(pagination: PaginationDto): Promise<Paginated<DecisionRecord>>;
+  abstract findAll(
+    organizationId: string,
+    pagination: PaginationDto,
+  ): Promise<Paginated<DecisionRecord>>;
 
-  abstract counts(): Promise<DecisionCounts>;
+  abstract counts(organizationId: string): Promise<DecisionCounts>;
 }

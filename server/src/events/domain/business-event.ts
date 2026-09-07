@@ -24,7 +24,16 @@ export interface DeviceRef {
  * agent/ will break deserialisation at the worker.
  */
 export interface BusinessEvent {
-  /** Idempotency key. Becomes the workflow ID as operation-{id} (S7). */
+  /**
+   * Which tenant this operation belongs to.
+   *
+   * Taken from the session of whoever dispatched — never from the request body.
+   * It rides through the workflow to the agent and comes back on every decision
+   * record, which is how a component with no session still knows the tenant.
+   */
+  organizationId: string;
+
+  /** Idempotency key. Becomes the workflow ID as operation-{org}-{id} (S7). */
   id: string;
   assetType: AssetType;
   device: DeviceRef;

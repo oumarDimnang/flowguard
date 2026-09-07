@@ -1,5 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 
+import { OrgId } from '../auth/decorators/current-user.decorator';
+
 import type { Paginated } from '../common/dto/pagination.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { DecisionLogService } from './decision-log.service';
@@ -14,13 +16,19 @@ export class DecisionLogController {
   constructor(private readonly decisionLog: DecisionLogService) {}
 
   @Get()
-  findAll(@Query() pagination: PaginationDto): Promise<Paginated<DecisionRecord>> {
-    return this.decisionLog.findAll(pagination);
+  findAll(
+    @OrgId() organizationId: string,
+    @Query() pagination: PaginationDto,
+  ): Promise<Paginated<DecisionRecord>> {
+    return this.decisionLog.findAll(organizationId, pagination);
   }
 
   /** Full trail for one operation, oldest first — the replay view. */
   @Get(':operationId')
-  findByOperation(@Param('operationId') operationId: string): Promise<DecisionRecord[]> {
-    return this.decisionLog.findByOperation(operationId);
+  findByOperation(
+    @OrgId() organizationId: string,
+    @Param('operationId') operationId: string,
+  ): Promise<DecisionRecord[]> {
+    return this.decisionLog.findByOperation(organizationId, operationId);
   }
 }

@@ -13,10 +13,16 @@ export const LIVE_EVENTS = {
   DECISION_RECORDED: 'decision.recorded',
   /** A CAMARA QoD session changed status (REQUESTED -> AVAILABLE), see D8. */
   QOD_STATUS_CHANGED: 'qod.status_changed',
-  /** A container move advanced through the crane's physical sequence. */
-  TERMINAL_MOVE_UPDATED: 'terminal.move_updated',
-  /** The berth work queue was reset back to its planned state. */
-  TERMINAL_QUEUE_RESET: 'terminal.queue_reset',
+  /**
+   * A facility job advanced through its physical sequence.
+   *
+   * Industry-neutral: the payload carries its own lifecycle, so a container
+   * move and a drone sortie arrive on the same channel and the dashboard picks
+   * a panel from the organization's industry rather than from the event name.
+   */
+  FACILITY_JOB_UPDATED: 'facility.job_updated',
+  /** The facility plan was reset back to its planned state. */
+  FACILITY_PLAN_RESET: 'facility.plan_reset',
 } as const;
 
 export type LiveEventName = (typeof LIVE_EVENTS)[keyof typeof LIVE_EVENTS];

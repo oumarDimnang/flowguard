@@ -49,7 +49,7 @@ export class TemporalOrchestratorAdapter extends WorkflowOrchestratorPort {
   }
 
   async startOperation(event: BusinessEvent): Promise<StartedWorkflow> {
-    const workflowId = operationWorkflowId(event.id);
+    const workflowId = operationWorkflowId(event.organizationId, event.id);
     const client = this.connection.getClient();
 
     try {
@@ -75,33 +75,42 @@ export class TemporalOrchestratorAdapter extends WorkflowOrchestratorPort {
     }
   }
 
-  async signalOperationCompleted(businessEventId: string): Promise<void> {
-    await this.signal(businessEventId, SIGNALS.OPERATION_COMPLETED);
+  async signalOperationCompleted(
+    organizationId: string,
+    businessEventId: string,
+  ): Promise<void> {
+    await this.signal(organizationId, businessEventId, SIGNALS.OPERATION_COMPLETED);
   }
 
   async signalQodStatusChanged(
+    organizationId: string,
     businessEventId: string,
     payload: QodStatusChangedSignal,
   ): Promise<void> {
-    await this.signal(businessEventId, SIGNALS.QOD_STATUS_CHANGED, payload);
+    await this.signal(organizationId, businessEventId, SIGNALS.QOD_STATUS_CHANGED, payload);
   }
 
   async signalCongestionUpdated(
+    organizationId: string,
     businessEventId: string,
     payload: CongestionUpdatedSignal,
   ): Promise<void> {
-    await this.signal(businessEventId, SIGNALS.CONGESTION_UPDATED, payload);
+    await this.signal(organizationId, businessEventId, SIGNALS.CONGESTION_UPDATED, payload);
   }
 
   async signalDeviceStatusChanged(
+    organizationId: string,
     businessEventId: string,
     payload: DeviceStatusChangedSignal,
   ): Promise<void> {
-    await this.signal(businessEventId, SIGNALS.DEVICE_STATUS_CHANGED, payload);
+    await this.signal(organizationId, businessEventId, SIGNALS.DEVICE_STATUS_CHANGED, payload);
   }
 
-  async describeOperation(businessEventId: string): Promise<OperationSnapshot | null> {
-    const workflowId = operationWorkflowId(businessEventId);
+  async describeOperation(
+    organizationId: string,
+    businessEventId: string,
+  ): Promise<OperationSnapshot | null> {
+    const workflowId = operationWorkflowId(organizationId, businessEventId);
     try {
       const description = await this.connection
         .getClient()
@@ -126,11 +135,12 @@ export class TemporalOrchestratorAdapter extends WorkflowOrchestratorPort {
   }
 
   private async signal(
+    organizationId: string,
     businessEventId: string,
     signalName: string,
     payload?: unknown,
   ): Promise<void> {
-    const workflowId = operationWorkflowId(businessEventId);
+    const workflowId = operationWorkflowId(organizationId, businessEventId);
     const handle: WorkflowHandle = this.connection.getClient().workflow.getHandle(workflowId);
 
     try {

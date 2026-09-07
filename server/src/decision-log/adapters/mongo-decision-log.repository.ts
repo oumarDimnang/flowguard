@@ -34,7 +34,7 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
       // Temporal retry it again — forever.
       if ((err as { code?: number }).code === DUPLICATE_KEY) {
         const existing = await this.model
-          .findOne({ idempotencyKey: record.idempotencyKey })
+          .findOne({ organizationId: record.organizationId, idempotencyKey: record.idempotencyKey })
           .lean()
           .exec();
 
@@ -47,17 +47,35 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
     }
   }
 
-  async findByOperation(operationId: string): Promise<DecisionRecord[]> {
-    const docs = await this.model.find({ operationId }).sort({ occurredAt: 1 }).lean().exec();
+  async findByOperation(
+    organizationId: string,
+    operationId: string,
+  ): Promise<DecisionRecord[]> {
+    const docs = await this.model
+      .find({ organizationId, operationId })
+      .sort({ occurredAt: 1 })
+      .lean()
+      .exec();
     return docs.map((d) => this.toDomain(d as DecisionRecordEntity));
   }
 
-  async findAll(pagination: PaginationDto): Promise<Paginated<DecisionRecord>> {
+  async findAll(
+    organizationId: string,
+    pagination: PaginationDto,
+  ): Promise<Paginated<DecisionRecord>> {
     const { skip, limit } = pagination;
 
+    // The total is scoped too — an unscoped count leaks how much work every
+    // other tenant has done through a pagination footer.
     const [docs, total] = await Promise.all([
-      this.model.find().sort({ occurredAt: -1 }).skip(skip).limit(limit).lean().exec(),
-      this.model.countDocuments().exec(),
+      this.model
+        .find({ organizationId })
+        .sort({ occurredAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.model.countDocuments({ organizationId }).exec(),
     ]);
 
     return {
@@ -68,10 +86,10 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
     };
   }
 
-  async counts(): Promise<DecisionCounts> {
+  async counts(organizationId: string): Promise<DecisionCounts> {
     // Only DECIDED records count — earlier steps would double-count an
     // operation that passed through several stages.
-    const decided = { step: DecisionStep.DECIDED };
+    const decided = { organizationId, step: DecisionStep.DECIDED };
 
     // Congestion at or above the allocation threshold. A HIGH-criticality
     // operation below this was never at risk, so it belongs in neither side of
@@ -143,30 +161,34 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
     };
   }
 
+  /**
+   * Persistence document to domain record.
+   *
+   * Deliberately a spread rather than a field-by-field copy.
+   *
+   * This mapper used to list every field by hand, with no compiler link to the
+   * three other places a decision-log field has to be declared. Every field is
+   * optional, so omitting one here produced a record that saved to Mongo
+   * correctly and came back from every read path silently missing it — which
+   * happened to `graphTrace`/`toolCalls`, and would have happened again to
+   * `rule`/`model`. Both times it was caught by a human noticing, not by a test.
+   *
+   * Spreading removes the failure mode entirely: a new `@Prop` on the entity
+   * now reaches the domain object with no second edit. Only Mongo's own
+   * bookkeeping has to be named, and `recordedAt` — supplied by `timestamps`
+   * rather than declared as a prop — still needs its fallback for documents
+   * written before that option existed.
+   */
   private toDomain(doc: DecisionRecordEntity): DecisionRecord {
-    return {
-      idempotencyKey: doc.idempotencyKey,
-      operationId: doc.operationId,
-      workflowId: doc.workflowId,
-      runId: doc.runId,
-      step: doc.step,
-      criticality: doc.criticality,
-      criticalityConfidence: doc.criticalityConfidence,
-      congestion: doc.congestion,
-      deviceReachable: doc.deviceReachable,
-      action: doc.action,
-      reasoning: doc.reasoning,
-      graphTrace: doc.graphTrace,
-      toolCalls: doc.toolCalls,
-      qodSessionId: doc.qodSessionId,
-      qosStatus: doc.qosStatus,
-      qosStatusInfo: doc.qosStatusInfo,
-      sliceId: doc.sliceId,
-      networkCall: doc.networkCall,
-      error: doc.error,
-      occurredAt: doc.occurredAt,
-      recordedAt:
-        (doc as DecisionRecordEntity & { recordedAt?: Date }).recordedAt ?? doc.occurredAt,
+    const { _id, __v, recordedAt, ...fields } = doc as DecisionRecordEntity & {
+      _id?: unknown;
+      __v?: unknown;
+      recordedAt?: Date;
     };
+
+    void _id;
+    void __v;
+
+    return { ...fields, recordedAt: recordedAt ?? doc.occurredAt };
   }
 }

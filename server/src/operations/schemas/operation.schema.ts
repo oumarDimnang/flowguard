@@ -21,6 +21,10 @@ export type OperationDocument = HydratedDocument<OperationEntity>;
  */
 @Schema({ collection: 'operations', timestamps: true })
 export class OperationEntity {
+  /** Tenant key. Indexed because every single read filters on it. */
+  @Prop({ required: true, index: true })
+  organizationId!: string;
+
   @Prop({ required: true, unique: true, index: true })
   operationId!: string;
 

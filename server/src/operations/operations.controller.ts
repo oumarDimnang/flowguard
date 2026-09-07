@@ -1,5 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 
+import { OrgId } from '../auth/decorators/current-user.decorator';
+
 import type { Paginated } from '../common/dto/pagination.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { WorkflowOrchestratorPort } from '../temporal/ports/workflow-orchestrator.port';
@@ -15,18 +17,24 @@ export class OperationsController {
 
   /** Dashboard's main view: everything currently in flight. */
   @Get('active')
-  findActive(): Promise<Operation[]> {
-    return this.operations.findActive();
+  findActive(@OrgId() organizationId: string): Promise<Operation[]> {
+    return this.operations.findActive(organizationId);
   }
 
   @Get()
-  findAll(@Query() pagination: PaginationDto): Promise<Paginated<Operation>> {
-    return this.operations.findAll(pagination);
+  findAll(
+    @OrgId() organizationId: string,
+    @Query() pagination: PaginationDto,
+  ): Promise<Paginated<Operation>> {
+    return this.operations.findAll(organizationId, pagination);
   }
 
   @Get(':operationId')
-  findOne(@Param('operationId') operationId: string): Promise<Operation> {
-    return this.operations.findOne(operationId);
+  findOne(
+    @OrgId() organizationId: string,
+    @Param('operationId') operationId: string,
+  ): Promise<Operation> {
+    return this.operations.findOne(organizationId, operationId);
   }
 
   /**
@@ -36,8 +44,15 @@ export class OperationsController {
    * always right, and this endpoint is how you prove it during debugging.
    */
   @Get(':operationId/execution')
-  async execution(@Param('operationId') operationId: string) {
-    const snapshot = await this.orchestrator.describeOperation(operationId);
+  async execution(
+    @OrgId() organizationId: string,
+    @Param('operationId') operationId: string,
+  ) {
+    // Resolve through the read model first. Without it, any operation id in
+    // any tenant could be described straight out of Temporal.
+    await this.operations.findOne(organizationId, operationId);
+
+    const snapshot = await this.orchestrator.describeOperation(organizationId, operationId);
     return snapshot ?? { status: 'NOT_FOUND', operationId };
   }
 }

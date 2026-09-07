@@ -41,7 +41,7 @@ export class SimulatorService implements OnApplicationShutdown {
    * a scenario is that it unfolds over time — the dashboard watches it happen
    * over the WebSocket.
    */
-  run(scenarioId: string): ScenarioRun {
+  run(organizationId: string, scenarioId: string): ScenarioRun {
     const scenario = findScenario(scenarioId);
     if (!scenario) {
       throw new NotFoundException(`Unknown scenario '${scenarioId}'`);
@@ -58,7 +58,7 @@ export class SimulatorService implements OnApplicationShutdown {
       operation: step.event.operation,
     }));
 
-    scenario.steps.forEach((step) => this.schedule(scenario, step, runId));
+    scenario.steps.forEach((step) => this.schedule(organizationId, scenario, step, runId));
 
     this.logger.log(`Scenario '${scenario.id}' scheduled (run ${runId})`);
 
@@ -70,11 +70,16 @@ export class SimulatorService implements OnApplicationShutdown {
     this.timers.clear();
   }
 
-  private schedule(scenario: Scenario, step: ScenarioStep, runId: string): void {
+  private schedule(
+    organizationId: string,
+    scenario: Scenario,
+    step: ScenarioStep,
+    runId: string,
+  ): void {
     const operationId = this.operationId(scenario.id, step, runId);
 
     this.defer(async () => {
-      await this.events.accept({
+      await this.events.accept(organizationId, {
         id: operationId,
         assetType: step.event.assetType,
         device: step.event.device,
@@ -87,7 +92,10 @@ export class SimulatorService implements OnApplicationShutdown {
       });
 
       if (step.completeAfterMs !== undefined) {
-        this.defer(() => this.events.complete(operationId), step.completeAfterMs);
+        this.defer(
+          () => this.events.complete(organizationId, operationId),
+          step.completeAfterMs,
+        );
       }
     }, step.atMs);
   }

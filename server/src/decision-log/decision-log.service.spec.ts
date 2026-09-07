@@ -49,7 +49,7 @@ class FakeDecisionLogRepository extends DecisionLogRepository {
 
 class FakeOperationsService {
   patches: { id: string; patch: OperationPatch }[] = [];
-  async applyIfPresent(id: string, patch: OperationPatch) {
+  async applyIfPresent(_organizationId: string, id: string, patch: OperationPatch) {
     this.patches.push({ id, patch });
     return null;
   }
@@ -59,11 +59,15 @@ class FakeOperationsService {
 }
 
 class FakeRealtimePublisher extends RealtimePublisherPort {
-  published: { event: string; payload: unknown }[] = [];
-  publish<T>(event: string, payload: T): void {
-    this.published.push({ event, payload });
+  published: { organizationId: string; event: string; payload: unknown }[] = [];
+  publish<T>(organizationId: string, event: string, payload: T): void {
+    this.published.push({ organizationId, event, payload });
   }
   connectedClients(): number {
+    return 0;
+  }
+
+  totalConnectedClients(): number {
     return 0;
   }
 }

@@ -26,6 +26,10 @@ export class DecisionRecordEntity {
   @Prop({ required: true, unique: true, index: true })
   idempotencyKey!: string;
 
+  /** Tenant key. Indexed because every single read filters on it. */
+  @Prop({ required: true, index: true })
+  organizationId!: string;
+
   @Prop({ required: true, index: true })
   operationId!: string;
 
@@ -62,6 +66,12 @@ export class DecisionRecordEntity {
   @Prop({ type: [Object] })
   toolCalls?: ToolCall[];
 
+  @Prop({ index: true })
+  rule?: string;
+
+  @Prop()
+  modelId?: string;
+
   @Prop()
   qodSessionId?: string;
 
@@ -87,4 +97,4 @@ export class DecisionRecordEntity {
 export const DecisionRecordSchema = SchemaFactory.createForClass(DecisionRecordEntity);
 
 // Replaying one operation's trail in order is the primary read pattern.
-DecisionRecordSchema.index({ operationId: 1, occurredAt: 1 });
+DecisionRecordSchema.index({ organizationId: 1, operationId: 1, occurredAt: 1 });
