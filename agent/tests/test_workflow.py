@@ -264,6 +264,13 @@ async def test_unreachable_device_short_circuits(env: WorkflowEnvironment):
     # The model is never consulted — the guard runs first and costs nothing.
     assert DecisionStep.CRITICALITY_ASSESSED.value not in harness.emit.steps()
 
+    # And the rule reaches the *trail*, not only the return value. It used to
+    # reach only the latter, which left the one branch that ends an operation
+    # before any judgement as the only DECIDED with no rule on it — invisible
+    # to every reader of the decision log.
+    decided = next(r for r in harness.emit.records if r["step"] == DecisionStep.DECIDED.value)
+    assert decided["rule"] == "GUARD_DEVICE_UNREACHABLE"
+
 
 # ── The safety valve ──────────────────────────────────────────────────
 

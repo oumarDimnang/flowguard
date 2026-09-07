@@ -126,9 +126,23 @@ class BusinessEvent:
     metadata: dict[str, Any] = field(default_factory=dict)
     occurred_at: str | None = None
 
+    #: Which tenant this operation belongs to.
+    #:
+    #: Cross-language contract. The worker never interprets it — it carries the
+    #: value through and echoes it on every decision emit, which is how a
+    #: component authenticating with a machine token still records the right
+    #: organization.
+    #:
+    #: Defaulted, and last, for two reasons: a dataclass cannot place a
+    #: defaulted field before required ones, and a workflow started before this
+    #: field existed must still deserialise on replay rather than failing its
+    #: history.
+    organization_id: str = ""
+
     @classmethod
     def from_wire(cls, raw: dict[str, Any]) -> BusinessEvent:
         return cls(
+            organization_id=raw.get("organizationId", ""),
             id=raw["id"],
             asset_type=AssetType(raw["assetType"]),
             device=DeviceRef.from_wire(raw["device"]),

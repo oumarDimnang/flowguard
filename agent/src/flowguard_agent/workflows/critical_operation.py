@@ -82,6 +82,9 @@ class CriticalOperationWorkflow:
     """One critical operation, from business event to released connectivity."""
 
     def __init__(self) -> None:
+        # Set from the event at the top of run(). Initialised here so a signal
+        # arriving before run() has executed cannot raise AttributeError.
+        self._organization_id = ""
         self._completed = False
         self._qos_status: str | None = None
         self._qos_status_info: str | None = None
@@ -119,6 +122,9 @@ class CriticalOperationWorkflow:
     @workflow.run
     async def run(self, event: dict[str, Any]) -> dict[str, Any]:
         operation_id = event["id"]
+        # Captured once and stamped on every emit. The worker never interprets
+        # it — the server does, to file each decision under the right tenant.
+        self._organization_id = str(event.get("organizationId") or "")
         device = event["device"]
         expected_duration = int(event.get("expectedDurationSeconds") or 60)
 
@@ -214,6 +220,11 @@ class CriticalOperationWorkflow:
             # them, which made the agent's reasoning invisible to any UI.
             graphTrace=assessment.get("graphTrace"),
             toolCalls=assessment.get("toolCalls"),
+            # Which model actually produced this judgement. Pinned model ids are
+            # a requirement of the audit story — "an AI decided" is not an
+            # answer a regulator accepts, and this is the field that makes the
+            # answer specific.
+            modelId=assessment.get("model"),
             error=assessment_error,
         )
 
@@ -236,6 +247,11 @@ class CriticalOperationWorkflow:
             deviceReachable=True,
             action=policy.action.value,
             reasoning=f"{assessment.get('reasoning', '')} — {policy.rationale}".strip(" —"),
+            # The branch of decide() that fired. Previously folded into the
+            # prose above and lost as structured data — which threw away the
+            # most auditable artifact in the system, since it is the proof a
+            # readable rule made the call rather than the model.
+            rule=policy.rule,
         )
 
         if policy.action is NetworkAction.NONE:
@@ -552,6 +568,11 @@ class CriticalOperationWorkflow:
             action=NetworkAction.NONE.value,
             deviceReachable=reachable,
             reasoning=reasoning,
+            # The guard clause's rule was reaching the workflow's return value
+            # and not the decision record, so the one branch that ends an
+            # operation before any judgement was the only one whose trail did
+            # not say which rule ended it. Every other DECIDED carries this.
+            rule=rule,
         )
         self._state = {"status": "COMPLETED", "action": "NONE"}
         return {
@@ -574,6 +595,7 @@ class CriticalOperationWorkflow:
         """
         info = workflow.info()
         payload = {
+            "organizationId": self._organization_id,
             "operationId": operation_id,
             "workflowId": info.workflow_id,
             "runId": info.run_id,

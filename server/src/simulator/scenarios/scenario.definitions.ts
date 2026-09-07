@@ -217,6 +217,104 @@ export const SCENARIOS: readonly Scenario[] = [
       },
     ],
   },
+  {
+    id: 'false-claim',
+    name: 'False claim — the network contradicts the paperwork',
+    description:
+      'Two aircraft file the identical urgent leak inspection at the identical riser, ' +
+      'seconds apart. One is there; the other is 24 km away. Nothing in the request ' +
+      'distinguishes them, so the agent verifies the position against the network — and ' +
+      'the one that cannot be where it says it is does not get a slice.',
+    steps: [
+      {
+        atMs: 0,
+        completeAfterMs: 25_000,
+        event: {
+          key: 'drone-3-riser',
+          assetType: AssetType.DRONE,
+          device: { id: 'drone-3', phoneNumber: '+99999991002' },
+          operation: 'Pipeline leak inspection — riser 7',
+          description:
+            'Emergency thermal inspection of a suspected hydrocarbon leak at riser 7. ' +
+            'Live imagery is being watched by the incident commander to decide whether ' +
+            'to isolate the line.',
+          expectedDurationSeconds: 240,
+          site: 'Sitra Industrial Area — Riser 7',
+          metadata: {
+            emergency: true,
+            deferrable: false,
+            hazard: 'gas-leak',
+            siteLatitude: 26.15,
+            siteLongitude: 50.62,
+            // Stated rather than defaulted, uniquely here: the whole scenario
+            // is the distance between two claims, so the radius they are
+            // measured against should be on the page.
+            siteRadiusMeters: 2_000,
+          },
+        },
+      },
+      {
+        atMs: 20_000,
+        completeAfterMs: 25_000,
+        event: {
+          key: 'drone-9-riser',
+          assetType: AssetType.DRONE,
+          device: { id: 'drone-9', phoneNumber: '+99999991005' },
+          // Deliberately word-for-word the step above. The request is not
+          // where the difference lives.
+          operation: 'Pipeline leak inspection — riser 7',
+          description:
+            'Emergency thermal inspection of a suspected hydrocarbon leak at riser 7. ' +
+            'Live imagery is being watched by the incident commander to decide whether ' +
+            'to isolate the line.',
+          expectedDurationSeconds: 240,
+          site: 'Sitra Industrial Area — Riser 7',
+          metadata: {
+            emergency: true,
+            deferrable: false,
+            hazard: 'gas-leak',
+            siteLatitude: 26.15,
+            siteLongitude: 50.62,
+            siteRadiusMeters: 2_000,
+          },
+        },
+      },
+    ],
+  },
+  {
+    id: 'asset-offline',
+    name: 'Asset offline — the guard clause',
+    description:
+      'A genuinely safety-critical lift on a crane whose modem is not on the network. ' +
+      'There is no uplink to protect, so the trail is two steps long and nothing is ' +
+      'spent. Declining to allocate is the same discipline as releasing.',
+    steps: [
+      {
+        atMs: 0,
+        // No completion signal: the guard clause ends the workflow before
+        // anything waits for one, and sending it anyway logs an error about a
+        // workflow that has already finished correctly.
+        event: {
+          key: 'crane-c-lift',
+          assetType: AssetType.CRANE,
+          device: { id: 'crane-c', phoneNumber: '+99999991007' },
+          operation: 'Move Container #TGHU6620441',
+          description:
+            'Loaded container discharge across the quay walkway on the outboard crane. ' +
+            'The cabin modem dropped off the network at shift change and has not come ' +
+            'back, so the operator is working from the cab rather than the control room.',
+          expectedDurationSeconds: 150,
+          site: 'Khalifa Bin Salman Port — Berth 3',
+          metadata: {
+            loadTonnes: 31.5,
+            overWalkway: true,
+            siteLatitude: 26.2041,
+            siteLongitude: 50.605,
+          },
+        },
+      },
+    ],
+  },
 ] as const;
 
 export function findScenario(id: string): Scenario | undefined {

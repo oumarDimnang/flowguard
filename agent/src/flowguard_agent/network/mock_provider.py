@@ -36,7 +36,9 @@ logger = logging.getLogger(__name__)
 #: same value on purpose — that identity is the entire point of the contrast.
 SCRIPTED_CONGESTION: dict[str, CongestionLevel] = {
     "crane-a": CongestionLevel.HIGH,
+    "crane-b": CongestionLevel.HIGH,
     "drone-3": CongestionLevel.HIGH,
+    "drone-9": CongestionLevel.HIGH,
     "ambulance-7": CongestionLevel.MEDIUM,
     # A capacity stadium crowd is the canonical congestion scenario — the
     # same HIGH congestion both events see, matching the drone-3 contrast.
@@ -44,7 +46,12 @@ SCRIPTED_CONGESTION: dict[str, CongestionLevel] = {
 }
 
 #: Devices the mock reports as unreachable, for exercising the guard clause.
-UNREACHABLE_DEVICES: set[str] = {"camera-offline"}
+#:
+#: 'crane-c' and 'drone-7' are here so each industry has a job that cannot be
+#: decided at all. The resulting trail is two steps long — checked, then
+#: declined — which is the shape worth being able to show: FlowGuard spending
+#: nothing on an asset that is not there is the same discipline as releasing.
+UNREACHABLE_DEVICES: set[str] = {"camera-offline", "crane-c", "drone-7"}
 
 #: Where each demo device actually is, as (latitude, longitude).
 #:
@@ -58,15 +65,26 @@ UNREACHABLE_DEVICES: set[str] = {"camera-offline"}
 #: 'drone-9' is the interesting one: it reports a pipeline leak inspection but
 #: is ~18 km from the pipeline. A criticality claim the network can contradict
 #: is the reason location is worth querying at all.
+#:
+#: Every demo asset needs an entry here. DEFAULT_LOCATION is ~2.8 km from the
+#: berth and ~7 km from the riser, so an asset that is missing lands outside
+#: both verification radii and its perfectly honest job gets downgraded as a
+#: false claim — which is indistinguishable, in the trail, from the one case
+#: that is *supposed* to be downgraded. The quay cranes all sit at the berth.
 SCRIPTED_LOCATIONS: dict[str, tuple[float, float]] = {
     "crane-a": (26.2041, 50.6050),
+    "crane-b": (26.2041, 50.6050),
+    "crane-c": (26.2041, 50.6050),
+    "drone-2": (26.1500, 50.6200),
     "drone-3": (26.1500, 50.6200),
+    "drone-7": (26.1500, 50.6200),
     "drone-9": (26.3100, 50.7900),
     "ambulance-7": (26.2285, 50.5860),
     "medic-12": (26.1655, 50.5470),  # Bahrain National Stadium, Isa Town
 }
 
-#: Fallback for devices with no scripted position.
+#: Fallback for devices with no scripted position. See the note above before
+#: relying on it for anything that carries site coordinates.
 DEFAULT_LOCATION = (26.2235, 50.5876)
 
 #: Rough metres per degree at this latitude. Adequate for a proximity check;
