@@ -1,0 +1,127 @@
+/**
+ * Design tokens.
+ *
+ * Palette is the Claude theme (warm paper, clay accent). Every colour lives
+ * here as an oklch triple and nowhere else — no component hardcodes a colour.
+ *
+ * Two layers, and the distinction matters:
+ *   :root / .dark   raw values, swapped by theme
+ *   @theme inline   maps those to Tailwind's namespaces so utilities generate
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+/**
+ * Static design values.
+ *
+ * `@theme`, not `@theme inline` — the distinction is load-bearing. `inline`
+ * substitutes a token's value into the generated utility and emits no custom
+ * property, so anything declared there is invisible to hand-written CSS. These
+ * are referenced directly by components.css (`.eyebrow`, `.datum`, `.btn-line`),
+ * so they have to exist at runtime as well as generate utilities.
+ */
+@theme {
+  /* IBM Plex Sans for prose, JetBrains Mono for anything the reader might need
+     to compare, copy or align. */
+  --font-sans: 'IBM Plex Sans Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  /* The eyebrow label: 11px uppercase mono with wide tracking. Used often
+     enough to deserve its own step rather than an arbitrary value. */
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1.2;
+  --tracking-label: 0.08em;
+
+  /* The masthead wordmark. */
+  --tracking-wordmark: 0.12em;
+
+  /* The holdings readout. Deliberately enormous — it is the number the whole
+     product argument rests on. */
+  --text-figure: 7.5rem;
+  --text-figure--line-height: 1;
+}
+
+/**
+ * Colour mappings.
+ *
+ * `inline` here is correct and necessary: each maps to a variable that `.dark`
+ * swaps, and inlining is what lets one utility resolve differently per theme.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  --background: oklch(0.9818 0.0054 95.0986);
+  --foreground: oklch(0.3438 0.0269 95.7226);
+  --card: oklch(0.9818 0.0054 95.0986);
+  --card-foreground: oklch(0.3438 0.0269 95.7226);
+  --popover: oklch(0.9818 0.0054 95.0986);
+  --popover-foreground: oklch(0.3438 0.0269 95.7226);
+  --primary: oklch(0.6171 0.1375 39.0427);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9245 0.0138 92.9892);
+  --secondary-foreground: oklch(0.3438 0.0269 95.7226);
+  --muted: oklch(0.9341 0.0153 90.239);
+  --muted-foreground: oklch(0.6059 0.0075 97.4233);
+  --accent: oklch(0.9245 0.0138 92.9892);
+  --accent-foreground: oklch(0.3438 0.0269 95.7226);
+  --destructive: oklch(0.5504 0.2064 26.0);
+  --border: oklch(0.8847 0.0069 97.3627);
+  --input: oklch(0.8847 0.0069 97.3627);
+  --ring: oklch(0.6171 0.1375 39.0427);
+
+  --radius: 0.5rem;
+
+  /* Page gutter and content ceiling, shared by the masthead and every page so
+     their left edges line up exactly. */
+  --page-max: 90rem;
+  --page-gutter: 2.5rem;
+
+  /* Width of the timestamp margin column. Log-style: time never sits inline
+     with prose. */
+  --margin-col: 7.5rem;
+}
+
+.dark {
+  --background: oklch(0.2679 0.0036 106.6427);
+  --foreground: oklch(0.8074 0.0142 93.0137);
+  --card: oklch(0.2679 0.0036 106.6427);
+  --card-foreground: oklch(0.8074 0.0142 93.0137);
+  --popover: oklch(0.2679 0.0036 106.6427);
+  --popover-foreground: oklch(0.8074 0.0142 93.0137);
+  --primary: oklch(0.6724 0.1308 38.7559);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.213 0.0078 95.4245);
+  --secondary-foreground: oklch(0.8074 0.0142 93.0137);
+  --muted: oklch(0.31 0.005 106.6);
+  --muted-foreground: oklch(0.62 0.01 95);
+  --accent: oklch(0.213 0.0078 95.4245);
+  --accent-foreground: oklch(0.8074 0.0142 93.0137);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --border: oklch(0.3618 0.0101 106.8928);
+  --input: oklch(0.3618 0.0101 106.8928);
+  --ring: oklch(0.6724 0.1308 38.7559);
+}

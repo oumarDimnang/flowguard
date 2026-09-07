@@ -1,0 +1,251 @@
+/**
+ * The decision graph's scene.
+ *
+ * Follows the app's light/dark toggle like every other page, but it is the one
+ * screen whose palette is built for depth rather than for reading. The
+ * Instrument Record language — warm paper, hairlines, no shadows — is correct
+ * for the ruled document pages and actively hostile to a 3D scene: depth
+ * perception needs value contrast, shading and falloff.
+ *
+ * So the *relationships* invert between themes rather than the colours simply
+ * flipping. In dark, spheres are lit objects against a void. In light, they are
+ * solid objects on paper, lit from the same direction, with cast shadows
+ * instead of bloom — the difference between looking into space and looking at
+ * a model on a desk.
+ *
+ * Everything is scoped to `.graph-scene` so none of it leaks into the pages
+ * that are meant to look like a record.
+ */
+
+@layer components {
+  /* ── Light: objects on paper ──────────────────────────────────────── */
+  .graph-scene {
+    --void: oklch(0.9818 0.0054 95.0986);
+    --void-deep: oklch(0.9 0.008 95);
+    --ink: oklch(0.3438 0.0269 95.7226);
+    --ink-dim: oklch(0.6059 0.0075 97.4233);
+    --agent: oklch(0.6171 0.1375 39.0427);
+    --machine: oklch(0.42 0.03 220);
+    --edge: oklch(0.8 0.008 97);
+
+    /* Motes rather than stars — the same parallax, in ink. */
+    --star: oklch(0.35 0.02 96);
+
+    /* Lit from the upper left in both themes, so the highlight never moves. */
+    --sphere-agent: radial-gradient(
+      circle at 35% 30%,
+      oklch(0.84 0.1 50) 0%,
+      oklch(0.65 0.145 40) 36%,
+      oklch(0.47 0.13 38) 76%,
+      oklch(0.34 0.09 35) 100%
+    );
+    --sphere-agent-far: radial-gradient(
+      circle at 35% 30%,
+      oklch(0.8 0.07 50) 0%,
+      oklch(0.66 0.1 40) 40%,
+      oklch(0.54 0.09 38) 78%,
+      oklch(0.44 0.06 35) 100%
+    );
+    --sphere-machine: radial-gradient(
+      circle at 35% 28%,
+      oklch(0.86 0.02 220) 0%,
+      oklch(0.6 0.03 220) 26%,
+      oklch(0.38 0.03 220) 66%,
+      oklch(0.26 0.02 220) 100%
+    );
+
+    /* On paper a glow reads as dirt. Cast a shadow instead. */
+    --glow-agent: oklch(0.45 0.09 38 / 0.28);
+    --glow-machine: oklch(0.3 0.03 220 / 0.3);
+    --sphere-inset: inset -2px -3px 5px oklch(0.2 0.02 220 / 0.35);
+    --vignette: oklch(0.72 0.012 95 / 0.5);
+
+    /*
+     * The empty write-tools socket, which is the argument of the whole scene
+     * and so must read as *absent* in both themes.
+     *
+     * In a void that means an interior darker than its surroundings. On paper
+     * the same shadow fills the circle and produces a solid grey ball — the
+     * exact opposite of what it is meant to say. So light gets a shallow rim
+     * instead, leaving the interior bare paper.
+     */
+    --socket-inset: inset 0 2px 8px -3px oklch(0.45 0.012 95 / 0.4);
+
+    background: var(--void);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Dark: lit objects in a void ──────────────────────────────────── */
+  :is(.dark *).graph-scene,
+  :is(.dark) .graph-scene {
+    --void: oklch(0.16 0.008 95);
+    --void-deep: oklch(0.11 0.006 95);
+    --ink: oklch(0.88 0.012 93);
+    --ink-dim: oklch(0.62 0.01 95);
+    --agent: oklch(0.7 0.15 40);
+    --machine: oklch(0.82 0.03 220);
+    --edge: oklch(0.4 0.01 95);
+
+    --star: oklch(0.88 0.012 93);
+
+    --sphere-agent: radial-gradient(
+      circle at 35% 30%,
+      oklch(0.93 0.09 50) 0%,
+      oklch(0.72 0.15 40) 38%,
+      oklch(0.5 0.14 38) 75%,
+      oklch(0.3 0.09 35) 100%
+    );
+    --sphere-agent-far: radial-gradient(
+      circle at 35% 30%,
+      oklch(0.84 0.07 50) 0%,
+      oklch(0.64 0.11 40) 38%,
+      oklch(0.44 0.1 38) 75%,
+      oklch(0.27 0.06 35) 100%
+    );
+    --sphere-machine: radial-gradient(
+      circle at 35% 28%,
+      #ffffff 0%,
+      oklch(0.84 0.03 220) 22%,
+      oklch(0.55 0.03 220) 62%,
+      oklch(0.26 0.02 220) 100%
+    );
+
+    /* In a void, bloom is the light source rather than a decoration. */
+    --glow-agent: oklch(0.62 0.17 42 / 0.45);
+    --glow-machine: oklch(0.82 0.03 220 / 0.45);
+    --sphere-inset: inset -2px -3px 4px oklch(0.2 0.02 220 / 0.6);
+    --vignette: oklch(0.11 0.006 95 / 0.75);
+    --socket-inset: inset 0 0 24px 4px oklch(0.08 0.004 95 / 0.9);
+  }
+
+  /**
+   * The viewport.
+   *
+   * `isolation: isolate` gives the vignette a stacking context to sit in
+   * without being pulled into the transformed subtree.
+   */
+  .graph-viewport {
+    position: relative;
+    /* Fixed. The wheel moves the world rather than changing the lens — see
+       RANGE.forward in use-orbit.ts, which is sized against this number. */
+    perspective: 1200px;
+    perspective-origin: 50% 45%;
+    cursor: grab;
+    outline: none;
+    user-select: none;
+    touch-action: none;
+    overflow: clip;
+    isolation: isolate;
+    background: radial-gradient(ellipse at 50% 40%, var(--void) 0%, var(--void-deep) 100%);
+  }
+
+  /**
+   * The moving, rotating world.
+   *
+   * The camera is fixed at the perspective origin, so "moving" is the world
+   * translating underneath it. The order of the transform list is the whole
+   * trick: CSS applies it right to left, so putting the translation *first*
+   * (leftmost, applied last) means it happens in screen axes rather than the
+   * world's own. W is therefore always "into the screen" no matter how far the
+   * scene has been orbited, and a step is a constant number of screen pixels
+   * regardless of `--k`.
+   *
+   * `preserve-3d` has to survive the whole chain from here to each sphere.
+   * Three properties silently collapse it back to a plane, and any one of them
+   * on an ancestor is what turns a 3D scene into a flat diagram:
+   *
+   *   filter            — a blur or drop-shadow creates a stacking context
+   *   opacity < 1       — same
+   *   overflow: hidden  — same
+   *
+   * So depth-of-field is applied to individual spheres, fades are applied to
+   * individual spheres, and the vignette is a sibling of this element rather
+   * than a parent of it.
+   */
+  .graph-world {
+    position: absolute;
+    left: 50%;
+    top: 60%;
+    width: 0;
+    height: 0;
+    transform-style: preserve-3d;
+    transform: translate3d(var(--tx, 0px), var(--ty, 0px), var(--tz, 0px))
+      scale3d(var(--k, 1), var(--k, 1), var(--k, 1)) rotateX(var(--rx, 14deg))
+      rotateY(var(--ry, -24deg));
+  }
+
+  .graph-node {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-style: preserve-3d;
+  }
+
+  /**
+   * Counter-rotation, so spheres and labels face the viewer as the world turns.
+   *
+   * Spheres are rotationally symmetric and would not strictly need it, but
+   * their specular highlight would swing away without it — and the labels
+   * certainly do.
+   */
+  .graph-facing {
+    transform: rotateY(calc(-1 * var(--ry, -24deg))) rotateX(calc(-1 * var(--rx, 14deg)));
+    transform-style: preserve-3d;
+  }
+
+  .graph-sphere {
+    position: absolute;
+    border-radius: 50%;
+    padding: 0;
+    cursor: pointer;
+    outline-offset: 6px;
+    transition:
+      filter 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .graph-sphere:focus-visible {
+    outline: 1px solid var(--ink);
+  }
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+
+  @keyframes graph-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.06);
+    }
+  }
+
+  @keyframes graph-travel {
+    from {
+      left: 0%;
+    }
+    to {
+      left: 100%;
+    }
+  }
+
+  @keyframes graph-orbit {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /**
+   * Motion is instrumentation, not decoration, and it turns off entirely for
+   * anyone who has asked it to. The scene stays fully usable without it.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .graph-animated {
+      animation: none !important;
+    }
+  }
+}

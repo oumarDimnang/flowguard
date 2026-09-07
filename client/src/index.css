@@ -1,0 +1,27 @@
+/**
+ * Stylesheet entry point.
+ *
+ * Imports only — every rule lives in ./styles, split by what it does:
+ *
+ *   theme.css       tokens and their Tailwind mappings
+ *   base.css        element defaults
+ *   components.css  the design language's repeated patterns
+ *
+ * Order matters. Tailwind and shadcn first so their layers exist; fonts before
+ * anything that references a family; ours last so we win ties.
+ *
+ * Fonts are bundled rather than pulled from Google Fonts on purpose — a demo
+ * should not be able to lose its typography to venue wifi.
+ */
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
+@import './styles/theme.css';
+@import './styles/base.css';
+@import './styles/components.css';
+@import './styles/graph.css';

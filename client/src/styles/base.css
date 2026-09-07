@@ -1,0 +1,114 @@
+/**
+ * Element defaults.
+ *
+ * Everything here is a decision the design language makes globally, so no
+ * component has to remember it.
+ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* Tabular figures everywhere, unconditionally. Live values update in
+       place constantly — proportional digits make a counter visibly twitch
+       as it counts, which reads as instability in a system whose whole claim
+       is that it is dependable. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Headings carry the hierarchy; nothing else needs a background fill to be
+     legible as a heading. */
+  h1 {
+    @apply text-[1.75rem] leading-[1.15] font-semibold tracking-[-0.01em];
+    margin: 0;
+  }
+
+  h2 {
+    @apply text-xl font-semibold;
+    margin: 0;
+  }
+
+  h3 {
+    @apply text-[0.9375rem] font-semibold;
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  a {
+    @apply text-foreground no-underline;
+  }
+
+  a:hover {
+    @apply text-primary;
+  }
+
+  /* Focus is visible and uses the accent — this is an operations tool and it
+     should be fully keyboard-navigable. */
+  :focus-visible {
+    @apply outline-primary outline-2 outline-offset-2;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /**
+   * Scrollbars.
+   *
+   * The browser default is the one piece of chrome this design cannot restyle
+   * away, and its rounded, shaded thumb is louder than anything else on the
+   * page — in a layout built from hairlines it reads as a foreign object.
+   *
+   * So: a thin square rail in the border colour, no track, no radius, no
+   * shadow. It brightens to the muted ink on hover so it is findable without
+   * ever being the most prominent thing on screen.
+   *
+   * Declared twice on purpose. `scrollbar-width`/`scrollbar-color` is the
+   * standard and the only thing Firefox honours; the `::-webkit-` rules give
+   * Chromium and Safari the exact width and square corners, which the standard
+   * properties cannot express.
+   */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 0;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+
+  /* Where a horizontal and vertical bar meet. Left blank rather than filled. */
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
