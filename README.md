@@ -1,23 +1,22 @@
 # FlowGuard
 
-**AI-controlled connectivity for critical business operations.**
+**AI-controlled connectivity for critical operations.**
 
-FlowGuard is an AI agent that sits between a facility's operational systems and a programmable 5G network. It observes business events, judges how *business-critical* each one is, checks live network conditions, and then programs the network — requesting Quality on Demand or attaching a Network Slice — for only that device, for only that operation's duration, releasing it the moment the operation ends.
+FlowGuard is an AI agent that sits between operational systems and a programmable 5G network. It observes business events, judges how *critical* each one is, checks live network conditions, and then programs the network — requesting Quality on Demand or attaching a Network Slice — for only that device, for only that operation's duration, releasing it the moment the operation ends.
 
 Built on [Nokia Network as Code](https://networkascode.nokia.io/) and the GSMA Open Gateway CAMARA APIs.
 
-**Theme:** Smart Mobility and Logistics Agents · **Team:** PulseGrid
+**Theme:** Industrial & Enterprise AI Automation · **Team:** PulseGrid
 
 ---
 
 ## The problem
 
-Modern industrial, healthcare, and logistics operations depend on wireless connectivity for safety-critical tasks, but today's networks treat connectivity as static infrastructure. That leaves a costly binary:
+Critical operations increasingly depend on 5G connectivity, but networks don't understand when an ordinary business operation suddenly becomes mission-critical. Today, network quality is managed based on technical conditions such as congestion, while operational systems understand business context, such as whether a drone is mapping a site or investigating a gas leak. These two systems are disconnected. As a result, enterprises either over-provision high-priority connectivity, wasting resources, or risk critical applications running without enhanced network performance when it matters most. FlowGuard closes this gap by translating real-world operational events into real-time network actions.
 
-- **Always-on premium 5G** — wasteful, since most operations only need it a fraction of the day.
-- **Standard connectivity** — risks degraded performance at exactly the moment a critical operation is underway.
+**This isn't hypothetical.** On 9/11, first responders in NYC lost the ability to coordinate because public cellular congestion swamped the network they shared with everyone else — a failure the 9/11 Commission Report formally investigated. Congress's answer was FirstNet: a dedicated, $6.5B, 25-year public-safety network built specifically to give responders a priority "fast lane" during exactly the moments networks are most congested. It's real, active, and serves 7M+ users today.
 
-A remote-operated crane needs sub-30 ms latency and pushes ~30 Mbps *upstream* per camera. When a ship berths and three hundred devices attach to the same cell, that link degrades — and the operator emergency-stops with a 40-tonne load suspended.
+FirstNet solved this by building an entire second physical network. FlowGuard solves the same underlying problem in software — on top of the network that already exists — using CAMARA's Quality on Demand and Network Slicing to grant that same priority fast lane the instant it's needed, and release it the instant it isn't. The same engine generalises directly to industrial operations (a remote-operated crane needs sub-30ms latency and fails safe — but expensively — when congestion breaches it) and healthcare (a paramedic escalating from routine transport to a live specialist consult). See [`docs/evidence.md`](docs/evidence.md) for sourcing on every claim above.
 
 ## The thesis
 
@@ -25,10 +24,10 @@ A remote-operated crane needs sub-30 ms latency and pushes ~30 Mbps *upstream* p
 
 | Event | Congestion | Criticality | Decision |
 |---|---|---|---|
-| Drone 3 — routine mapping | HIGH | LOW | **no allocation** |
-| Drone 3 — pipeline leak inspection *(5 min later)* | HIGH | HIGH | **QoD + slice** |
+| Paramedic — routine stadium standby | HIGH | LOW | **no allocation** |
+| Paramedic — mass-casualty incident declared *(same device, minutes later)* | HIGH | HIGH | **QoD + slice** |
 
-Same device, same network conditions, opposite outcomes. That contrast is the demo, and it is asserted as a test.
+Same device, same network conditions, opposite outcomes. That contrast is the demo, and it is asserted as a test — reproduced again with a crane and a drone in [`docs/evidence.md`](docs/evidence.md), because the pattern isn't specific to one industry.
 
 ## How it works
 
@@ -104,34 +103,44 @@ A model classifies. Rules decide. That separation is what makes the decision tra
 
 | | |
 |---|---|
-| `server/` | **built** — 58 files, 12 tests passing |
-| `agent/` | **built** — 43 files, 96 tests passing |
-| `client/` | **not started** |
-| Nokia sandbox | account active; QoD and Slice paths verified, 3 paths pending |
-| Real LLM | not yet run — everything so far uses the offline classifier |
+| `server/` | **built** — 58 files, 13 tests passing |
+| `agent/` | **built** — 45 files, 115 tests passing |
+| `client/` | **not started** — decision trail reachable via REST API and Temporal UI |
+| Nokia sandbox | all 5 CAMARA endpoint paths verified live |
+| Real LLM | run and validated — OpenRouter model reproduces the criticality-not-congestion thesis exactly, including choosing to call Location Verification with no prompting |
+| Server + agent + Temporal | run together live end-to-end, all four scenarios, real MongoDB Atlas persistence |
 
-Verified live against a running Temporal server: the drone contrast pair, false-claim detection, duplicate-event idempotency, and release surviving a missing completion signal.
+Verified live against a running Temporal server, with a real model, not only unit-tested: the stadium-incident and drone contrast pairs, false-claim detection via location, duplicate-event idempotency, mid-operation re-decision on congestion change, fail-open/fail-closed on assessment failure, and release surviving a missing completion signal.
 
 ## Running it
 
-Nothing below requires an API key — the agent runs fully offline against a mock network provider and an offline classifier.
+Nothing below requires an API key — the agent runs fully offline against a mock network provider and an offline classifier by default.
 
 **1. Temporal**
 ```bash
 temporal server start-dev --db-filename temporal.db
 ```
 
-**2. Agent worker**
+**2. Server** (needs `MONGODB_URI` in `server/.env` — see `.env.example`)
 ```bash
-cd agent && uv run flowguard-worker
+cd server && npm install && npm run start:dev
 ```
 
-**3. Fire a scenario**
+**3. Agent worker**
 ```bash
-temporal workflow start --task-queue flowguard --type CriticalOperationWorkflow --workflow-id op-1 --input-file docs/examples/crane-lift.json
+cd agent && uv sync && uv run flowguard-worker
 ```
 
-Watch it at **http://localhost:8233**.
+**4. Fire the flagship scenario**
+```bash
+curl -X POST http://localhost:3000/simulator/scenarios/stadium-incident/run
+```
+Or trigger any event directly via Temporal, no server needed:
+```bash
+temporal workflow start --task-queue flowguard --type CriticalOperationWorkflow --workflow-id op-1 --input-file docs/examples/stadium-incident.json
+```
+
+Watch it at **http://localhost:8233**, or read the decision trail back at `GET /decision-log/:operationId` and the reproducible impact numbers at `GET /metrics`.
 
 **Tests**
 ```bash
@@ -141,11 +150,13 @@ cd agent && uv run pytest
 cd server && npm test
 ```
 
-The server additionally needs a MongoDB Atlas URI in `server/.env`. See `.env.example` in each service.
+To run against live services (not required for the demo above): set `NETWORK_PROVIDER=nokia` + `NOKIA_API_KEY`, and `LLM_PROVIDER=openrouter` + `OPENROUTER_API_KEY` in `agent/.env`.
 
 ## Documentation
 
-[`CLAUDE.md`](CLAUDE.md) — full engineering context: architecture decisions and their rationale, cross-language contracts, hard-won API details, and known gaps.
+- [`CLAUDE.md`](CLAUDE.md) — full engineering context: architecture decisions and their rationale, cross-language contracts, hard-won API details, and known gaps.
+- [`docs/evidence.md`](docs/evidence.md) — sourcing for every claim in this README and the pitch deck, including how to regenerate the impact metrics.
+- [`docs/cost-model.md`](docs/cost-model.md) — the always-on-vs-FlowGuard cost comparison.
 
 ## Team
 

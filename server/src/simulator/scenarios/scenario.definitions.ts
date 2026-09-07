@@ -38,11 +38,72 @@ export interface Scenario {
  */
 export const SCENARIOS: readonly Scenario[] = [
   {
+    id: 'stadium-incident',
+    name: 'Stadium incident — public-safety priority comms',
+    description:
+      'The flagship scenario. A paramedic unit on routine standby at a capacity stadium event ' +
+      'stays on standard connectivity under HIGH congestion — the same congestion a declared ' +
+      'mass-casualty incident nearby escalates through minutes later, when the same device ' +
+      'needs a guaranteed link to coordinate triage with the trauma centre. The pattern FirstNet ' +
+      "(the US's $6.5B dedicated public-safety network, built after 9/11 responders lost " +
+      'cellular comms to public congestion) solves with a second physical network, this solves ' +
+      'in software on the network that already exists.',
+    steps: [
+      {
+        atMs: 0,
+        completeAfterMs: 20_000,
+        event: {
+          key: 'medic-12-standby',
+          assetType: AssetType.AMBULANCE,
+          device: { id: 'medic-12', phoneNumber: '+99999991004' },
+          operation: 'Routine crowd-health standby patrol',
+          description:
+            'Paramedic unit stationed at a capacity stadium event, monitoring for minor medical ' +
+            'needs during a routine match. Periodic check-ins only; no live decision depends on ' +
+            'this feed, and a delayed check-in has no consequence.',
+          expectedDurationSeconds: 600,
+          site: 'Bahrain National Stadium — Gate C',
+          metadata: {
+            scheduled: true,
+            deferrable: true,
+            siteLatitude: 26.1655,
+            siteLongitude: 50.547,
+          },
+        },
+      },
+      {
+        atMs: 30_000,
+        completeAfterMs: 25_000,
+        event: {
+          key: 'medic-12-incident',
+          assetType: AssetType.AMBULANCE,
+          device: { id: 'medic-12', phoneNumber: '+99999991004' },
+          operation: 'Mass-casualty incident declared — priority triage coordination',
+          description:
+            'A crowd-crush incident has been declared near Gate C with multiple casualties. ' +
+            'The paramedic unit needs a live, guaranteed-quality video and audio link to ' +
+            'coordinate triage decisions with the regional trauma centre in real time; a dropped ' +
+            'connection during active triage risks delayed life-saving care.',
+          expectedDurationSeconds: 300,
+          site: 'Bahrain National Stadium — Gate C',
+          metadata: {
+            emergency: true,
+            deferrable: false,
+            hazard: 'mass-casualty',
+            siteLatitude: 26.1655,
+            siteLongitude: 50.547,
+          },
+        },
+      },
+    ],
+  },
+  {
     id: 'crane-lift',
     name: 'Crane lift — high-value container',
     description:
-      'The primary demo path. A safety-critical lift begins during elevated congestion; ' +
-      'the agent grants Quality on Demand and releases it when the lift completes.',
+      'Cross-industry generalisation: the same agent logic applied to port operations. A ' +
+      'safety-critical lift begins during elevated congestion; the agent grants Quality on ' +
+      'Demand and releases it when the lift completes.',
     steps: [
       {
         atMs: 0,
@@ -58,7 +119,13 @@ export const SCENARIOS: readonly Scenario[] = [
             'feed mid-lift requires an emergency stop with the load suspended.',
           expectedDurationSeconds: 180,
           site: 'Khalifa Bin Salman Port — Berth 3',
-          metadata: { cargoValueUsd: 2_400_000, loadTonnes: 40, overWalkway: true },
+          metadata: {
+            cargoValueUsd: 2_400_000,
+            loadTonnes: 40,
+            overWalkway: true,
+            siteLatitude: 26.2041,
+            siteLongitude: 50.605,
+          },
         },
       },
     ],
@@ -86,7 +153,12 @@ export const SCENARIOS: readonly Scenario[] = [
             'flight can be repeated at any time.',
           expectedDurationSeconds: 600,
           site: 'Sitra Industrial Area',
-          metadata: { scheduled: true, deferrable: true },
+          metadata: {
+            scheduled: true,
+            deferrable: true,
+            siteLatitude: 26.15,
+            siteLongitude: 50.62,
+          },
         },
       },
       {
@@ -103,7 +175,13 @@ export const SCENARIOS: readonly Scenario[] = [
             'evacuate the adjacent compound. A dropped feed delays that decision.',
           expectedDurationSeconds: 240,
           site: 'Sitra Industrial Area — Trunk Line B',
-          metadata: { emergency: true, deferrable: false, hazard: 'gas-leak' },
+          metadata: {
+            emergency: true,
+            deferrable: false,
+            hazard: 'gas-leak',
+            siteLatitude: 26.15,
+            siteLongitude: 50.62,
+          },
         },
       },
     ],
@@ -129,7 +207,12 @@ export const SCENARIOS: readonly Scenario[] = [
             'thrombectomy-capable centre. The decision window is minutes.',
           expectedDurationSeconds: 420,
           site: 'Route 1 — inbound',
-          metadata: { emergency: true, patientCritical: true },
+          metadata: {
+            emergency: true,
+            patientCritical: true,
+            siteLatitude: 26.2285,
+            siteLongitude: 50.586,
+          },
         },
       },
     ],
