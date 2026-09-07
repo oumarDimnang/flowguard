@@ -1,0 +1,19 @@
+{
+  "id": "medic-12-incident-001",
+  "assetType": "AMBULANCE",
+  "device": {
+    "id": "medic-12",
+    "phoneNumber": "+99999991004"
+  },
+  "operation": "Mass-casualty incident declared - priority triage coordination",
+  "description": "A crowd-crush incident has been declared near Gate C at a capacity stadium event, with multiple casualties. The paramedic unit needs a live, guaranteed-quality video and audio link to coordinate triage decisions with the regional trauma centre in real time; a dropped connection during active triage risks delayed life-saving care.",
+  "expectedDurationSeconds": 300,
+  "site": "Bahrain National Stadium - Gate C",
+  "metadata": {
+    "emergency": true,
+    "deferrable": false,
+    "hazard": "mass-casualty",
+    "siteLatitude": 26.1655,
+    "siteLongitude": 50.547
+  }
+}

@@ -38,6 +38,9 @@ SCRIPTED_CONGESTION: dict[str, CongestionLevel] = {
     "crane-a": CongestionLevel.HIGH,
     "drone-3": CongestionLevel.HIGH,
     "ambulance-7": CongestionLevel.MEDIUM,
+    # A capacity stadium crowd is the canonical congestion scenario — the
+    # same HIGH congestion both events see, matching the drone-3 contrast.
+    "medic-12": CongestionLevel.HIGH,
 }
 
 #: Devices the mock reports as unreachable, for exercising the guard clause.
@@ -60,6 +63,7 @@ SCRIPTED_LOCATIONS: dict[str, tuple[float, float]] = {
     "drone-3": (26.1500, 50.6200),
     "drone-9": (26.3100, 50.7900),
     "ambulance-7": (26.2285, 50.5860),
+    "medic-12": (26.1655, 50.5470),  # Bahrain National Stadium, Isa Town
 }
 
 #: Fallback for devices with no scripted position.
