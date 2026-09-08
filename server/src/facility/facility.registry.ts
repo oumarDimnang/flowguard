@@ -28,6 +28,15 @@ export class FacilityRegistry {
    * A 404 rather than a 500 when nothing is registered: an organization in an
    * industry FlowGuard does not yet model is a gap in coverage, not a fault.
    */
+  /** Industries an organization can be registered in today. */
+  supported(): Industry[] {
+    return [...this.byIndustry.keys()];
+  }
+
+  supports(industry: Industry): boolean {
+    return this.byIndustry.has(industry);
+  }
+
   for(industry: Industry): FacilitySystemPort {
     const system = this.byIndustry.get(industry);
     if (!system) {

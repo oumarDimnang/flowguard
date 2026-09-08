@@ -32,7 +32,7 @@ a change breaks that property, the change is wrong.
 flowguard/
 ├── server/     NestJS 12 — public ingress, BFF, sole MongoDB writer
 ├── agent/      Python 3.12 — Temporal worker, LangGraph reasoning, CAMARA I/O
-├── client/     React + Vite + Tailwind — NOT STARTED (4 .gitkeep files)
+├── client/     React + Vite + Tailwind — operations dashboard, login/registration
 └── docs/
 ```
 
@@ -40,7 +40,7 @@ flowguard/
 |---|---|---|---|
 | `server/` | 58 `.ts` | 13 passing | build clean, lint clean |
 | `agent/` | 45 `.py` | 115 passing | ruff clean |
-| `client/` | 0 | — | not started |
+| `client/` | ~90 `.ts(x)` | — | `tsc -b`, oxlint and `vite build` clean |
 
 **Verified against a running Temporal dev server**, not only unit-tested: the
 drone contrast pair, false-claim detection via location, duplicate-event
@@ -105,6 +105,33 @@ work: confidence-based evidence gathering and model escalation.
 **Hard rule:** LangGraph never appears in workflow code, and it has **no
 checkpointer**. Temporal owns durability; a second persistence layer inside an
 activity that is retried as a whole would be actively wrong.
+
+### Authentication and tenancy
+
+Cookie sessions (`express-session` + `connect-mongo`), not JWTs: a session can
+be revoked server-side, a token cannot. `SessionAuthGuard` and `RolesGuard` are
+global; routes opt *out* with `@Public()`, which is greppable. The organization
+id lives on the session and nowhere a client can set it — that is the whole
+tenant boundary.
+
+- **Registration creates a new organization** with the registrant as its
+  first `ADMIN` (`POST /auth/register`). It never joins an existing one:
+  there are no invites, so a sign-up form must have no way to name a tenant.
+  Only industries with a facility adapter are accepted (`GET /auth/industries`).
+- **Repository `create()` is not idempotent.** It used to return the existing
+  row on a duplicate key, which was convenient for seeding and would have
+  handed a registrant somebody else's account (and tenant). Both now throw
+  (`EmailTakenError`, `SlugTakenError`); the seed does find-or-create itself.
+- **Login and registration are rate-limited** by an in-memory fixed window
+  (`LoginRateLimiter`): 30 attempts per address, 5 per (address, email) pair,
+  per 15 minutes. Keyed on the pair so a stranger cannot lock an operator out
+  by hammering their email. `@nestjs/throttler` has no NestJS 12 release.
+- `GET /auth/me` **re-reads the account** and refreshes the session, so a
+  deleted account is signed out on its next visit and a role change does not
+  wait a week for the cookie to expire. The client treats a 401 from any
+  non-auth route as a lost session and returns to the login form.
+- Password floors: 8 on login (the seeded demo accounts are exactly that),
+  12 on registration. Length is the only rule.
 
 ### The agency boundary — the most important design decision
 
@@ -425,11 +452,12 @@ through the assessment graph (§5, "LLM / LangGraph").
 
 ## 10. Known gaps
 
-1. **`client/` does not exist.** The decision trail is reachable only via the
-   REST API and worker logs.
-2. **No multi-tenancy.** One config, one task queue, one database, one
-   credential set. Consistent with per-facility deployment, which matches how the
-   network operator relationship works.
+1. **No invites or role changes.** Accounts arrive by registration (a new
+   organization each) or the seed script. Both alter what somebody can do to
+   a live facility and should not ship without an audit record.
+2. **Tenancy is data-level only.** Organizations isolate data, sockets and
+   workflow ids, but there is still one config, one task queue and one
+   credential set per deployment. The login rate limiter is per process.
 
 ### Open decision: fail open or closed?
 

@@ -8,12 +8,21 @@ export abstract class UserRepository {
    */
   abstract findByEmailWithSecret(email: string): Promise<UserWithSecret | null>;
 
+  abstract findByEmail(email: string): Promise<User | null>;
+
   abstract findById(id: string): Promise<User | null>;
 
   /** Every user in one organization. Scoped by construction. */
   abstract findByOrganization(organizationId: string): Promise<User[]>;
 
-  /** Idempotent: returns the existing user when the email is taken. */
+  /**
+   * Throws EmailTakenError when the address is already registered.
+   *
+   * Deliberately *not* idempotent. It used to return the existing account on
+   * a duplicate, which was convenient for seeding and catastrophic for
+   * registration: a sign-up with somebody else's email would have handed the
+   * caller that person's account. Callers that want find-or-create say so.
+   */
   abstract create(user: UserCreate): Promise<User>;
 
   abstract recordLogin(id: string, at: Date): Promise<void>;

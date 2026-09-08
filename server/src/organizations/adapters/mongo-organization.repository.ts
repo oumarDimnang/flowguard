@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import type { Organization, OrganizationCreate } from '../domain/organization';
+import { SlugTakenError } from '../domain/organization.errors';
 import { OrganizationRepository } from '../ports/organization.repository';
 import { OrganizationDocument, OrganizationEntity } from '../schemas/organization.schema';
 
@@ -42,14 +43,16 @@ export class MongoOrganizationRepository extends OrganizationRepository {
       const created = await this.model.create(organization);
       return this.toDomain(created.toObject());
     } catch (err) {
-      // Seeding runs on every boot in development; a taken slug means the
-      // tenant already exists, which is the desired end state either way.
       if ((err as { code?: number }).code === DUPLICATE_KEY) {
-        const existing = await this.findBySlug(organization.slug);
-        if (existing) return existing;
+        throw new SlugTakenError(organization.slug);
       }
       throw err;
     }
+  }
+
+  async delete(id: string): Promise<void> {
+    if (!this.model.base.isValidObjectId(id)) return;
+    await this.model.deleteOne({ _id: id }).exec();
   }
 
   private toDomain(doc: OrganizationEntity & { _id?: unknown; createdAt?: Date }): Organization {

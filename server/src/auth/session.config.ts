@@ -29,6 +29,9 @@ declare module 'express-session' {
   }
 }
 
+/** The cookie name. Exported so logout can clear exactly the cookie login set. */
+export const SESSION_COOKIE = 'fg_session';
+
 export interface SessionOptions {
   secret: string;
   mongoUri: string;
@@ -46,7 +49,7 @@ export interface SessionOptions {
  */
 export function createSessionMiddleware(options: SessionOptions): RequestHandler {
   return session({
-    name: 'fg_session',
+    name: SESSION_COOKIE,
     secret: options.secret,
     resave: false,
     saveUninitialized: false,

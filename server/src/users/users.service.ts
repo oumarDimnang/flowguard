@@ -19,11 +19,16 @@ export class UsersService {
     return this.repository.findById(id);
   }
 
+  findByEmail(email: string): Promise<User | null> {
+    return this.repository.findByEmail(email);
+  }
+
   /** Scoped by construction — there is no unscoped list of users. */
   findByOrganization(organizationId: string): Promise<User[]> {
     return this.repository.findByOrganization(organizationId);
   }
 
+  /** Throws EmailTakenError on a duplicate address. See UserRepository.create. */
   create(user: UserCreate): Promise<User> {
     return this.repository.create(user);
   }

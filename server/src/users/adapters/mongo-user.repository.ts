@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import type { User, UserCreate, UserWithSecret } from '../domain/user';
+import { EmailTakenError } from '../domain/user.errors';
 import { UserRepository } from '../ports/user.repository';
 import { UserDocument, UserEntity } from '../schemas/user.schema';
 
@@ -26,13 +27,21 @@ export class MongoUserRepository extends UserRepository {
    */
   async findByEmailWithSecret(email: string): Promise<UserWithSecret | null> {
     const doc = await this.model
-      .findOne({ email: email.toLowerCase().trim() })
+      .findOne({ email: normalise(email) })
       .select('+passwordHash')
       .lean()
       .exec();
 
     if (!doc) return null;
     return { ...this.toDomain(doc), passwordHash: doc.passwordHash };
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    const doc = await this.model
+      .findOne({ email: normalise(email) })
+      .lean()
+      .exec();
+    return doc ? this.toDomain(doc) : null;
   }
 
   async findById(id: string): Promise<User | null> {
@@ -52,12 +61,10 @@ export class MongoUserRepository extends UserRepository {
       const created = await this.model.create(user);
       return this.toDomain(created.toObject());
     } catch (err) {
+      // The unique index is the real guard against a race between two
+      // simultaneous sign-ups; a pre-check in the service is only a courtesy.
       if ((err as { code?: number }).code === DUPLICATE_KEY) {
-        const existing = await this.findByEmailWithSecret(user.email);
-        if (existing) {
-          const { passwordHash: _secret, ...rest } = existing;
-          return rest;
-        }
+        throw new EmailTakenError(normalise(user.email));
       }
       throw err;
     }
@@ -78,4 +85,9 @@ export class MongoUserRepository extends UserRepository {
       lastLoginAt: doc.lastLoginAt,
     };
   }
+}
+
+/** Matches the schema's own `lowercase: true, trim: true`, so lookups agree with writes. */
+function normalise(email: string): string {
+  return email.toLowerCase().trim();
 }
