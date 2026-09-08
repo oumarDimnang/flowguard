@@ -54,11 +54,25 @@ export interface GraphEdge {
   tone: 'rail' | 'agent' | 'off';
 }
 
+/**
+ * One node the run actually reached, and the edge it arrived on.
+ *
+ * The edge has to be carried rather than inferred from the previous step,
+ * because the traversal is not a line: the two evidence tools were both called
+ * *from* gather_evidence, not one from the other. Inferring predecessors from
+ * adjacency lit the first tool and left the second dark.
+ */
+export interface WalkStep {
+  id: string;
+  /** The node this step was reached from. Absent for the first. */
+  from?: string;
+}
+
 export interface DecisionGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  /** Ordered ids of everything actually traversed — drives replay. */
-  path: string[];
+  /** Everything actually traversed, in order — drives replay and lighting. */
+  walk: WalkStep[];
   agentDecisions: number;
   deterministicSteps: number;
 }
@@ -119,6 +133,13 @@ const AGENT_TOPOLOGY: GraphEdge[] = [
   { from: 'classify', to: 'gather_evidence', tone: 'agent' },
   { from: 'classify', to: 'validate', tone: 'agent' },
   { from: 'classify', to: 'escalate', tone: 'off' },
+
+  // The loops back. Both of these are real `add_edge` calls in
+  // assessment_graph.py and both were missing here, which drew the two nodes
+  // that exist precisely *to* re-run classification as dead ends — the exact
+  // opposite of what the graph does.
+  { from: 'gather_evidence', to: 'classify', tone: 'agent' },
+  { from: 'escalate', to: 'classify', tone: 'off' },
 ];
 
 const DETERMINISTIC_MEANING =
@@ -145,7 +166,7 @@ export function buildDecisionGraph(records: readonly DecisionRecord[]): Decision
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
-  const path: string[] = [];
+  const walk: WalkStep[] = [];
 
   // ── The deterministic rail ────────────────────────────────────────
   const present = DECISION_SEQUENCE.filter((step) => byStep.has(step));
@@ -153,9 +174,9 @@ export function buildDecisionGraph(records: readonly DecisionRecord[]): Decision
   present.forEach((step, index) => {
     const record = byStep.get(step)!;
     nodes.push(railNode(step, record));
-    path.push(step);
 
     const previous = present[index - 1];
+    walk.push({ id: step, from: previous });
     if (previous) edges.push({ from: previous, to: step, tone: 'rail' });
   });
 
@@ -169,8 +190,28 @@ export function buildDecisionGraph(records: readonly DecisionRecord[]): Decision
     edges.push(...AGENT_TOPOLOGY);
     edges.push({ from: DecisionStep.CRITICALITY_ASSESSED, to: 'classify', tone: 'agent' });
 
-    // Traversal order inside the graph, so replay walks it in sequence.
-    path.splice(path.indexOf(DecisionStep.DECIDED), 0, ...visited.order);
+    // The reasoning walk, spliced in ahead of DECIDED so replay runs in order.
+    //
+    // Tools hang off gather_evidence rather than off each other, which is what
+    // the trace actually says: it made both calls, in parallel as far as the
+    // graph is concerned, before handing back to classify.
+    const reasoning: WalkStep[] = [];
+
+    visited.order.forEach((id, index) => {
+      reasoning.push({
+        id,
+        from: index === 0 ? DecisionStep.CRITICALITY_ASSESSED : visited.order[index - 1],
+      });
+
+      if (id === 'gather_evidence') {
+        for (const call of calls) {
+          if (TOOL_POSITIONS[call.name]) reasoning.push({ id: call.name, from: id });
+        }
+      }
+    });
+
+    const insertAt = walk.findIndex((step) => step.id === DecisionStep.DECIDED);
+    walk.splice(insertAt < 0 ? walk.length : insertAt, 0, ...reasoning);
 
     // ── Evidence ────────────────────────────────────────────────────
     for (const toolName of AGENT_READ_TOOLS) {
@@ -192,7 +233,7 @@ export function buildDecisionGraph(records: readonly DecisionRecord[]): Decision
   return {
     nodes,
     edges,
-    path,
+    walk,
     agentDecisions: nodes.filter((n) => n.kind === 'agent' && n.status === 'reached').length +
       calls.length,
     deterministicSteps: present.length,

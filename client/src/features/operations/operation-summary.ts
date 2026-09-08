@@ -1,6 +1,7 @@
 import { POLICY_RULES } from '@/features/policy/rules';
 import { confidence } from '@/lib/format';
 import {
+  AssetType,
   CongestionLevel,
   Criticality,
   DecisionStep,
@@ -99,7 +100,7 @@ export function summariseOperation(
   // released". Where the record exists, it wins, and its `occurredAt` is the
   // worker's own clock rather than the server's.
   const finishedAt = operation?.completedAt ?? released?.occurredAt ?? failed?.occurredAt;
-  const held = spokenDuration(operation?.startedAt, finishedAt);
+  const total = spokenDuration(operation?.startedAt, finishedAt);
 
   const narrative: string[] = [];
 
@@ -154,6 +155,17 @@ export function summariseOperation(
     narrative.push(decisionSentence(action, rule, when));
   }
 
+  // ── What the machine was doing meanwhile ──────────────────────────
+  //
+  // The decision trail says what was decided; it never says what the crane was
+  // doing while that happened, which is the half an operator actually asked
+  // about. Derived from the two timestamps rather than from the facility,
+  // whose in-memory job is long gone by the time anyone reads this page.
+  const held = decisionLatency(device, decided);
+  if (held !== undefined && operation) {
+    narrative.push(gateSentence(held, operation.assetType));
+  }
+
   // ── What was actually done to the network ─────────────────────────
   if (allocated) {
     narrative.push(allocationSentence(allocated, qos));
@@ -161,9 +173,9 @@ export function summariseOperation(
 
   if (released) {
     narrative.push(
-      held === undefined
+      total === undefined
         ? 'Everything was released when the operation finished. Nothing is held longer than the operation that needed it.'
-        : `Everything was released when the operation finished, ${held} after it started. ` +
+        : `Everything was released when the operation finished, ${total} after it started. ` +
           'Nothing is held longer than the operation that needed it.',
     );
   } else if (allocated && operation && !isFinished(operation) && !failed) {
@@ -184,7 +196,7 @@ export function summariseOperation(
       criticality,
       reachable,
       released: released !== undefined,
-      held,
+      held: total,
       failed,
     }),
     narrative,
@@ -318,6 +330,64 @@ function allocationSentence(allocated: DecisionRecord, qos: DecisionRecord | und
   return (
     `${opening} Quality on Demand is asynchronous, so the session was REQUESTED before the ` +
     `network confirmed it as ${qos.qosStatus}.`
+  );
+}
+
+/**
+ * Seconds from the first network read to the decision.
+ *
+ * Not the whole operation — the part the machine was actually waiting on. Both
+ * timestamps come from the worker rather than the server, so this is what the
+ * facility experienced and not what our clock says.
+ */
+function decisionLatency(
+  device: DecisionRecord | undefined,
+  decided: DecisionRecord | undefined,
+): number | undefined {
+  if (!device || !decided) return undefined;
+
+  const ms = Date.parse(decided.occurredAt) - Date.parse(device.occurredAt);
+  return Number.isFinite(ms) && ms >= 0 ? Math.round(ms / 1000) : undefined;
+}
+
+/** What this industry calls the interlock the job pauses at. */
+const GATE_NAME: Partial<Record<AssetType, string>> = {
+  [AssetType.CRANE]: 'twistlock interlock',
+  [AssetType.DRONE]: 'pre-flight hold',
+};
+
+/** The gate holds for 30s in every industry. facility-system.base.ts. */
+const GATE_SECONDS = 30;
+
+/**
+ * The safety property, measured on this run.
+ *
+ * It answers the question operators actually ask — "so my crane stops and waits
+ * for your AI?" — and it is only convincing with a real number in it.
+ *
+ * Phrased against the interlock's budget rather than as a claim that this
+ * particular job paused at one. Nothing in the decision log records whether an
+ * operation arrived through a facility gate or straight from a scenario, and
+ * the trail must not narrate a hold that may never have happened.
+ */
+function gateSentence(seconds: number, asset: AssetType): string {
+  const gate = GATE_NAME[asset] ?? 'gate';
+  const count = `${seconds} second${seconds === 1 ? '' : 's'}`;
+
+  if (seconds >= GATE_SECONDS) {
+    return (
+      `The decision landed ${count} after the first network read — longer than the ` +
+      `${GATE_SECONDS} seconds a ${gate} holds for one. Work does not wait on FlowGuard: ` +
+      'the interlock opens on time regardless, and a job that proceeds undecided is recorded ' +
+      'as authorised by timeout rather than by decision.'
+    );
+  }
+
+  return (
+    `The decision landed ${count} after the first network read. A ${gate} — the last instant ` +
+    `before the load is committed — holds up to ${GATE_SECONDS} seconds for one and then ` +
+    'proceeds regardless, so a job dispatched through it would not have been waiting on this. ' +
+    'FlowGuard can delay work at most, and never prevent it.'
   );
 }
 

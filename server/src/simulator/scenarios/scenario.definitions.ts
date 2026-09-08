@@ -218,6 +218,56 @@ export const SCENARIOS: readonly Scenario[] = [
     ],
   },
   {
+    id: 'contested-lift',
+    name: 'Contested lift — the agent gathers before it judges',
+    description:
+      'One job instruction, filed at 03:10 in a squall, that cannot be judged on its face. ' +
+      'The dispatcher calls it an emergency; the manifest says the box is empty; the walkway ' +
+      'is logged closed; and the crane uplink has been dropping since the wind came up, so ' +
+      'nobody in the control room can see the load. Three separate things have to be true ' +
+      'before this is safety-critical, and the request settles none of them — so the agent ' +
+      'goes and asks the network, choosing its own checks.',
+    steps: [
+      {
+        atMs: 0,
+        completeAfterMs: 30_000,
+        event: {
+          key: 'crane-b-storm-recovery',
+          assetType: AssetType.CRANE,
+          device: { id: 'crane-b', phoneNumber: '+99999991002' },
+          operation: 'Emergency lashing-bridge recovery — bay 18',
+          description:
+            'Night-shift recovery filed as an emergency by the duty dispatcher during a ' +
+            'squall. The account is internally inconsistent and nobody has reconciled it: ' +
+            'the manifest lists the container as empty, which would make this routine, while ' +
+            'the dispatcher reports a shifted lashing bridge over the quay, which would not. ' +
+            'The walkway is logged closed for the storm, but two lashers were signed in at ' +
+            'the gate forty minutes ago and have not signed out. ' +
+            'The crane uplink has been dropping in and out since the wind came up, so the ' +
+            'control room cannot currently see the load on the feed and is working from the ' +
+            "driver's radio. The dispatcher blames the cell for the drops; the night engineer " +
+            'thinks it is the cabin modem. Nobody has confirmed which berth the crane was ' +
+            'left on at end of the previous shift.',
+          expectedDurationSeconds: 200,
+          site: 'Khalifa Bin Salman Port — Berth 3',
+          metadata: {
+            emergency: true,
+            deferrable: false,
+            loadTonnes: 34,
+            overWalkway: true,
+            manifestSaysEmpty: true,
+            walkwayLoggedClosed: true,
+            lashersSignedIn: 2,
+            uplinkIntermittent: true,
+            siteLatitude: 26.2041,
+            siteLongitude: 50.605,
+            siteRadiusMeters: 2_000,
+          },
+        },
+      },
+    ],
+  },
+  {
     id: 'false-claim',
     name: 'False claim — the network contradicts the paperwork',
     description:

@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router';
 import { Eyebrow, Slot } from '@/components/primitives';
 import { DecisionGraph } from '@/features/graph/decision-graph';
 import { buildDecisionGraph } from '@/features/graph/graph-model';
+import { summariseOperation } from '@/features/operations/operation-summary';
 import { useOperationTrail } from '@/hooks/use-operation-trail';
 import { duration } from '@/lib/format';
 
@@ -23,6 +24,13 @@ export function DecisionGraphPage() {
 
   const graph = useMemo(() => buildDecisionGraph(trail.records), [trail.records]);
   const operation = trail.operation;
+
+  // The same derivation the decision-trail page uses, so the two screens can
+  // never tell different stories about one operation.
+  const summary = useMemo(
+    () => summariseOperation(operation, trail.records),
+    [operation, trail.records],
+  );
 
   return (
     <div className="graph-scene -mx-[var(--page-gutter)] -mt-6 flex min-h-[calc(100vh-3rem)] flex-col px-[var(--page-gutter)] pt-6">
@@ -66,6 +74,23 @@ export function DecisionGraphPage() {
         </div>
       </header>
 
+      {/* Before the scene, not after it. The volume is what the agency looks
+          like; this is what it did — and someone who opens this link cold
+          needs the second before the first is worth anything. */}
+      {graph.nodes.length > 0 ? (
+        <div
+          className="flex flex-col gap-1.5 border-t pt-3 pb-4"
+          style={{ borderColor: 'var(--edge)' }}
+        >
+          <p className="text-[15px] font-medium">{summary.headline}</p>
+          {summary.counterfactual ? (
+            <p className="max-w-[80ch] text-[13px]" style={{ color: 'var(--ink-dim)' }}>
+              {summary.counterfactual}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {trail.loading && graph.nodes.length === 0 ? (
         <p className="border-t py-8" style={{ borderColor: 'var(--edge)', color: 'var(--ink-dim)' }}>
           Loading the trail…
@@ -75,7 +100,7 @@ export function DecisionGraphPage() {
           No decision records for this operation, so there is nothing to draw.
         </p>
       ) : (
-        <DecisionGraph graph={graph} />
+        <DecisionGraph graph={graph} story={summary.narrative} />
       )}
 
       <p

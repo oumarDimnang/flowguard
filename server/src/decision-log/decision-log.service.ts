@@ -48,9 +48,21 @@ export class DecisionLogService {
     const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
 
     const { record, inserted } = await this.repository.append({
-      // Run ID plus step is stable across retries of the same activity but
-      // distinct across genuine workflow steps.
-      idempotencyKey: `${dto.runId}:${dto.step}`,
+      // Run, step, and the workflow's own clock at the moment it emitted.
+      //
+      // The first two alone were not enough, and the gap was silent: several
+      // steps legitimately repeat inside one run — ALLOCATED again when a slice
+      // finishes provisioning mid-operation, DECIDED again when the operation
+      // suspends with its load in the air, DEVICE_CHECKED again when the asset
+      // drops off the network. Every one of those was being discarded here as a
+      // duplicate, so the trail showed the first decision and quietly lost the
+      // ones that came after.
+      //
+      // `occurredAt` is `workflow.now()`, which is what makes this still safe:
+      // it is fixed in the payload the workflow hands the activity, so a retry
+      // of that same activity re-sends the identical value and still dedupes,
+      // while two genuine emits differ.
+      idempotencyKey: idempotencyKeyFor(dto),
       // From the workflow payload, not a session — the agent posts with a
       // machine token and has no session to read a tenant from.
       organizationId: dto.organizationId,
@@ -153,4 +165,27 @@ export class DecisionLogService {
 
     return patch;
   }
+}
+
+/**
+ * What makes two emits the same emit.
+ *
+ * Run and step alone were not enough, and the gap was silent: several steps
+ * legitimately repeat inside one run — ALLOCATED again when a slice finishes
+ * provisioning mid-operation, DECIDED again when the operation suspends with
+ * its load in the air, DEVICE_CHECKED again when the asset drops off the
+ * network. Every one of those was discarded here as a duplicate, so the trail
+ * showed the first and quietly lost the rest.
+ *
+ * `occurredAt` is the discriminator because it is `workflow.now()`, fixed into
+ * the payload the workflow hands the activity. A retry of that same activity
+ * re-sends the identical value and still dedupes; two genuine emits differ.
+ *
+ * Absent, there is nothing trustworthy to discriminate on — a server clock
+ * would differ on every retry and defeat the whole mechanism — so the key falls
+ * back to the original form rather than inventing a value.
+ */
+function idempotencyKeyFor(dto: RecordDecisionDto): string {
+  const base = `${dto.runId}:${dto.step}`;
+  return dto.occurredAt ? `${base}:${new Date(dto.occurredAt).toISOString()}` : base;
 }

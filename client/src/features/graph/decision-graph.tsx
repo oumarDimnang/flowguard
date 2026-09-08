@@ -24,6 +24,13 @@ const FILL = {
 
 export interface DecisionGraphProps {
   graph: DecisionGraph;
+  /**
+   * What happened, in sentences, shown until a node is selected.
+   *
+   * Passed in rather than derived here: this component knows about spheres and
+   * edges, and the page above it already holds the trail.
+   */
+  story?: readonly string[];
 }
 
 /**
@@ -36,7 +43,7 @@ export interface DecisionGraphProps {
  * Every sphere is a real focusable button rather than a canvas hit-test, which
  * is what makes the scene keyboard-navigable and its labels selectable.
  */
-export function DecisionGraph({ graph }: DecisionGraphProps) {
+export function DecisionGraph({ graph, story }: DecisionGraphProps) {
   const { viewport, scene, readout, reset } = useOrbit();
   const stars = useMemo(() => starfield(), []);
 
@@ -56,26 +63,55 @@ export function DecisionGraph({ graph }: DecisionGraphProps) {
 
   const replaying = replayIndex >= 0;
   const walked = useMemo(
-    () => (replaying ? graph.path.slice(0, replayIndex + 1) : graph.path),
-    [graph.path, replayIndex, replaying],
+    () => (replaying ? graph.walk.slice(0, replayIndex + 1) : graph.walk),
+    [graph.walk, replayIndex, replaying],
   );
 
+  const reached = useMemo(() => new Set(walked.map((step) => step.id)), [walked]);
+
+  // Each step names the edge it arrived on, so a tool called from
+  // gather_evidence lights that edge rather than one from the tool before it.
   const litEdges = useMemo(() => {
     const set = new Set<string>();
-    for (let i = 1; i < walked.length; i += 1) set.add(`${walked[i - 1]}>${walked[i]}`);
+    for (const step of walked) if (step.from) set.add(`${step.from}>${step.id}`);
     return set;
   }, [walked]);
+
+/**
+ * How far each half of a two-way pair is pushed off the true line.
+ *
+ * The same positive value for both directions, which looks wrong and is not:
+ * the perpendicular is computed from the edge's own heading, so it already
+ * reverses when the edge does. Negating it for the return leg as well cancels
+ * the reversal out and lands both lines on the same side, 16px from the line
+ * they are supposed to straddle — which is the bug this constant replaced.
+ *
+ * World pixels, so it survives the ~0.6 world scale and the perspective divide
+ * at z −300 as roughly ten on screen.
+ */
+const LOOP_OFFSET = 10;
+
+  // An edge with a partner pointing the other way is offset to one side, so a
+  // loop reads as a round trip instead of as one line drawn twice.
+  const reciprocal = useMemo(() => {
+    const keys = new Set(graph.edges.map((edge) => `${edge.from}>${edge.to}`));
+    return new Set(
+      graph.edges
+        .filter((edge) => keys.has(`${edge.to}>${edge.from}`))
+        .map((edge) => `${edge.from}>${edge.to}`),
+    );
+  }, [graph.edges]);
 
   // Replay walks the traversed path, lighting each node in turn.
   useEffect(() => {
     if (!replaying) return;
 
     const timer = setTimeout(() => {
-      setReplayIndex((index) => (index + 1 >= graph.path.length ? -1 : index + 1));
+      setReplayIndex((index) => (index + 1 >= graph.walk.length ? -1 : index + 1));
     }, 620);
 
     return () => clearTimeout(timer);
-  }, [replaying, replayIndex, graph.path.length]);
+  }, [replaying, replayIndex, graph.walk.length]);
 
   const focusNode = useCallback((id: string) => {
     viewport.current?.querySelector<HTMLElement>(`[data-node="${id}"]`)?.focus({
@@ -92,8 +128,10 @@ export function DecisionGraph({ graph }: DecisionGraphProps) {
       if (!event.key.startsWith('Arrow')) return;
 
       // Move along the traversed path — the ordering the graph already has,
-      // rather than a second navigation map that could drift from it.
-      const order = graph.path.filter((id, index) => graph.path.indexOf(id) === index);
+      // rather than a second navigation map that could drift from it. Repeats
+      // are dropped: classify is visited twice and should be one stop.
+      const ids = graph.walk.map((step) => step.id);
+      const order = ids.filter((id, index) => ids.indexOf(id) === index);
       const at = selected ? order.indexOf(selected) : -1;
       const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
       const next = order[Math.max(0, Math.min(order.length - 1, at + step))];
@@ -104,10 +142,10 @@ export function DecisionGraph({ graph }: DecisionGraphProps) {
         focusNode(next);
       }
     },
-    [graph.path, selected, focusNode],
+    [graph.walk, selected, focusNode],
   );
 
-  const active = replaying ? walked[walked.length - 1] : selected;
+  const active = replaying ? walked[walked.length - 1]?.id : selected;
 
   return (
     <div className="graph-scene flex min-h-0 flex-1 flex-col">
@@ -153,6 +191,7 @@ export function DecisionGraph({ graph }: DecisionGraphProps) {
                 from={byId.get(edge.from)}
                 to={byId.get(edge.to)}
                 lit={litEdges.has(`${edge.from}>${edge.to}`)}
+                offset={reciprocal.has(`${edge.from}>${edge.to}`) ? LOOP_OFFSET : 0}
               />
             ))}
 
@@ -162,7 +201,7 @@ export function DecisionGraph({ graph }: DecisionGraphProps) {
                 node={node}
                 active={active === node.id}
                 hovered={hovered === node.id}
-                dimmed={replaying && !walked.includes(node.id) && node.status === 'reached'}
+                dimmed={replaying && !reached.has(node.id) && node.status === 'reached'}
                 onSelect={() => setSelected((current) => (current === node.id ? null : node.id))}
                 onHover={setHovered}
               />
@@ -193,7 +232,7 @@ export function DecisionGraph({ graph }: DecisionGraphProps) {
           />
         </div>
 
-        <GraphInspector node={active ? byId.get(active) : undefined} />
+        <GraphInspector node={active ? byId.get(active) : undefined} story={story} />
       </div>
     </div>
   );
@@ -401,11 +440,14 @@ function Edge({
   from,
   to,
   lit,
+  offset = 0,
 }: {
   edge: GraphEdge;
   from: GraphNode | undefined;
   to: GraphNode | undefined;
   lit: boolean;
+  /** Lateral shift, perpendicular to the run, for one half of a two-way pair. */
+  offset?: number;
 }) {
   if (!from || !to) return null;
 
@@ -418,6 +460,12 @@ function Edge({
 
   const azimuth = (Math.atan2(dy, dx) * 180) / Math.PI;
   const elevation = (Math.asin(dz / length) * 180) / Math.PI;
+
+  // Perpendicular in the XY plane, so the pair straddles the true line rather
+  // than one edge sitting exactly on top of the other.
+  const flat = Math.hypot(dx, dy) || 1;
+  const shiftX = (-dy / flat) * offset;
+  const shiftY = (dx / flat) * offset;
 
   const colour =
     edge.tone === 'off'
@@ -440,7 +488,7 @@ function Edge({
         height: 0,
         width: length,
         transformOrigin: '0 0',
-        transform: `translate3d(${from.x}px,${from.y}px,${from.z}px) rotateZ(${azimuth}deg) rotateY(${-elevation}deg)`,
+        transform: `translate3d(${from.x + shiftX}px,${from.y + shiftY}px,${from.z}px) rotateZ(${azimuth}deg) rotateY(${-elevation}deg)`,
         borderTop: `1px ${edge.tone === 'off' ? 'dashed' : 'solid'} ${colour}`,
       }}
     >

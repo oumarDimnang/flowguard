@@ -150,6 +150,45 @@ describe('DecisionLogService', () => {
   });
 
   /**
+   * The half that used to be lost.
+   *
+   * Some steps legitimately repeat: a slice attached partway through emits a
+   * second ALLOCATED, and an operation that halts with its load in the air
+   * emits a second DECIDED. Keyed on run and step alone, every one of those was
+   * discarded as a retry — the trail kept the first and silently dropped the
+   * rest, which is the worst possible failure for an audit record.
+   */
+  it('keeps a step that legitimately repeats later in the same run', async () => {
+    const first = await service.record(
+      decision({ step: DecisionStep.ALLOCATED, occurredAt: '2026-09-08T00:00:00.000Z' }),
+    );
+    const second = await service.record(
+      decision({ step: DecisionStep.ALLOCATED, occurredAt: '2026-09-08T00:04:00.000Z' }),
+    );
+
+    expect(first).toEqual({ recorded: true, duplicate: false });
+    expect(second).toEqual({ recorded: true, duplicate: false });
+    expect(repository.appended).toEqual([
+      'run-1:ALLOCATED:2026-09-08T00:00:00.000Z',
+      'run-1:ALLOCATED:2026-09-08T00:04:00.000Z',
+    ]);
+  });
+
+  /** And a genuine retry of that same emit still collapses. */
+  it('still ignores a retry of a repeated step', async () => {
+    const payload = decision({
+      step: DecisionStep.ALLOCATED,
+      occurredAt: '2026-09-08T00:04:00.000Z',
+    });
+
+    await service.record(payload);
+    const retry = await service.record(payload);
+
+    expect(retry).toEqual({ recorded: false, duplicate: true });
+    expect(repository.appended).toHaveLength(1);
+  });
+
+  /**
    * A decision of NONE is terminal — nothing was allocated, so there is nothing
    * to monitor or release.
    */

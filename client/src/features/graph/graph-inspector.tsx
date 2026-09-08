@@ -11,14 +11,20 @@ import type { GraphNode } from './graph-model';
  * "Who decided this" is the headline rather than a footnote, because it is the
  * question the visualisation exists to answer.
  */
-export function GraphInspector({ node }: { node: GraphNode | undefined }) {
+export function GraphInspector({
+  node,
+  story,
+}: {
+  node: GraphNode | undefined;
+  story?: readonly string[];
+}) {
   return (
     <aside
       className="scroll-area flex max-h-[640px] min-w-0 flex-col gap-4 border-l py-5 pl-6"
       style={{ borderColor: 'var(--edge)' }}
       aria-live="polite"
     >
-      {node ? <Selected node={node} /> : <Empty />}
+      {node ? <Selected node={node} /> : <Empty story={story} />}
     </aside>
   );
 }
@@ -109,15 +115,27 @@ function Selected({ node }: { node: GraphNode }) {
 /**
  * The resting state.
  *
- * Used to explain the two classes of object, because the distinction between
- * them is the argument and a reader who has not been told it will read the
- * scene as decoration.
+ * Carries the whole story in sentences, then explains the two classes of
+ * object — in that order, because a reader who has not been told the
+ * distinction reads the scene as decoration, but a reader who does not know
+ * what happened has no reason to care about either.
  */
-function Empty() {
+function Empty({ story }: { story?: readonly string[] }) {
   return (
     <>
-      <Label>inspector</Label>
-      <p style={{ color: 'var(--ink-dim)' }}>
+      <Label>what happened</Label>
+
+      {story?.length ? (
+        <div className="flex flex-col gap-2 text-[13px] leading-relaxed">
+          {story.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+      ) : (
+        <p style={{ color: 'var(--ink-dim)' }}>No decisions recorded for this operation.</p>
+      )}
+
+      <p className="pt-1 text-xs" style={{ color: 'var(--ink-dim)' }}>
         Select a node to read who decided it, what it did, and its payload.
       </p>
 
