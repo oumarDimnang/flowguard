@@ -24,7 +24,7 @@
     --void-deep: oklch(0.9 0.008 95);
     --ink: oklch(0.3438 0.0269 95.7226);
     --ink-dim: oklch(0.6059 0.0075 97.4233);
-    --agent: oklch(0.6171 0.1375 39.0427);
+    --agent: oklch(0.55 0.185 304);
     --machine: oklch(0.42 0.03 220);
     --edge: oklch(0.8 0.008 97);
 
@@ -34,17 +34,17 @@
     /* Lit from the upper left in both themes, so the highlight never moves. */
     --sphere-agent: radial-gradient(
       circle at 35% 30%,
-      oklch(0.84 0.1 50) 0%,
-      oklch(0.65 0.145 40) 36%,
-      oklch(0.47 0.13 38) 76%,
-      oklch(0.34 0.09 35) 100%
+      oklch(0.8 0.13 315) 0%,
+      oklch(0.6 0.19 305) 36%,
+      oklch(0.43 0.17 303) 76%,
+      oklch(0.31 0.12 300) 100%
     );
     --sphere-agent-far: radial-gradient(
       circle at 35% 30%,
-      oklch(0.8 0.07 50) 0%,
-      oklch(0.66 0.1 40) 40%,
-      oklch(0.54 0.09 38) 78%,
-      oklch(0.44 0.06 35) 100%
+      oklch(0.77 0.09 315) 0%,
+      oklch(0.63 0.13 305) 40%,
+      oklch(0.51 0.12 303) 78%,
+      oklch(0.41 0.08 300) 100%
     );
     --sphere-machine: radial-gradient(
       circle at 35% 28%,
@@ -55,7 +55,7 @@
     );
 
     /* On paper a glow reads as dirt. Cast a shadow instead. */
-    --glow-agent: oklch(0.45 0.09 38 / 0.28);
+    --glow-agent: oklch(0.42 0.12 303 / 0.3);
     --glow-machine: oklch(0.3 0.03 220 / 0.3);
     --sphere-inset: inset -2px -3px 5px oklch(0.2 0.02 220 / 0.35);
     --vignette: oklch(0.72 0.012 95 / 0.5);
@@ -83,7 +83,7 @@
     --void-deep: oklch(0.11 0.006 95);
     --ink: oklch(0.88 0.012 93);
     --ink-dim: oklch(0.62 0.01 95);
-    --agent: oklch(0.7 0.15 40);
+    --agent: oklch(0.72 0.16 304);
     --machine: oklch(0.82 0.03 220);
     --edge: oklch(0.4 0.01 95);
 
@@ -91,17 +91,17 @@
 
     --sphere-agent: radial-gradient(
       circle at 35% 30%,
-      oklch(0.93 0.09 50) 0%,
-      oklch(0.72 0.15 40) 38%,
-      oklch(0.5 0.14 38) 75%,
-      oklch(0.3 0.09 35) 100%
+      oklch(0.91 0.11 315) 0%,
+      oklch(0.7 0.19 305) 38%,
+      oklch(0.47 0.18 303) 75%,
+      oklch(0.28 0.12 300) 100%
     );
     --sphere-agent-far: radial-gradient(
       circle at 35% 30%,
-      oklch(0.84 0.07 50) 0%,
-      oklch(0.64 0.11 40) 38%,
-      oklch(0.44 0.1 38) 75%,
-      oklch(0.27 0.06 35) 100%
+      oklch(0.82 0.09 315) 0%,
+      oklch(0.62 0.14 305) 38%,
+      oklch(0.41 0.13 303) 75%,
+      oklch(0.25 0.08 300) 100%
     );
     --sphere-machine: radial-gradient(
       circle at 35% 28%,
@@ -112,7 +112,7 @@
     );
 
     /* In a void, bloom is the light source rather than a decoration. */
-    --glow-agent: oklch(0.62 0.17 42 / 0.45);
+    --glow-agent: oklch(0.62 0.2 307 / 0.45);
     --glow-machine: oklch(0.82 0.03 220 / 0.45);
     --sphere-inset: inset -2px -3px 4px oklch(0.2 0.02 220 / 0.6);
     --vignette: oklch(0.11 0.006 95 / 0.75);
