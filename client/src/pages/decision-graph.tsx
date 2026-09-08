@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router';
 
-import { Eyebrow, Slot } from '@/components/primitives';
+import { Eyebrow, Loadable, SkeletonBlock, SkeletonText, Slot } from '@/components/primitives';
 import { DecisionGraph } from '@/features/graph/decision-graph';
 import { buildDecisionGraph } from '@/features/graph/graph-model';
 import { summariseOperation } from '@/features/operations/operation-summary';
@@ -91,17 +91,18 @@ export function DecisionGraphPage() {
         </div>
       ) : null}
 
-      {trail.loading && graph.nodes.length === 0 ? (
-        <p className="border-t py-8" style={{ borderColor: 'var(--edge)', color: 'var(--ink-dim)' }}>
-          Loading the trail…
-        </p>
-      ) : graph.nodes.length === 0 ? (
-        <p className="border-t py-8" style={{ borderColor: 'var(--edge)', color: 'var(--ink-dim)' }}>
-          No decision records for this operation, so there is nothing to draw.
-        </p>
-      ) : (
+      <Loadable
+        loading={trail.loading}
+        empty={graph.nodes.length === 0}
+        skeleton={<SceneSkeleton />}
+        whenEmpty={
+          <p className="border-t py-8" style={{ borderColor: 'var(--edge)', color: 'var(--ink-dim)' }}>
+            No decision records for this operation, so there is nothing to draw.
+          </p>
+        }
+      >
         <DecisionGraph graph={graph} story={summary.narrative} />
-      )}
+      </Loadable>
 
       <p
         className="datum flex items-center gap-2 pt-3 pb-6 text-[11px] tracking-[0.08em] uppercase"
@@ -111,6 +112,27 @@ export function DecisionGraphPage() {
         the model chooses what to look at · deterministic code chooses what to do · the empty
         write-tools socket is why
       </p>
+    </div>
+  );
+}
+
+/**
+ * The scene's footprint before the trail arrives. Painted in the scene's own
+ * edge colour rather than the page's muted token — this is the one screen
+ * whose palette is not the page's, and a paper-grey bar in the dark void would
+ * be the loudest thing on it. The colours go in through the bar's own custom
+ * properties so the sweep keeps running; an inline background would paint
+ * over it.
+ */
+function SceneSkeleton() {
+  const style = {
+    '--skeleton-base': 'var(--edge)',
+    '--skeleton-sheen': 'color-mix(in oklch, var(--edge), var(--ink-dim) 35%)',
+  } as React.CSSProperties;
+  return (
+    <div className="flex flex-col gap-4 border-t pt-4" style={{ borderColor: 'var(--edge)' }}>
+      <SkeletonText ruled={false} lines={['46%', '72%']} style={style} />
+      <SkeletonBlock height={420} style={{ ...style, opacity: 0.35 }} />
     </div>
   );
 }

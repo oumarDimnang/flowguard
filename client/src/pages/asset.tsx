@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link, useParams } from 'react-router';
 
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Glyph, Skeleton, Slot, Status } from '@/components/primitives';
+import { Eyebrow, Glyph, Loadable, SkeletonRows, Slot, Status } from '@/components/primitives';
 import { useOperationsHistory } from '@/hooks/use-operations-history';
 import { clock, duration } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -97,26 +97,23 @@ export function Asset() {
           <span className="text-right">held</span>
         </div>
 
-        {history.loading && operations.length === 0
-          ? Array.from({ length: 5 }, (_, row) => (
-              <div key={row} className={cn(ASSET_GRID, 'items-center border-t py-2.5')}>
-                <Skeleton width="7ch" />
-                <Skeleton width="80%" />
-                <Skeleton width="7ch" />
-                <Skeleton width="5ch" />
-                <Skeleton width="70%" />
-                <Skeleton width="5ch" className="justify-self-end" />
-              </div>
-            ))
-          : null}
-
-        {!history.loading && operations.length === 0 ? (
-          <p className="border-t py-3 text-muted-foreground">
-            No operations for <span className="datum">{deviceId}</span>. Either it has not been
-            dispatched, or it belongs to another organization.
-          </p>
-        ) : null}
-
+        <Loadable
+          loading={history.loading}
+          empty={operations.length === 0}
+          skeleton={
+            <SkeletonRows
+              layoutClassName={ASSET_GRID}
+              columns={['7ch', '80%', '7ch', '5ch', '70%', { width: '5ch', end: true }]}
+              closing={false}
+            />
+          }
+          whenEmpty={
+            <p className="border-t py-3 text-muted-foreground">
+              No operations for <span className="datum">{deviceId}</span>. Either it has not been
+              dispatched, or it belongs to another organization.
+            </p>
+          }
+        >
         {operations.map((operation) => (
           <Link
             key={operation.operationId}
@@ -153,6 +150,7 @@ export function Asset() {
             </span>
           </Link>
         ))}
+        </Loadable>
 
         <div className="border-t" />
       </section>

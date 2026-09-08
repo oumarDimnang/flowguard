@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 
-import { Eyebrow, Glyph, Skeleton } from '@/components/primitives';
+import { Eyebrow, Glyph, SkeletonText } from '@/components/primitives';
 import { NetworkAction, type DecisionRecord, type Operation } from '@/types';
 import { summariseOperation } from './operation-summary';
 
@@ -26,7 +26,13 @@ export function OperationSummaryPanel({
   records,
   loading,
 }: OperationSummaryPanelProps) {
-  if (loading && records.length === 0) return <SummarySkeleton />;
+  if (loading && records.length === 0) {
+    return (
+      <div role="status" aria-busy="true" aria-label="Loading">
+        <SkeletonText className="pb-2" lines={['46%', '88%', '80%', '62%']} />
+      </div>
+    );
+  }
 
   const summary = summariseOperation(operation, records);
 
@@ -109,15 +115,4 @@ export function OperationSummaryPanel({
 
 function protectedRun(action: NetworkAction | undefined): boolean {
   return action !== undefined && action !== NetworkAction.NONE;
-}
-
-function SummarySkeleton() {
-  return (
-    <div className="flex flex-col gap-3 border-t pt-4 pb-2">
-      <Skeleton width="46%" />
-      <Skeleton width="88%" />
-      <Skeleton width="80%" />
-      <Skeleton width="62%" />
-    </div>
-  );
 }

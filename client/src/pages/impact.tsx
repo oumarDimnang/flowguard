@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Section, Slot } from '@/components/primitives';
+import { Eyebrow, Loadable, Section, SkeletonRows, Slot } from '@/components/primitives';
 import { useMetrics } from '@/hooks/use-metrics';
 import { percent } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ export function Impact() {
   const [costPerHour, setCostPerHour] = useState(DEFAULT_COST_PER_HOUR);
 
   const data = metrics.data;
+  const loading = metrics.loading && data === undefined;
   // `premiumGranted` is reported directly. The protected count cannot be
   // recovered from `criticalOperationsProtectedPct` — at 100% the ratio is
   // satisfied by any numerator, so inverting it would invent a number.
@@ -50,6 +51,18 @@ export function Impact() {
       />
 
       <Section title="Protection" meta="of operations that were genuinely at risk" ruled>
+        <Loadable
+          loading={loading}
+          skeleton={
+            <SkeletonRows
+              rows={4}
+              layoutClassName="grid grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] gap-x-6"
+              rowClassName="items-center border-t py-3"
+              columns={['70%', { width: '4ch', end: true }, '85%']}
+              height={41}
+            />
+          }
+        >
         <dl className="flex flex-col">
           <Figure
             label="Critical operations protected"
@@ -75,6 +88,7 @@ export function Impact() {
           />
           <div className="border-t" />
         </dl>
+        </Loadable>
       </Section>
 
       <Section title="In your terms" meta="your assumption, not our claim" className="mt-12">
@@ -126,8 +140,8 @@ export function Impact() {
 
       <Section title="Distribution" meta="decided operations" className="mt-12">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
-          <Breakdown title="By action" counts={data?.byAction} />
-          <Breakdown title="By criticality" counts={data?.byCriticality} />
+          <Breakdown title="By action" counts={data?.byAction} loading={loading} />
+          <Breakdown title="By criticality" counts={data?.byCriticality} loading={loading} />
         </div>
       </Section>
     </>
@@ -170,17 +184,36 @@ function Figure({
  * A pie chart of four values proves nothing and cannot be read precisely. A
  * ruled bar with the figure printed beside it can be.
  */
-function Breakdown({ title, counts }: { title: string; counts?: Record<string, number> }) {
+function Breakdown({
+  title,
+  counts,
+  loading,
+}: {
+  title: string;
+  counts?: Record<string, number>;
+  loading: boolean;
+}) {
   const entries = Object.entries(counts ?? {}).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...entries.map(([, n]) => n));
 
   return (
     <div className="flex flex-col gap-2">
       <Eyebrow>{title}</Eyebrow>
-      {entries.length === 0 ? (
-        <p className="border-t py-2 text-muted-foreground">No decisions yet.</p>
-      ) : (
-        entries.map(([key, count]) => (
+      <Loadable
+        loading={loading}
+        empty={entries.length === 0}
+        skeleton={
+          <SkeletonRows
+            rows={3}
+            layoutClassName="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] gap-x-4"
+            rowClassName="items-center border-t py-2"
+            columns={['60%', '50%', { width: '2ch', end: true }]}
+            closing={false}
+          />
+        }
+        whenEmpty={<p className="border-t py-2 text-muted-foreground">No decisions yet.</p>}
+      >
+        {entries.map(([key, count]) => (
           <div key={key} className="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] items-center gap-x-4 border-t py-2">
             <span className="datum text-[13px]">{key}</span>
             <span className="h-0.5 bg-border">
@@ -188,8 +221,8 @@ function Breakdown({ title, counts }: { title: string; counts?: Record<string, n
             </span>
             <span className="datum text-right text-[13px]">{count}</span>
           </div>
-        ))
-      )}
+        ))}
+      </Loadable>
       <div className="border-t" />
     </div>
   );

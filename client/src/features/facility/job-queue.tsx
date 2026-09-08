@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/auth-context';
-import { Section, Skeleton, Slot, Status } from '@/components/primitives';
+import { Loadable, Section, SkeletonRows, Slot, Status } from '@/components/primitives';
 import { logTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { isJobInFlight, type FacilityDescriptor, type FacilityJob } from '@/types';
@@ -92,10 +92,27 @@ export function JobQueue({
         </p>
       ) : null}
 
-      {loading && jobs.length === 0 ? (
-        <QueueSkeleton gridClassName={gridClassName} columns={columns.length} />
-      ) : null}
-
+      <Loadable
+        loading={loading}
+        empty={jobs.length === 0}
+        skeleton={
+          <SkeletonRows
+            rows={4}
+            layoutClassName={gridClassName}
+            rowClassName="items-center border-t py-4"
+            height={22}
+            // The column labels come from the descriptor, which loads with the
+            // queue — so while both are in flight, draw four generic cells in
+            // the industry's grid rather than an empty ruled void.
+            columns={
+              columns.length > 0
+                ? columns.map((_, cell) => (cell === columns.length - 1 ? '100%' : '70%'))
+                : ['70%', '70%', '70%', '100%']
+            }
+            closing={false}
+          />
+        }
+      >
       {jobs.map((job) => (
         <JobRow
           key={job.id}
@@ -117,25 +134,10 @@ export function JobQueue({
           {renderCells(job)}
         </JobRow>
       ))}
+      </Loadable>
 
       <div className="border-t" />
     </Section>
-  );
-}
-
-/** Placeholder rows the same height as populated ones, so nothing shifts. */
-function QueueSkeleton({ gridClassName, columns }: { gridClassName: string; columns: number }) {
-  return (
-    <>
-      {[0, 1, 2, 3].map((row) => (
-        <div key={row} className={cn(gridClassName, 'items-center border-t py-4')} style={{ height: 22 }}>
-          {Array.from({ length: columns }, (_, cell) => (
-            <Skeleton key={cell} width={cell === columns - 1 ? '100%' : '70%'} />
-          ))}
-        </div>
-      ))}
-      <div className="border-t" />
-    </>
   );
 }
 

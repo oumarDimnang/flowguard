@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 
 import { api } from '@/api/endpoints';
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Status } from '@/components/primitives';
+import { Eyebrow, Loadable, SkeletonRows, SkeletonText, Status } from '@/components/primitives';
 import { useContrastPair } from '@/features/thesis/use-contrast-pair';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -35,12 +35,12 @@ export function Thesis() {
         meta={<RunContrast />}
       />
 
-      {loading && !pair ? (
-        <p className="border-t py-6 text-muted-foreground">Looking for a contrast pair…</p>
-      ) : null}
-
-      {!loading && !pair ? <NoPairYet /> : null}
-
+      <Loadable
+        loading={loading}
+        empty={pair === undefined}
+        skeleton={<ContrastSkeleton />}
+        whenEmpty={<NoPairYet />}
+      >
       {pair ? (
         <>
           <ContrastTable
@@ -60,6 +60,29 @@ export function Thesis() {
           </p>
         </>
       ) : null}
+      </Loadable>
+    </>
+  );
+}
+
+const CONTRAST_GRID = 'grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1fr)] gap-x-6';
+
+/** The comparison table's footprint, one placeholder row per input. */
+function ContrastSkeleton() {
+  return (
+    <>
+      <section className="border-t">
+        <div className={cn(CONTRAST_GRID, 'items-baseline pt-3 pb-2')}>
+          <Eyebrow>input</Eyebrow>
+          <Eyebrow>left alone</Eyebrow>
+          <Eyebrow>protected</Eyebrow>
+        </div>
+        <SkeletonRows rows={ROWS.length} layoutClassName={CONTRAST_GRID} columns={['8ch', '55%', '55%']} />
+      </section>
+      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
+        <SkeletonText lines={['30%', '90%', '75%']} />
+        <SkeletonText lines={['30%', '85%', '80%']} />
+      </div>
     </>
   );
 }

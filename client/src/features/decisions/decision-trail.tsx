@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 
-import { Glyph, Skeleton } from '@/components/primitives';
+import { Glyph, Loadable, SkeletonRows } from '@/components/primitives';
 import { logTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { DecisionStep, type DecisionRecord } from '@/types';
@@ -30,24 +30,25 @@ export interface DecisionTrailProps {
  * is itself information.
  */
 export function DecisionTrail({ records, loading }: DecisionTrailProps) {
-  if (loading && records.length === 0) return <TrailSkeleton />;
-
-  if (records.length === 0) {
-    return (
-      <div className="log-row border-t border-b py-3">
-        <span className="datum text-xs text-muted-foreground">—</span>
-        <span className="text-muted-foreground">No records for this operation.</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col">
-      {records.map((record, index) => (
-        <TrailStep key={record.idempotencyKey} record={record} index={index + 1} />
-      ))}
-      <div className="border-t" />
-    </div>
+    <Loadable
+      loading={loading ?? false}
+      empty={records.length === 0}
+      skeleton={<SkeletonRows rows={7} rowClassName="items-center border-t py-3.5" columns={['9ch', '40%']} />}
+      whenEmpty={
+        <div className="log-row border-t border-b py-3">
+          <span className="datum text-xs text-muted-foreground">—</span>
+          <span className="text-muted-foreground">No records for this operation.</span>
+        </div>
+      }
+    >
+      <div className="flex flex-col">
+        {records.map((record, index) => (
+          <TrailStep key={record.idempotencyKey} record={record} index={index + 1} />
+        ))}
+        <div className="border-t" />
+      </div>
+    </Loadable>
   );
 }
 
@@ -141,19 +142,5 @@ function hasDetail(record: DecisionRecord): boolean {
     record.step === DecisionStep.CRITICALITY_ASSESSED ||
     record.networkCall !== undefined ||
     record.step === DecisionStep.ALLOCATED
-  );
-}
-
-function TrailSkeleton() {
-  return (
-    <div className="flex flex-col">
-      {Array.from({ length: 7 }, (_, row) => (
-        <div key={row} className="log-row border-t py-3.5">
-          <Skeleton width="9ch" />
-          <Skeleton width="40%" />
-        </div>
-      ))}
-      <div className="border-t" />
-    </div>
   );
 }

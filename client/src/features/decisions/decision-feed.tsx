@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 
-import { Slot, Status } from '@/components/primitives';
+import { Loadable, SkeletonRows, Slot, Status } from '@/components/primitives';
 import { logTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { DecisionStep, type DecisionRecord } from '@/types';
@@ -51,25 +51,31 @@ export function DecisionFeed({ records, loading, stale, className }: DecisionFee
         </span>
       </header>
 
-      {records.length === 0 ? (
-        <p className="border-t border-b py-3 text-muted-foreground">
-          {loading ? (
-            'loading…'
-          ) : (
-            <>
-              No decisions yet. Dispatch a move and the first entry will be{' '}
-              <span className="datum">DEVICE_CHECKED</span>.
-            </>
-          )}
-        </p>
-      ) : (
+      <Loadable
+        loading={loading ?? false}
+        empty={records.length === 0}
+        skeleton={
+          <SkeletonRows
+            rows={6}
+            layoutClassName="flex flex-col gap-1.5"
+            rowClassName="border-t py-2.5"
+            columns={['45%', '85%', '35%']}
+          />
+        }
+        whenEmpty={
+          <p className="border-t border-b py-3 text-muted-foreground">
+            No decisions yet. Dispatch a move and the first entry will be{' '}
+            <span className="datum">DEVICE_CHECKED</span>.
+          </p>
+        }
+      >
         <div className="scroll-area min-h-0 flex-1">
           {records.map((record) => (
             <FeedEntry key={record.idempotencyKey} record={record} stale={stale} />
           ))}
           <div className="border-t" />
         </div>
-      )}
+      </Loadable>
     </aside>
   );
 }

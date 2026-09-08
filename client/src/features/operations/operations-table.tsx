@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router';
 
-import { Glyph, Skeleton, Status } from '@/components/primitives';
+import { Glyph, Loadable, SkeletonRows, Status } from '@/components/primitives';
 import { clock, duration } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { CongestionLevel, Criticality, NetworkAction, type Operation } from '@/types';
@@ -43,17 +43,27 @@ export function OperationsTable({ operations, loading }: OperationsTableProps) {
         ))}
       </div>
 
-      {loading && operations.length === 0 ? <TableSkeleton /> : null}
-
-      {!loading && operations.length === 0 ? (
-        <div className="border-t py-3 text-muted-foreground">
-          No operations match this filter.
-        </div>
-      ) : null}
-
-      {operations.map((operation) => (
-        <OperationRow key={operation.operationId} operation={operation} />
-      ))}
+      <Loadable
+        loading={loading ?? false}
+        empty={operations.length === 0}
+        skeleton={
+          <SkeletonRows
+            rows={8}
+            layoutClassName={HISTORY_GRID}
+            rowClassName="items-center border-t py-3"
+            height={20}
+            columns={['7ch', '80%', '7ch', '8ch', '5ch', '70%', { width: '5ch', end: true }, { width: '3ch', end: true }]}
+            closing={false}
+          />
+        }
+        whenEmpty={
+          <div className="border-t py-3 text-muted-foreground">No operations match this filter.</div>
+        }
+      >
+        {operations.map((operation) => (
+          <OperationRow key={operation.operationId} operation={operation} />
+        ))}
+      </Loadable>
 
       <div className="border-t" />
     </section>
@@ -127,24 +137,5 @@ function OperationRow({ operation }: { operation: Operation }) {
         3D ↗
       </span>
     </Link>
-  );
-}
-
-function TableSkeleton() {
-  return (
-    <>
-      {Array.from({ length: 8 }, (_, row) => (
-        <div key={row} className={cn(HISTORY_GRID, 'items-center border-t py-3')} style={{ height: 20 }}>
-          <Skeleton width="7ch" />
-          <Skeleton width="80%" />
-          <Skeleton width="7ch" />
-          <Skeleton width="8ch" />
-          <Skeleton width="5ch" />
-          <Skeleton width="70%" />
-          <Skeleton width="5ch" className="justify-self-end" />
-          <Skeleton width="3ch" className="justify-self-end" />
-        </div>
-      ))}
-    </>
   );
 }

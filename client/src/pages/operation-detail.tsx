@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Section } from '@/components/primitives';
+import { Eyebrow, Loadable, Section, SkeletonText } from '@/components/primitives';
 import { DecisionTrail } from '@/features/decisions/decision-trail';
 import { OperationSummaryPanel } from '@/features/operations/operation-summary-panel';
 import { useOperationTrail } from '@/hooks/use-operation-trail';
@@ -114,15 +114,25 @@ function ExecutionPanel({ operationId }: { operationId: string }) {
               workflow history itself. Where the two disagree, this one is correct.
             </p>
 
-            {execution.loading ? <span className="datum text-xs text-muted-foreground">loading…</span> : null}
-
-            {execution.data ? (
-              <pre className="datum m-0 overflow-x-auto border-l pt-1 pr-1 pb-2 pl-3 text-[11px] leading-relaxed">
-                {isExecutionFound(execution.data)
-                  ? JSON.stringify(execution.data, null, 2)
-                  : 'No workflow execution found — it may have been purged from Temporal history.'}
-              </pre>
-            ) : null}
+            <Loadable
+              loading={execution.loading}
+              empty={execution.data === undefined}
+              skeleton={
+                <SkeletonText
+                  ruled={false}
+                  className="border-l pt-1 pb-2 pl-3"
+                  lines={['30%', '55%', '48%', '62%', '40%', '20%']}
+                />
+              }
+            >
+              {execution.data ? (
+                <pre className="datum m-0 overflow-x-auto border-l pt-1 pr-1 pb-2 pl-3 text-[11px] leading-relaxed">
+                  {isExecutionFound(execution.data)
+                    ? JSON.stringify(execution.data, null, 2)
+                    : 'No workflow execution found — it may have been purged from Temporal history.'}
+                </pre>
+              ) : null}
+            </Loadable>
           </div>
         </div>
       ) : null}

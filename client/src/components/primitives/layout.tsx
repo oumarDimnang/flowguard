@@ -79,14 +79,3 @@ export function LogRow({ time, children, trailing, className }: LogRowProps) {
     </div>
   );
 }
-
-export interface SkeletonProps {
-  /** CSS width — match the real content so nothing shifts when data lands. */
-  width: string;
-  className?: string;
-}
-
-/** A placeholder bar. No shimmer, no spinner — see components.css. */
-export function Skeleton({ width, className }: SkeletonProps) {
-  return <span className={cn('skeleton', className)} style={{ width }} />;
-}

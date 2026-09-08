@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 
 import { api } from '@/api/endpoints';
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Glyph, Skeleton, Slot, Status } from '@/components/primitives';
+import { Eyebrow, Glyph, Loadable, SkeletonRows, Slot, Status } from '@/components/primitives';
 import { useActiveOperations } from '@/hooks/use-operations';
 import { useOperationsHistory } from '@/hooks/use-operations-history';
 import { useResource } from '@/hooks/use-resource';
@@ -99,7 +99,7 @@ export function Network() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-7">
-          <Congestion rows={congestion} />
+          <Congestion rows={congestion} loading={history.loading} />
           <Endpoints reachable={health.data?.status === 'ok'} />
         </div>
       </div>
@@ -130,15 +130,25 @@ function Held({
           <span>slice</span>
         </div>
 
-        {loading && operations.length === 0 ? <Skeleton width="70%" /> : null}
-
-        {!loading && operations.length === 0 ? (
-          <p className="border-t py-3 text-xs text-muted-foreground">
-            Nothing held. That is the resting state, not an empty one — the count rises when a
-            lift is protected and returns here the moment it lands.
-          </p>
-        ) : null}
-
+        <Loadable
+          loading={loading}
+          empty={operations.length === 0}
+          skeleton={
+            <SkeletonRows
+              rows={2}
+              layoutClassName={HELD_GRID}
+              rowClassName="items-center border-t py-2"
+              columns={['80%', '7ch', '8ch', '60%']}
+              closing={false}
+            />
+          }
+          whenEmpty={
+            <p className="border-t py-3 text-xs text-muted-foreground">
+              Nothing held. That is the resting state, not an empty one — the count rises when
+              a lift is protected and returns here the moment it lands.
+            </p>
+          }
+        >
         {operations.map((operation) => (
           <Link
             key={operation.operationId}
@@ -155,6 +165,7 @@ function Held({
             <span className="truncate text-muted-foreground">{operation.sliceId ?? '—'}</span>
           </Link>
         ))}
+        </Loadable>
 
         <div className="border-t" />
       </div>
@@ -216,15 +227,34 @@ function Slice({
 
 // ── Congestion ──────────────────────────────────────────────────────
 
-function Congestion({ rows }: { rows: { deviceId: string; level: CongestionLevel }[] }) {
+function Congestion({
+  rows,
+  loading,
+}: {
+  rows: { deviceId: string; level: CongestionLevel }[];
+  loading: boolean;
+}) {
   return (
     <section className="flex min-w-0 flex-col gap-2.5">
       <Head title="Congestion" meta="as the decisions observed it" />
 
-      {rows.length === 0 ? (
-        <p className="border-t py-3 text-xs text-muted-foreground">Nothing observed yet.</p>
-      ) : (
-        rows.map((row) => (
+      <Loadable
+        loading={loading}
+        empty={rows.length === 0}
+        skeleton={
+          <SkeletonRows
+            rows={3}
+            layoutClassName="flex justify-between"
+            rowClassName="items-center border-t py-2"
+            columns={['9ch', '6ch']}
+            closing={false}
+          />
+        }
+        whenEmpty={
+          <p className="border-t py-3 text-xs text-muted-foreground">Nothing observed yet.</p>
+        }
+      >
+        {rows.map((row) => (
           <div
             key={row.deviceId}
             className="datum flex items-baseline justify-between gap-4 border-t py-1.5 text-xs"
@@ -234,8 +264,8 @@ function Congestion({ rows }: { rows: { deviceId: string; level: CongestionLevel
               {row.level}
             </Status>
           </div>
-        ))
-      )}
+        ))}
+      </Loadable>
 
       <p className="border-t pt-2.5 text-xs text-muted-foreground">
         Levels are <span className="datum">Low</span> / <span className="datum">Medium</span> /{' '}

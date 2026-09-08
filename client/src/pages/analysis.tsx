@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 
 import { api } from '@/api/endpoints';
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Glyph, Skeleton, Slot } from '@/components/primitives';
+import { Eyebrow, Glyph, Loadable, SkeletonBlock, SkeletonRows, SkeletonText, Slot } from '@/components/primitives';
 import {
   buildAnalysis,
   CONGESTION_COLUMNS,
@@ -53,13 +53,7 @@ export function Analysis() {
         }
       />
 
-      {loading ? (
-        <div className="flex flex-col gap-3 border-t pt-4">
-          <Skeleton width="40%" />
-          <Skeleton width="80%" />
-          <Skeleton width="65%" />
-        </div>
-      ) : (
+      <Loadable loading={loading} skeleton={<AnalysisSkeleton />}>
         <div className="grid grid-cols-1 gap-x-10 gap-y-7 xl:grid-cols-2">
           <Matrix cells={model.matrix} />
           <Holds
@@ -70,8 +64,37 @@ export function Analysis() {
           <Rules rules={model.rules} />
           <Latency seconds={model.latencies} />
         </div>
-      )}
+      </Loadable>
     </>
+  );
+}
+
+/**
+ * The four panels, at rest. Each placeholder takes the shape of the panel it
+ * stands in for, so the page does not reflow when the figures arrive.
+ */
+function AnalysisSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-x-10 gap-y-7 xl:grid-cols-2">
+      <Panel title="Decision matrix" meta="criticality × congestion">
+        <SkeletonRows rows={3} layoutClassName={MATRIX_GRID} columns={['3ch', '70%', '70%', '70%']} />
+      </Panel>
+      <Panel title="Sessions held" meta="loading">
+        <SkeletonBlock height={128} />
+      </Panel>
+      <Panel title="Rules fired" meta="8 rules · first match wins">
+        <SkeletonRows
+          rows={8}
+          layoutClassName="grid grid-cols-[minmax(0,15rem)_minmax(0,1fr)_2.5rem] gap-3"
+          rowClassName="items-center border-t py-2"
+          columns={['80%', '40%', { width: '2ch', end: true }]}
+        />
+      </Panel>
+      <Panel title="Decision latency" meta="loading">
+        <SkeletonBlock height={76} />
+        <SkeletonText ruled={false} lines={['60%']} />
+      </Panel>
+    </div>
   );
 }
 

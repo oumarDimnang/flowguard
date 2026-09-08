@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { api } from '@/api/endpoints';
 import { useAuth } from '@/auth/auth-context';
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Glyph, Skeleton, Slot } from '@/components/primitives';
+import { Eyebrow, Glyph, Loadable, SkeletonRows, Slot } from '@/components/primitives';
 import { useResource } from '@/hooks/use-resource';
 import { Role, type Scenario, type ScenarioRun } from '@/types';
 
@@ -98,15 +98,24 @@ export function Scenarios() {
       ) : null}
 
       <section className="border-t">
-        {scenarios.loading && list.length === 0
-          ? Array.from({ length: 5 }, (_, row) => (
-              <div key={row} className="flex flex-col gap-2 border-t py-3">
-                <Skeleton width="30%" />
-                <Skeleton width="60%" />
-              </div>
-            ))
-          : null}
-
+        <Loadable
+          loading={scenarios.loading}
+          empty={list.length === 0}
+          skeleton={
+            <SkeletonRows
+              rows={7}
+              layoutClassName="flex flex-col gap-2"
+              rowClassName="border-t py-3"
+              columns={['30%', '60%']}
+              closing={false}
+            />
+          }
+          whenEmpty={
+            <p className="border-t py-3 text-xs text-muted-foreground">
+              No scenarios are defined on the server.
+            </p>
+          }
+        >
         {list.map((scenario) => (
           <ScenarioRow
             key={scenario.id}
@@ -119,6 +128,7 @@ export function Scenarios() {
             onRun={() => void run(scenario.id)}
           />
         ))}
+        </Loadable>
 
         <div className="border-t" />
       </section>
