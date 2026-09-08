@@ -30,17 +30,24 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     routes: [
       { to: '/', label: 'Control Room', end: true },
       { to: '/operations', label: 'History', end: false },
+      { to: '/network', label: 'Network', end: false },
     ],
   },
   {
     label: 'Evidence',
     routes: [
+      { to: '/analysis', label: 'Analysis', end: false },
       { to: '/policy', label: 'Policy', end: false },
       { to: '/thesis', label: 'Thesis', end: false },
     ],
   },
   {
-    routes: [{ to: '/impact', label: 'Impact', end: false }],
+    routes: [
+      { to: '/impact', label: 'Impact', end: false },
+      // Operator-gated in the controller too; hiding it is tidiness, not the
+      // enforcement.
+      { to: '/scenarios', label: 'Scenarios', end: false },
+    ],
   },
   {
     label: 'Admin',

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--card:oklch(0.995 0.004 95);--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95);--card:oklch(0.30 0.004 106.6)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:12px;line-height:1.45;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1440px;margin:0 auto;padding:20px 24px 32px;display:flex;flex-direction:column;gap:16px">
+
+<header data-screen-label="Analysis header" style="display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap">
+  <div style="display:flex;align-items:baseline;gap:16px">
+    <h1 style="margin:0;font-size:20px;font-weight:600;line-height:1.2">Analysis</h1>
+    <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><a href="FlowGuard Control Room.dc.html" style="text-decoration:none">FlowGuard</a> / pattern across all decisions</span>
+  </div>
+  <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)"><span style="display:inline-block;width:2ch;text-align:right;color:var(--foreground)">19</span> decisions · <span style="display:inline-block;width:2ch;text-align:right;color:var(--foreground)">11</span> protected · <span style="display:inline-block;width:5ch;text-align:right;color:var(--foreground)">42.1%</span> left on standard connectivity</div>
+</header>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:16px">
+
+  <!-- 1 · Decision matrix -->
+  <section data-screen-label="1 Decision matrix" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><h2 style="margin:0;font-size:14px;font-weight:600">Decision matrix</h2><span style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">criticality × congestion</span></div>
+    <div style="display:grid;grid-template-columns:72px repeat(3,minmax(0,1fr));gap:0 12px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-bottom:4px"><span></span><span>Low</span><span>Medium</span><span>High</span></div>
+    <sc-for list="{{ matrix }}" as="row" hint-placeholder-count="3">
+      <div style="display:grid;grid-template-columns:72px repeat(3,minmax(0,1fr));gap:0 12px;border-top:1px solid var(--border);padding:10px 0;align-items:center">
+        <span style="font-family:var(--mono);font-size:12px;font-weight:500">{{ row.label }}</span>
+        <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="3">
+          <div style="display:flex;align-items:baseline;gap:8px;min-width:0;border-left:1px solid var(--border);padding-left:12px">
+            <span style="font-family:var(--mono);font-size:{{ c.numSize }};line-height:1;font-weight:500;color:{{ c.numColor }};display:inline-block;width:2ch">{{ c.n }}</span>
+            <span style="font-family:var(--mono);font-size:11px;font-weight:{{ c.actWeight }};color:{{ c.actColor }};display:inline-flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.glyph }}{{ c.action }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+    <div style="border-top:1px solid var(--border);padding-top:8px;font-size:11px;color:var(--muted-foreground);text-wrap:pretty">Congestion rises left to right and changes nothing along the bottom row.</div>
+  </section>
+
+  <!-- 2 · Sessions held -->
+  <section data-screen-label="2 Sessions held" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><h2 style="margin:0;font-size:14px;font-weight:600">Sessions held</h2><span style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">09:05 — 09:45 · 20 samples</span></div>
+    <svg viewBox="0 0 600 150" width="100%" height="150" style="display:block;overflow:visible;font-family:var(--mono);font-variant-numeric:tabular-nums" data-om-raster="true">
+      <line x1="28" y1="120" x2="600" y2="120" stroke="var(--foreground)" stroke-width="1"></line>
+      <line x1="28" y1="80" x2="600" y2="80" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"></line>
+      <line x1="28" y1="40" x2="600" y2="40" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"></line>
+      <text x="20" y="124" text-anchor="end" font-size="10" fill="var(--foreground)">0</text>
+      <text x="20" y="84" text-anchor="end" font-size="10" fill="var(--muted-foreground)">1</text>
+      <text x="20" y="44" text-anchor="end" font-size="10" fill="var(--muted-foreground)">2</text>
+      <polyline fill="none" stroke="var(--foreground)" stroke-width="1.25" points="{{ stepPoints }}"></polyline>
+      <sc-for list="{{ touches }}" as="t" hint-placeholder-count="8"><rect x="{{ t.x }}" y="117" width="5" height="5" fill="var(--foreground)"></rect></sc-for>
+      <line x1="{{ peakX }}" y1="40" x2="{{ peakX }}" y2="14" stroke="var(--primary)" stroke-width="1"></line>
+      <text x="{{ peakLabelX }}" y="12" font-size="9" fill="var(--primary)" letter-spacing="1">PEAK 2 · 09:31</text>
+      <sc-for list="{{ ticks }}" as="k" hint-placeholder-count="5"><line x1="{{ k.x }}" y1="120" x2="{{ k.x }}" y2="125" stroke="var(--foreground)" stroke-width="1"></line><text x="{{ k.x }}" y="138" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">{{ k.t }}</text></sc-for>
+    </svg>
+    <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:11px;color:var(--muted-foreground)"><span style="display:inline-flex;align-items:center;gap:6px"><i style="display:inline-block;width:5px;height:5px;background:currentColor"></i>11 returns to zero</span><span>mean hold 2m 48s · longest 4m 12s</span></div>
+  </section>
+
+  <!-- 3 · Rules fired -->
+  <section data-screen-label="3 Rules fired" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><h2 style="margin:0;font-size:14px;font-weight:600">Rules fired</h2><span style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">8 rules · longest first</span></div>
+    <div style="display:flex;flex-direction:column">
+      <sc-for list="{{ rules }}" as="r" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr) 2ch;gap:0 12px;align-items:center;border-top:1px solid var(--border);padding:6px 0;color:{{ r.color }}">
+          <a href="FlowGuard The Policy.dc.html" style="font-family:var(--mono);font-size:11px;font-weight:500;text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.glyph }}<span style="overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span></a>
+          <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="display:block;height:6px;background:var(--foreground);width:{{ r.width }}"></span><sc-if value="{{ r.hasNote }}" hint-placeholder-val="{{ false }}"><span style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-foreground);white-space:nowrap">{{ r.note }}</span></sc-if></span>
+          <span style="font-family:var(--mono);font-size:12px;text-align:right;font-weight:500">{{ r.n }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- 4 · Decision latency -->
+  <section data-screen-label="4 Decision latency" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><h2 style="margin:0;font-size:14px;font-weight:600">Decision latency</h2><span style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">median 8.4 s · p95 12.6 s · max 19.0 s</span></div>
+    <svg viewBox="0 0 600 120" width="100%" height="120" style="display:block;overflow:visible;font-family:var(--mono);font-variant-numeric:tabular-nums" data-om-raster="true">
+      <line x1="28" y1="90" x2="590" y2="90" stroke="var(--foreground)" stroke-width="1"></line>
+      <sc-for list="{{ bins }}" as="b" hint-placeholder-count="8"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" fill="var(--foreground)"></rect><text x="{{ b.cx }}" y="{{ b.ly }}" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">{{ b.label }}</text></sc-for>
+      <sc-for list="{{ lticks }}" as="k" hint-placeholder-count="7"><line x1="{{ k.x }}" y1="90" x2="{{ k.x }}" y2="95" stroke="var(--foreground)" stroke-width="1"></line><text x="{{ k.x }}" y="108" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">{{ k.t }}</text></sc-for>
+      <line x1="{{ interlockX }}" y1="6" x2="{{ interlockX }}" y2="95" stroke="var(--foreground)" stroke-width="1" stroke-dasharray="3 3"></line>
+      <text x="{{ interlockLabelX }}" y="12" text-anchor="end" font-size="9" fill="var(--foreground)" letter-spacing="1">30 S · TWISTLOCK INTERLOCK OPENS REGARDLESS</text>
+      <line x1="{{ outlierX }}" y1="66" x2="{{ outlierX }}" y2="34" stroke="var(--muted-foreground)" stroke-width="1"></line>
+      <text x="{{ outlierLabelX }}" y="30" font-size="9" fill="var(--muted-foreground)" letter-spacing="1">OUTLIER 19.0 S</text>
+    </svg>
+    <div style="border-top:1px solid var(--border);padding-top:8px;font-size:11px;color:var(--muted-foreground)">Seconds from first network read to DECIDED. The whole distribution sits left of the line.</div>
+  </section>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  glyph(kind) {
+    const base = { display: 'inline-block', width: 7, height: 7, flex: 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    if (kind === 'hollow') return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+    if (kind === 'slash') return React.createElement('i', { style: { ...base, background: 'linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)' } });
+    return React.createElement('i', { style: { ...base } });
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const fg = 'var(--foreground)', mf = 'var(--muted-foreground)', pr = 'var(--primary)';
+    const cell = (n, action, low) => { const empty = n === 0, none = action === 'NONE';
+      return { n: String(n), action: empty ? (low ? 'NONE' : '—') : action, numSize: empty ? '14px' : '22px', numColor: empty ? mf : fg, actWeight: low ? 500 : 400,
+        actColor: empty && !low ? mf : none ? fg : pr, glyph: this.glyph(empty && !low ? 'none' : none ? 'hollow' : 'filled') }; };
+    const matrix = [
+      { label: 'HIGH', cells: [cell(0, '—'), cell(0, '—'), cell(7, 'QOD_AND_SLICE')] },
+      { label: 'MEDIUM', cells: [cell(0, '—'), cell(0, '—'), cell(4, 'QOD')] },
+      { label: 'LOW', cells: [cell(0, 'NONE', true), cell(0, 'NONE', true), cell(4, 'NONE', true)] },
+    ];
+    const samples = [[0,0],[2,1],[5,0],[7,1],[9,0],[12,1],[14,0],[17,1],[19,0],[22,1],[24,2],[26,1],[27,0],[29,1],[31,0],[33,1],[35,0],[37,1],[39,0],[40,0]];
+    const X = m => 28 + (m / 40) * 572, Y = v => 120 - v * 40;
+    const pts = []; samples.forEach(([m, v], i) => { if (i > 0) pts.push(`${X(m).toFixed(1)},${Y(samples[i - 1][1]).toFixed(1)}`); pts.push(`${X(m).toFixed(1)},${Y(v).toFixed(1)}`); });
+    const touches = samples.filter(([m, v], i) => v === 0 && i > 0 && samples[i - 1][1] > 0).map(([m]) => ({ x: (X(m) - 2.5).toFixed(1) }));
+    const ticks = [0, 10, 20, 30, 40].map(m => ({ x: X(m).toFixed(1), t: `09:${String(5 + m).padStart(2, '0')}` }));
+    const rules = [[7,'SAFETY_CRITICAL_CONGESTED_SLICE',7],[2,'ROUTINE_NO_ACTION',4],[4,'MEDIUM_CRITICALITY_HIGH_CONGESTION',4],[1,'GUARD_DEVICE_UNREACHABLE',4],[8,'HIGH_CRITICALITY_CONGESTED',0],[6,'HIGH_CRITICALITY_NETWORK_HEALTHY',0],[5,'MEDIUM_CRITICALITY_NETWORK_HEALTHY',0],[3,'SAFETY_CRITICAL_ALWAYS_PROTECT',0,'disabled']]
+      .map(([num, name, n, tag]) => { const d = tag === 'disabled'; return { name, n: String(n), color: d ? mf : fg, glyph: this.glyph(d ? 'slash' : n > 0 ? 'filled' : 'hollow'), width: n > 0 ? `${(n / 7 * 100).toFixed(1)}%` : '0', hasNote: n === 0, note: d ? 'disabled' : 'never fired' }; });
+    const counts = { 6: 2, 7: 3, 8: 4, 9: 3, 10: 3, 11: 2, 12: 1, 19: 1 };
+    const LX = s => 28 + (s / 32) * 562, bw = 562 / 32;
+    const bins = []; for (let s = 0; s < 32; s++) { const c = counts[s] || 0; if (!c) continue; const h = c * 14; bins.push({ x: (LX(s) + 1).toFixed(1), w: (bw - 2).toFixed(1), y: (90 - h).toFixed(1), h: h.toFixed(1), cx: (LX(s) + bw / 2).toFixed(1), ly: (90 - h - 3).toFixed(1), label: String(c) }); }
+    const lticks = [0, 5, 10, 15, 20, 25, 30].map(s => ({ x: LX(s).toFixed(1), t: `${s}s` }));
+    return { rootClass: dark ? 'dark' : '', matrix, stepPoints: pts.join(' '), touches, ticks, peakX: X(24.5).toFixed(1), peakLabelX: (X(24.5) + 6).toFixed(1), rules, bins, lticks,
+      interlockX: LX(30).toFixed(1), interlockLabelX: (LX(30) - 6).toFixed(1), outlierX: (LX(19) + bw / 2).toFixed(1), outlierLabelX: (LX(19) + bw / 2 + 6).toFixed(1) };
+  }
+}
+</script>
+</body>
+</html>

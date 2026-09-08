@@ -1,5 +1,6 @@
 import type {
   Identity,
+  User,
   FacilityDescriptor,
   FacilityJob,
   CreateBusinessEvent,
@@ -59,6 +60,18 @@ export const facility = {
    * job already at its first state — the rest arrives on the socket.
    */
   dispatch: (jobId: string) => http.post<FacilityJob>(`/facility/jobs/${jobId}/dispatch`),
+
+  /**
+   * Report the job halted with its load committed.
+   *
+   * Not a cancellation: connectivity is held through it. The reason is the
+   * facility's own words and lands in the decision trail.
+   */
+  suspend: (jobId: string, reason: string) =>
+    http.post<FacilityJob>(`/facility/jobs/${jobId}/suspend`, { body: { reason } }),
+
+  /** Moving again, or the committed load has been landed. */
+  resume: (jobId: string) => http.post<FacilityJob>(`/facility/jobs/${jobId}/resume`),
 
   abort: (jobId: string) => http.post<FacilityJob>(`/facility/jobs/${jobId}/abort`),
 
@@ -120,6 +133,16 @@ export const simulator = {
     http.post<ScenarioRun>(`/simulator/scenarios/${scenarioId}/run`),
 };
 
+// ── Users (admin only) ───────────────────────────────────────────────
+
+export const users = {
+  /**
+   * Everyone in the caller's organization. Scoped server-side from the session,
+   * so there is no parameter here that could ask about another tenant.
+   */
+  list: (signal?: AbortSignal) => http.get<User[]>('/users', { signal }),
+};
+
 // ── Metrics and health ───────────────────────────────────────────────
 
 export const metrics = {
@@ -138,6 +161,7 @@ export const health = {
 
 export const api = {
   auth,
+  users,
   facility,
   operations,
   decisionLog,

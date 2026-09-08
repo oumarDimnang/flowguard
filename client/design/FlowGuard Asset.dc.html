@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.4;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1200px;padding:20px 28px 28px;display:flex;flex-direction:column">
+
+<header data-screen-label="Asset header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:baseline;padding-bottom:10px">
+  <div style="display:flex;align-items:baseline;gap:0 16px;flex-wrap:wrap">
+    <h1 style="margin:0;font-size:20px;font-weight:600;line-height:1.2;font-family:var(--mono)">crane-b</h1>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">asset type <span style="color:var(--foreground)">CRANE</span></span>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">SIM <span style="color:var(--foreground)">+99999991002</span></span>
+    <span style="font-size:12px;color:var(--muted-foreground)">organization <span style="color:var(--foreground)">Khalifa Bin Salman Port</span></span>
+  </div>
+  <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);white-space:nowrap"><span style="display:inline-block;width:1ch;text-align:right;color:var(--foreground)">8</span> operations · held <span style="display:inline-block;width:6ch;color:var(--foreground)">12m 39s</span> · congestion <span style="display:inline-flex;align-items:center;gap:6px;color:var(--foreground)"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>High</span></div>
+</header>
+
+<!-- 2 · Behaviour strip -->
+<section data-screen-label="2 Behaviour" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);height:72px;box-sizing:border-box;display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px;padding:8px 0">
+  <div style="display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span>behaviour</span><span style="text-transform:none;letter-spacing:0;font-family:var(--sans);font-size:12px">mixed · 5 protected · 3 left alone</span></div>
+  <svg viewBox="0 0 1000 56" width="100%" height="56" preserveAspectRatio="none" style="display:block;overflow:visible;font-family:var(--mono)" data-om-raster="true">
+    <line x1="0" y1="14" x2="1000" y2="14" stroke="var(--border)" stroke-width="1"></line>
+    <line x1="0" y1="28" x2="1000" y2="28" stroke="var(--border)" stroke-width="1"></line>
+    <line x1="0" y1="42" x2="1000" y2="42" stroke="var(--border)" stroke-width="1"></line>
+    <sc-for list="{{ marks }}" as="m" hint-placeholder-count="8">
+      <line x1="{{ m.x }}" y1="{{ m.y }}" x2="{{ m.x }}" y2="42" stroke="var(--border)" stroke-width="1"></line>
+      <rect x="{{ m.rx }}" y="{{ m.ry }}" width="8" height="8" fill="{{ m.fill }}" stroke="var(--foreground)" stroke-width="1"></rect>
+    </sc-for>
+    <sc-for list="{{ marksSlash }}" as="m" hint-placeholder-count="0"><line x1="{{ m.x1 }}" y1="{{ m.y1 }}" x2="{{ m.x2 }}" y2="{{ m.y2 }}" stroke="var(--foreground)" stroke-width="1"></line></sc-for>
+    <sc-for list="{{ ticks }}" as="k" hint-placeholder-count="5"><text x="{{ k.x }}" y="55" font-size="9" fill="var(--muted-foreground)" text-anchor="{{ k.anchor }}">{{ k.t }}</text></sc-for>
+  </svg>
+</section>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px;padding:4px 0 10px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+  <span></span><div style="display:flex;gap:20px"><span>row 1 QOD_AND_SLICE ■</span><span>row 2 QOD ■</span><span>row 3 NONE □</span><span>06:00 → 09:45</span></div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,600px),1fr));gap:20px 28px;align-items:start">
+
+  <!-- 1 · Operations -->
+  <section data-screen-label="1 Operations" style="border-top:1px solid var(--foreground);min-width:0;overflow:hidden">
+    <div style="display:grid;grid-template-columns:56px minmax(140px,1.3fr) 84px 52px minmax(112px,1fr) 52px 32px;gap:0 10px;padding:6px 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+      <span>time</span><span>operation</span><span>crit.</span><span>cong.</span><span>action</span><span style="text-align:right">held</span><span></span>
+    </div>
+    <sc-for list="{{ ops }}" as="o" hint-placeholder-count="8">
+      <div style="display:grid;grid-template-columns:56px minmax(140px,1.3fr) 84px 52px minmax(112px,1fr) 52px 32px;gap:0 10px;align-items:baseline;border-top:1px solid var(--border);padding:8px 0;font-family:var(--mono);font-size:12px">
+        <span style="color:var(--muted-foreground);font-size:11px">{{ o.time }}</span>
+        <span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.op }}</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap">{{ o.critGlyph }}{{ o.crit }}</span>
+        <span>{{ o.cong }}</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;color:{{ o.actColor }};white-space:nowrap;font-size:11px">{{ o.actGlyph }}{{ o.action }}</span>
+        <span style="text-align:right;display:inline-block;width:100%">{{ o.held }}</span>
+        <a href="FlowGuard Decision Trail.dc.html" style="text-align:right;font-size:11px;text-decoration:none;border-bottom:1px solid var(--border);justify-self:end">trail</a>
+      </div>
+    </sc-for>
+    <div style="border-top:1px solid var(--border);padding-top:6px;font-family:var(--mono);font-size:11px;color:var(--muted-foreground)">8 of 8 · newest first · shift 06:00 — 14:00</div>
+  </section>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px 28px;min-width:0;align-items:start">
+    <!-- 4 · Totals -->
+    <section data-screen-label="4 Totals" style="border-top:1px solid var(--foreground)">
+      <div style="padding:6px 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">totals · this shift</div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) max-content;gap:0 16px;font-family:var(--mono);font-size:12px">
+        <span style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted-foreground)">sessions requested</span><span style="border-top:1px solid var(--border);padding:6px 0;text-align:right;font-weight:500">5</span>
+        <span style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted-foreground)">slice attachments</span><span style="border-top:1px solid var(--border);padding:6px 0;text-align:right;font-weight:500">3</span>
+        <span style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted-foreground)">total held</span><span style="border-top:1px solid var(--border);padding:6px 0;text-align:right;font-weight:500">12m 39s</span>
+        <span style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted-foreground)">shift elapsed</span><span style="border-top:1px solid var(--border);padding:6px 0;text-align:right">3h 45m</span>
+        <span style="border-top:1px solid var(--foreground);padding:6px 0;font-weight:500;font-family:var(--sans)">on standard connectivity</span><span style="border-top:1px solid var(--foreground);padding:6px 0;text-align:right;font-weight:500">94.4%</span>
+      </div>
+      <p style="margin:0;padding-top:6px;font-size:12px;color:var(--muted-foreground);text-wrap:pretty">3h 32m of 3h 45m. Premium was held only while a lift was at risk. This is the product working, not a gap in coverage.</p>
+    </section>
+
+    <!-- 3 · Location verification -->
+    <section data-screen-label="3 Location verification" style="border-top:1px solid var(--foreground)">
+      <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 44px 96px;gap:0 10px;padding:6px 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span>time</span><span>claimed site</span><span style="text-align:right">dist</span><span>verdict</span></div>
+      <sc-for list="{{ locs }}" as="l" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:64px minmax(0,1fr) 44px 96px;gap:0 10px;align-items:baseline;border-top:1px solid var(--border);padding:6px 0;font-family:var(--mono);font-size:12px">
+          <span style="color:var(--muted-foreground)">{{ l.time }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.site }}</span><span style="text-align:right">{{ l.dist }}</span><span style="display:inline-flex;align-items:center;gap:6px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>CONFIRMED</span>
+        </div>
+      </sc-for>
+      <div style="border-top:1px solid var(--border);padding-top:6px;display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--muted-foreground)"><span style="display:inline-block;width:16px;height:1px;background:var(--muted-foreground);flex:none;margin-top:8px"></span><span style="text-wrap:pretty">5 of 5 confirmed at 0 m from Berth 3. A CONTRADICTED verdict downgrades the job's claim (slice → QOD); it never blocks the operation.</span></div>
+    </section>
+  </div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  glyph(kind) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const fg = 'var(--foreground)', mf = 'var(--muted-foreground)';
+    const rows = [
+      ['09:31:44', 'move-4-c81a2d90', 'HIGH', '0.89', 'High', 'QOD_AND_SLICE', '2m 55s'],
+      ['09:22:18', 'move-3-f4e07b11', 'MEDIUM', '0.71', 'High', 'QOD', '2m 30s'],
+      ['08:58:47', 'gantry-reposition-b', 'HIGH', '0.87', 'High', 'QOD_AND_SLICE', '2m 12s'],
+      ['08:40:05', 'move-9-1d4e77aa', 'LOW', '0.90', 'High', 'NONE', '—'],
+      ['08:12:31', 'twin-lift-b-03', 'HIGH', '0.92', 'High', 'QOD_AND_SLICE', '3m 04s'],
+      ['07:49:12', 'move-7-4c0b9e21', 'MEDIUM', '0.74', 'High', 'QOD', '1m 58s'],
+      ['07:05:26', 'yard-shuffle-b-11', 'LOW', '0.88', 'Medium', 'NONE', '—'],
+      ['06:21:09', 'move-2-0a77c3d1', 'LOW', '0.91', 'High', 'NONE', '—'],
+    ];
+    const ops = rows.map(([time, op, crit, conf, cong, action, held]) => ({ time, op, crit, conf, cong, action, held,
+      critGlyph: this.glyph(crit === 'HIGH' ? 'filled' : 'hollow'), actGlyph: this.glyph(action === 'NONE' ? 'hollow' : 'filled'), actColor: action === 'NONE' ? mf : fg }));
+    // behaviour strip: 06:00 → 09:45 mapped to 0..1000; rows y: slice 14, qod 28, none 42
+    const toX = t => { const [h, m] = t.split(':').map(Number); return ((h * 60 + m) - 360) / 225 * 1000; };
+    const rowY = { QOD_AND_SLICE: 14, QOD: 28, NONE: 42 };
+    const marks = rows.map(([time, , , , , action]) => { const x = toX(time), y = rowY[action]; return { x: x.toFixed(1), y: y.toFixed(1), rx: (x - 4).toFixed(1), ry: (y - 4).toFixed(1), fill: action === 'NONE' ? 'var(--background)' : 'var(--foreground)' }; });
+    const ticks = ['06:00', '07:00', '08:00', '09:00', '09:45'].map((t, i, a) => ({ x: toX(t).toFixed(1), t, anchor: i === 0 ? 'start' : i === a.length - 1 ? 'end' : 'middle' }));
+    const locs = [['09:31:12', 'Berth 3 · BAY 18', '0 m'], ['09:21:50', 'Berth 3 · BAY 18', '0 m'], ['08:58:20', 'Berth 3 · gantry rail', '0 m'], ['08:12:04', 'Berth 3 · BAY 18', '0 m'], ['07:48:49', 'Berth 3 · BAY 20', '0 m']].map(([time, site, dist]) => ({ time, site, dist }));
+    return { rootClass: dark ? 'dark' : '', ops, marks, marksSlash: [], ticks, locs };
+  }
+}
+</script>
+</body>
+</html>

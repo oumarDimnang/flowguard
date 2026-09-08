@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+@keyframes fg-blink{0%,100%{opacity:1}50%{opacity:.25}}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.4;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1200px;padding:20px 28px 28px;display:flex;flex-direction:column;gap:0">
+
+<header data-screen-label="Scenarios header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:baseline;padding-bottom:12px">
+  <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+    <h1 style="margin:0;font-size:20px;font-weight:600;line-height:1.2">Scenarios</h1>
+    <span style="color:var(--muted-foreground)">Each entry says what it proves before it says what it does. Expand for steps and expected outcome.</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:20px;font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">
+    <span><span style="display:inline-block;width:1ch;text-align:right;color:var(--foreground)">7</span> scenarios · <span style="display:inline-block;width:1ch;text-align:right;color:var(--foreground)">{{ runningCount }}</span> running · <span style="display:inline-block;width:1ch;text-align:right;color:var(--foreground)">{{ doneCount }}</span> completed</span>
+    <button onClick="{{ toggleRole }}" title="Preview the other role" style="font:inherit;color:var(--foreground);background:transparent;border:0;border-bottom:1px solid var(--border);padding:0 0 1px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">{{ roleGlyph }}role <span style="display:inline-block;width:8ch;font-weight:500">{{ roleName }}</span></button>
+  </div>
+</header>
+
+<sc-if value="{{ isViewer }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Viewer notice" style="border-top:1px solid var(--border);padding:6px 0;display:grid;grid-template-columns:80px minmax(0,1fr);gap:0 16px;font-size:12px;color:var(--muted-foreground)">
+  <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding-top:1px">viewer</span>
+  <span>Run is disabled for this role. Scenarios spawn real operations and spend network sessions; only an OPERATOR may start one. You can expand any entry and open the operations it has spawned.</span>
+</div>
+</sc-if>
+
+<section data-screen-label="Scenario list" style="border-top:1px solid var(--border)">
+  <div style="display:grid;grid-template-columns:80px 200px minmax(0,1fr) 120px 96px;gap:0 16px;padding:6px 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <span>elapsed</span><span>id</span><span>proves · demonstrates</span><span>state</span><span style="text-align:right">action</span>
+  </div>
+
+  <sc-for list="{{ scenarios }}" as="s" hint-placeholder-count="7">
+    <article data-screen-label="{{ s.id }}" style="border-top:1px solid var(--border);display:grid;grid-template-columns:80px 200px minmax(0,1fr) 120px 96px;gap:0 16px;padding:7px 0;align-items:start">
+      <span style="font-family:var(--mono);font-size:12px;color:{{ s.elapsedColor }};padding-top:2px;display:inline-block;width:6ch">{{ s.elapsed }}</span>
+      <button onClick="{{ s.toggle }}" style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--foreground);background:transparent;border:0;padding:0;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:1px;line-height:1.4">
+        <span style="display:inline-flex;align-items:center;gap:8px"><span style="display:inline-block;width:1ch;color:var(--muted-foreground);font-weight:400">{{ s.caret }}</span>{{ s.id }}</span>
+        <span style="font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted-foreground);padding-left:17px">{{ s.stepsLine }}</span>
+      </button>
+      <div style="display:flex;flex-direction:column;gap:1px;min-width:0;line-height:1.4">
+        <span style="font-weight:500">{{ s.name }}</span>
+        <span style="font-size:12px;color:var(--muted-foreground);text-wrap:pretty">{{ s.demo }}</span>
+        <sc-if value="{{ s.open }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 16px;padding:8px 0 2px;font-size:12px">
+            <sc-for list="{{ s.steps }}" as="st" hint-placeholder-count="2">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--muted-foreground);padding-top:1px">t+{{ st.t }}</span>
+              <span style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;color:{{ st.color }}"><span style="display:inline-flex;align-items:center;gap:8px;font-family:var(--mono)">{{ st.glyph }}{{ st.label }}</span><span style="color:var(--muted-foreground)">{{ st.desc }}</span><sc-if value="{{ st.hasOp }}" hint-placeholder-val="{{ false }}"><a href="FlowGuard Decision Trail.dc.html" style="font-family:var(--mono);font-size:11px;text-decoration:none;border-bottom:1px solid var(--border)">{{ st.op }}</a></sc-if></span>
+            </sc-for>
+            <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:5px">expects</span>
+            <span style="display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;padding-top:4px;border-top:1px solid var(--border)"><span style="display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:{{ s.expectColor }};font-weight:500">{{ s.expectGlyph }}{{ s.expectState }}</span><span>{{ s.expects }}</span></span>
+          </div>
+        </sc-if>
+      </div>
+      <span style="font-family:var(--mono);font-size:12px;display:inline-flex;align-items:center;gap:8px;padding-top:2px;color:{{ s.stateColor }}">{{ s.stateGlyph }}{{ s.state }}</span>
+      <span style="text-align:right">
+        <sc-if value="{{ s.canRun }}" hint-placeholder-val="{{ true }}"><button style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:3px 12px;cursor:pointer" style-hover="border-color:var(--foreground)">Run</button></sc-if>
+        <sc-if value="{{ s.isRunning }}" hint-placeholder-val="{{ false }}"><button style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:3px 12px;cursor:pointer" style-hover="border-color:var(--destructive);color:var(--destructive)">Stop</button></sc-if>
+        <sc-if value="{{ s.viewerLocked }}" hint-placeholder-val="{{ false }}"><button disabled="{{ true }}" title="OPERATOR role required" style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--muted-foreground);background:transparent;border:1px dashed var(--border);border-radius:var(--radius);padding:3px 12px;cursor:not-allowed">Run</button></sc-if>
+      </span>
+    </article>
+  </sc-for>
+  <div style="border-top:1px solid var(--border)"></div>
+</section>
+
+<div style="display:grid;grid-template-columns:80px minmax(0,1fr);gap:0 16px;padding-top:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+  <span></span>
+  <div style="display:flex;flex-wrap:wrap;gap:0 20px;align-items:center"><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>step done · expectation met</span><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>pending</span><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)"></i>not met</span><span>scenarios spawn real operations — each id links to its trail</span></div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;role&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;OPERATOR&quot;,&quot;VIEWER&quot;],&quot;default&quot;:&quot;OPERATOR&quot;,&quot;tsType&quot;:&quot;'OPERATOR'|'VIEWER'&quot;,&quot;section&quot;:&quot;State&quot;}}">
+class Component extends DCLogic {
+  state = { open: { 'drone-contrast': true, 'crane-lift': true }, role: null };
+  glyph(kind, blink) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none', animation: blink ? 'fg-blink 1.2s steps(1) infinite' : 'none' };
+    if (kind === 'filled') return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+    if (kind === 'hollow') return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+    return React.createElement('i', { style: { ...base, background: 'linear-gradient(to top right,transparent 42%,currentColor 42%,currentColor 58%,transparent 58%)' } });
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const role = this.state.role ?? (this.props.role ?? 'OPERATOR');
+    const isViewer = role === 'VIEWER';
+    const fg = 'var(--foreground)', mf = 'var(--muted-foreground)', pr = 'var(--primary)';
+    const defs = [
+      { id: 'stadium-incident', name: 'Public-safety priority comms', steps: '2 steps · medic-12', demo: 'standby at 0s, mass-casualty at 30s', expects: 'LOW → NONE, then HIGH → QOD_AND_SLICE at identical congestion', state: 'rest', stepList: [['0s', 'standby', 'medic-12 on routine standby'], ['30s', 'mass-casualty', 'same device, same cell, incident declared']] },
+      { id: 'drone-contrast', name: 'Criticality, not congestion', steps: '2 steps · drone-3', demo: 'routine mapping at 0s, leak inspection at 30s', expects: 'the same device refused, then protected, minutes apart', state: 'running', elapsed: '00:41', stepList: [['0s', 'routine mapping', 'LOW · High congestion · NONE', 'drone-3-routine-8a1c', 'done'], ['30s', 'leak inspection', 'HIGH · High congestion · deciding…', 'drone-3-leak-2f77', 'live']] },
+      { id: 'contested-lift', name: 'The agent gathers before it judges', steps: '1 step · crane-b', demo: 'a job whose own account contradicts itself', expects: '2 or more read tools chosen unprompted before classifying', state: 'rest', stepList: [['0s', 'contested lift', 'filing says 8 t; manifest says 38 t']] },
+      { id: 'false-claim', name: 'The network contradicts the paperwork', steps: '2 steps · drone-3, drone-9', demo: 'drone-3 at 0s, drone-9 at 20s, word-for-word identical filings', expects: 'CONFIRMED → slice; CONTRADICTED at 24 km → downgraded to QOD', state: 'rest', stepList: [['0s', 'drone-3', 'location verifies CONFIRMED'], ['20s', 'drone-9', 'location verifies CONTRADICTED · 24 km away']] },
+      { id: 'asset-offline', name: 'The guard clause', steps: '1 step · crane-c', demo: 'modem off the network', expects: 'a two-step trail, GUARD_DEVICE_UNREACHABLE, nothing spent', state: 'rest', stepList: [['0s', 'crane-c lift', 'device unreachable at DEVICE_CHECKED']] },
+      { id: 'crane-lift', name: 'Cross-industry generalisation', steps: '1 step · crane-a', demo: '40-tonne IMDG class 3 over an active walkway', expects: 'HIGH → QOD_AND_SLICE, released on completion', state: 'done', elapsed: '00:25', stepList: [['0s', 'crane lift', 'HIGH 0.94 · QOD_AND_SLICE · released 09:44:07', 'move-2-30377efc', 'done']] },
+      { id: 'ambulance-telemedicine', name: 'Same logic, different industry', steps: '1 step · ambulance-7', demo: 'live stroke consultation in transit', expects: 'HIGH under Medium congestion → QOD', state: 'rest', stepList: [['0s', 'stroke consult', 'ambulance-7 · Medium congestion']] },
+    ];
+    const scenarios = defs.map(d => {
+      const open = !!this.state.open[d.id];
+      const running = d.state === 'running', done = d.state === 'done';
+      const steps = d.stepList.map(([t, label, desc, op, st]) => {
+        const kind = st === 'done' ? 'filled' : st === 'live' ? 'filled' : 'hollow';
+        return { t, label, desc, op: op || '', hasOp: !!op, glyph: this.glyph(kind, st === 'live'), color: st === 'live' ? pr : st === 'done' ? fg : mf };
+      });
+      return { id: d.id, name: d.name, stepsLine: d.steps, demo: d.demo, expects: d.expects, open, steps,
+        caret: open ? '−' : '+',
+        toggle: () => this.setState(s => ({ open: { ...s.open, [d.id]: !s.open[d.id] } })),
+        elapsed: d.elapsed || '—', elapsedColor: running ? pr : mf,
+        state: running ? 'RUNNING' : done ? 'COMPLETED' : 'READY',
+        stateGlyph: this.glyph(running || done ? 'filled' : 'hollow', running), stateColor: running ? pr : done ? fg : mf,
+        expectState: done ? 'MET' : running ? 'PENDING · 1/2' : 'PENDING', expectGlyph: this.glyph(done ? 'filled' : 'hollow'), expectColor: done ? fg : mf,
+        canRun: !isViewer && !running, isRunning: !isViewer && running, viewerLocked: isViewer };
+    });
+    return { rootClass: dark ? 'dark' : '', scenarios, isViewer,
+      runningCount: defs.filter(d => d.state === 'running').length, doneCount: defs.filter(d => d.state === 'done').length,
+      roleName: role, roleGlyph: this.glyph(isViewer ? 'hollow' : 'filled'),
+      toggleRole: () => this.setState({ role: isViewer ? 'OPERATOR' : 'VIEWER' }) };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+input::placeholder{color:var(--muted-foreground)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.4;min-height:100vh;font-variant-numeric:tabular-nums">
+<div style="max-width:1200px;padding:20px 28px 28px;display:flex;flex-direction:column">
+
+<header data-screen-label="Users header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:baseline;padding-bottom:10px">
+  <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">
+    <h1 style="margin:0;font-size:20px;font-weight:600;line-height:1.2">Users</h1>
+    <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">admin only · <span style="display:inline-block;width:1ch;text-align:right;color:var(--foreground)">3</span> users · <span style="display:inline-block;width:1ch;text-align:right;color:var(--foreground)">2</span> organizations</span>
+  </div>
+  <button onClick="{{ toggleInvite }}" style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:4px 12px;cursor:pointer" style-hover="border-color:var(--foreground)">{{ inviteLabel }}</button>
+</header>
+
+<sc-if value="{{ inviteOpen }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="Invite" style="border-top:1px solid var(--foreground);padding:8px 0 10px;display:grid;grid-template-columns:120px minmax(0,1fr);gap:4px 16px">
+  <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:6px">invite</span>
+  <div style="display:grid;grid-template-columns:minmax(160px,1.4fr) 140px minmax(160px,1.2fr) auto;gap:0 16px;align-items:end">
+    <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted-foreground)">email<input type="email" placeholder="name@org.test" spellCheck="{{ false }}" style="font-family:var(--mono);font-size:13px;color:var(--foreground);background:transparent;border:0;border-bottom:1px solid var(--foreground);outline:0;padding:3px 0"></label>
+    <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted-foreground)">role<select style="font-family:var(--mono);font-size:13px;color:var(--foreground);background:transparent;border:0;border-bottom:1px solid var(--foreground);outline:0;padding:3px 0;border-radius:0"><option>VIEWER</option><option>OPERATOR</option><option>ADMIN</option></select></label>
+    <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted-foreground)">organization<select style="font-family:var(--sans);font-size:13px;color:var(--foreground);background:transparent;border:0;border-bottom:1px solid var(--foreground);outline:0;padding:3px 0;border-radius:0"><option>Khalifa Bin Salman Port</option><option>Gulf Aerial Survey</option></select></label>
+    <button style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--foreground);border-radius:var(--radius);padding:4px 12px;cursor:pointer">Send invite</button>
+  </div>
+  <span></span>
+  <span style="font-size:12px;color:var(--muted-foreground)">The invitee joins the organization chosen here and no other. Organization is fixed at invite and cannot be changed afterwards.</span>
+</section>
+</sc-if>
+
+<!-- Users table -->
+<section data-screen-label="Users table" style="border-top:1px solid var(--border)">
+  <div style="display:grid;grid-template-columns:minmax(140px,1.2fr) minmax(180px,1.5fr) 200px minmax(160px,1.3fr) 96px 120px;gap:0 12px;padding:6px 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+    <span>name</span><span>email</span><span>role</span><span>organization</span><span>last signed in</span><span style="text-align:right">action</span>
+  </div>
+  <sc-for list="{{ users }}" as="u" hint-placeholder-count="3">
+    <div style="border-top:1px solid var(--border);display:flex;flex-direction:column">
+      <div style="display:grid;grid-template-columns:minmax(140px,1.2fr) minmax(180px,1.5fr) 200px minmax(160px,1.3fr) 96px 120px;gap:0 12px;align-items:baseline;padding:8px 0">
+        <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ u.name }}</span>
+        <span style="font-family:var(--mono);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ u.email }}</span>
+        <span style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px">
+          <sc-if value="{{ u.editing }}" hint-placeholder-val="{{ false }}">
+            <select value="{{ u.pending }}" onChange="{{ u.onPick }}" style="font-family:var(--mono);font-size:12px;color:var(--primary);background:transparent;border:0;border-bottom:1px solid var(--primary);outline:0;padding:1px 0;border-radius:0"><option>VIEWER</option><option>OPERATOR</option><option>ADMIN</option></select>
+          </sc-if>
+          <sc-if value="{{ u.notEditing }}" hint-placeholder-val="{{ true }}">
+            <span style="display:inline-flex;align-items:center;gap:8px">{{ u.glyph }}{{ u.role }}</span>
+          </sc-if>
+        </span>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ u.org }}</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">{{ u.last }}</span>
+        <span style="text-align:right">
+          <sc-if value="{{ u.notEditing }}" hint-placeholder-val="{{ true }}"><button onClick="{{ u.onEdit }}" style="font-family:var(--sans);font-size:12px;color:var(--foreground);background:transparent;border:0;border-bottom:1px solid var(--border);padding:0;cursor:pointer">Change role</button></sc-if>
+          <sc-if value="{{ u.editing }}" hint-placeholder-val="{{ false }}"><button onClick="{{ u.onCancel }}" style="font-family:var(--sans);font-size:12px;color:var(--muted-foreground);background:transparent;border:0;border-bottom:1px solid var(--border);padding:0;cursor:pointer">Cancel</button></sc-if>
+        </span>
+      </div>
+      <sc-if value="{{ u.confirming }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:0 16px;align-items:baseline;border-top:1px solid var(--primary);padding:8px 0 10px">
+          <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--primary)">confirm</span>
+          <span style="font-size:12px"><span style="font-weight:500">{{ u.name }}</span> <span style="font-family:var(--mono)">{{ u.role }}</span> → <span style="font-family:var(--mono);font-weight:500">{{ u.pending }}</span>. <span style="color:var(--muted-foreground)">{{ u.consequence }} Takes effect on their next request; no re-sign-in required.</span></span>
+          <span style="display:flex;gap:12px"><button onClick="{{ u.onConfirm }}" style="font-family:var(--sans);font-size:12px;font-weight:500;color:var(--foreground);background:transparent;border:1px solid var(--foreground);border-radius:var(--radius);padding:3px 12px;cursor:pointer">Confirm change</button><button onClick="{{ u.onCancel }}" style="font-family:var(--sans);font-size:12px;color:var(--muted-foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:3px 12px;cursor:pointer">Cancel</button></span>
+        </div>
+      </sc-if>
+    </div>
+  </sc-for>
+  <div style="border-top:1px solid var(--border)"></div>
+</section>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px 40px;padding-top:16px;align-items:start">
+  <!-- Roles -->
+  <section data-screen-label="Roles" style="border-top:1px solid var(--foreground)">
+    <div style="padding:6px 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">roles · by privilege</div>
+    <div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:0 16px;font-size:12px">
+      <span style="border-top:1px solid var(--border);padding:6px 0;font-family:var(--mono);display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>VIEWER</span><span style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted-foreground)">Reads. Control Room, Operations, trails, Analysis — nothing that changes the facility.</span>
+      <span style="border-top:1px solid var(--border);padding:6px 0;font-family:var(--mono);display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>OPERATOR</span><span style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted-foreground)">Everything VIEWER can, plus dispatch and abort work and run scenarios.</span>
+      <span style="border-top:1px solid var(--border);padding:6px 0;font-family:var(--mono);display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor;outline:1px solid currentColor;outline-offset:2px"></i>ADMIN</span><span style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted-foreground)">Everything OPERATOR can, plus invite users and change roles on this page.</span>
+    </div>
+  </section>
+  <!-- Isolation -->
+  <section data-screen-label="Isolation" style="border-top:1px solid var(--foreground)">
+    <div style="padding:6px 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">tenant isolation</div>
+    <p style="margin:0;border-top:1px solid var(--border);padding:6px 0;font-size:13px;font-weight:500;text-wrap:pretty">Every user belongs to exactly one organization and sees only that organization's operations.</p>
+    <p style="margin:0;border-top:1px solid var(--border);padding:6px 0;font-size:12px;color:var(--muted-foreground);text-wrap:pretty">A user in Khalifa Bin Salman Port cannot see Gulf Aerial Survey's operations, and vice versa. This is enforced in the data layer — every query is scoped by <span style="font-family:var(--mono);color:var(--foreground)">organizationId</span> before it reaches the UI — not by hiding rows on the client.</p>
+    <div style="border-top:1px solid var(--border);padding-top:6px;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 16px;font-family:var(--mono);font-size:12px">
+      <span style="color:var(--muted-foreground)">Khalifa Bin Salman Port</span><span><span style="display:inline-block;width:1ch;text-align:right">2</span> users · crane-a, crane-b, ambulance-7</span>
+      <span style="color:var(--muted-foreground)">Gulf Aerial Survey</span><span><span style="display:inline-block;width:1ch;text-align:right">1</span> user · drone-3, drone-9</span>
+    </div>
+  </section>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;inviteOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;},&quot;showRoleChange&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;}}">
+class Component extends DCLogic {
+  state = { invite: null, editing: null, pending: null, roles: { 'ops@khalifa-port.test': 'OPERATOR', 'auditor@khalifa-port.test': 'VIEWER', 'ops@gulf-aerial.test': 'OPERATOR' } };
+  glyph(role) {
+    const base = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+    if (role === 'VIEWER') return React.createElement('i', { style: { ...base, border: '1px solid currentColor', boxSizing: 'border-box' } });
+    if (role === 'ADMIN') return React.createElement('i', { style: { ...base, background: 'currentColor', outline: '1px solid currentColor', outlineOffset: 2 } });
+    return React.createElement('i', { style: { ...base, background: 'currentColor' } });
+  }
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const inviteOpen = this.state.invite ?? (this.props.inviteOpen ?? false);
+    const editing = this.state.editing ?? (this.props.showRoleChange ? 'auditor@khalifa-port.test' : null);
+    const pending = this.state.pending ?? (this.props.showRoleChange && !this.state.editing ? 'OPERATOR' : null);
+    const desc = { VIEWER: 'They will lose the ability to dispatch work and run scenarios.', OPERATOR: 'They will be able to dispatch and abort work and run scenarios on a live facility.', ADMIN: 'They will be able to change what every other user can do.' };
+    const rows = [
+      ['Layla Al Mansoori', 'ops@khalifa-port.test', 'Khalifa Bin Salman Port', '09:38 today'],
+      ['Rashid Buhazza', 'auditor@khalifa-port.test', 'Khalifa Bin Salman Port', 'yesterday 17:02'],
+      ['Noora Al Sayegh', 'ops@gulf-aerial.test', 'Gulf Aerial Survey', '08:51 today'],
+    ];
+    const users = rows.map(([name, email, org, last]) => {
+      const role = this.state.roles[email]; const isEd = editing === email; const pend = isEd ? (pending ?? role) : role;
+      return { name, email, org, last, role, glyph: this.glyph(role), editing: isEd, notEditing: !isEd, pending: pend, confirming: isEd && pend !== role, consequence: desc[pend] || '',
+        onEdit: () => this.setState({ editing: email, pending: role }),
+        onPick: (e) => this.setState({ pending: e.target.value }),
+        onCancel: () => this.setState({ editing: '', pending: '' }),
+        onConfirm: () => this.setState(s => ({ roles: { ...s.roles, [email]: pend }, editing: '', pending: '' })) };
+    });
+    return { rootClass: dark ? 'dark' : '', users, inviteOpen, inviteLabel: inviteOpen ? 'Close invite' : 'Invite user', toggleInvite: () => this.setState({ invite: !inviteOpen }) };
+  }
+}
+</script>
+</body>
+</html>

@@ -44,6 +44,23 @@ export interface AuthenticatedUser {
   role: Role;
 }
 
+/**
+ * A member of the organization, as the admin list returns them.
+ *
+ * Distinct from AuthenticatedUser, which is what a request carries to authorise
+ * itself and holds nothing a session does not need. Never includes the password
+ * hash — that leaves the repository only on the login path.
+ */
+export interface User {
+  id: string;
+  organizationId: string;
+  email: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
 export interface AuthenticatedOrganization {
   id: string;
   slug: string;

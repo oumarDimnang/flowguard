@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--background:oklch(0.9818 0.0054 95.0986);--foreground:oklch(0.3438 0.0269 95.7226);--primary:oklch(0.6171 0.1375 39.0427);--muted:oklch(0.9341 0.0153 90.2390);--muted-foreground:oklch(0.6059 0.0075 97.4233);--border:oklch(0.8847 0.0069 97.3627);--destructive:oklch(0.6368 0.2078 25.3313);--radius:0.5rem;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+.dark{--background:oklch(0.2679 0.0036 106.6427);--foreground:oklch(0.8074 0.0142 93.0137);--primary:oklch(0.6724 0.1308 38.7559);--border:oklch(0.3618 0.0101 106.8928);--muted:oklch(0.31 0.005 106.6);--muted-foreground:oklch(0.62 0.01 95)}
+html,body{margin:0;padding:0;background:var(--background)}
+a{color:var(--foreground)}a:hover{color:var(--primary)}
+</style>
+</helmet>
+<div class="{{ rootClass }}" style="background:var(--background);color:var(--foreground);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh;font-variant-numeric:tabular-nums">
+
+<!-- Masthead with provider readout -->
+<header data-screen-label="Masthead" style="border-bottom:1px solid var(--border)">
+  <div style="max-width:1440px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:24px;align-items:center;height:52px">
+    <div style="display:flex;align-items:baseline;gap:12px;white-space:nowrap"><span style="font-family:var(--mono);font-size:15px;font-weight:500;letter-spacing:.12em">FLOWGUARD</span><span style="font-size:12px;color:var(--muted-foreground)">Network · CAMARA</span></div>
+    <div style="display:flex;justify-content:center;font-size:13px;white-space:nowrap">
+      <a href="FlowGuard Control Room.dc.html" style="text-decoration:none;padding:0 12px;line-height:24px">Control Room</a>
+      <a href="FlowGuard Operations History.dc.html" style="text-decoration:none;padding:0 12px;border-left:1px solid var(--border);line-height:24px">Operations</a>
+      <span style="padding:0 12px;border-left:1px solid var(--border);line-height:24px;font-weight:500;border-bottom:1px solid var(--foreground)">Network</span>
+      <a href="FlowGuard The Policy.dc.html" style="text-decoration:none;padding:0 12px;border-left:1px solid var(--border);line-height:24px">Policy</a>
+      <a href="FlowGuard Analysis.dc.html" style="text-decoration:none;padding:0 12px;border-left:1px solid var(--border);line-height:24px">Analysis</a>
+    </div>
+    <button onClick="{{ toggleProvider }}" title="Click to preview the other provider state" style="font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:{{ providerColor }};background:transparent;border:0;border-bottom:1px solid {{ providerColor }};padding:2px 0;cursor:pointer;display:inline-flex;align-items:center;gap:10px;white-space:nowrap">{{ providerGlyph }}<span>provider</span><span style="display:inline-block;width:5ch">{{ providerName }}</span><span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted-foreground)">{{ providerNote }}</span></button>
+  </div>
+</header>
+
+<div style="max-width:1440px;margin:0 auto;padding:28px 40px 64px">
+
+<div data-screen-label="Page header" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:32px;align-items:end;padding-bottom:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <h1 style="margin:0;font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em">Network</h1>
+    <p style="margin:0;font-size:15px;color:var(--muted-foreground);max-width:72ch;text-wrap:pretty">What the operator network is holding for Berth 3 right now, and the calls that made it so.</p>
+  </div>
+  <div style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground);text-align:right">base <span style="color:var(--foreground)">{{ baseUrl }}</span> · last poll <span style="color:var(--foreground)">09:42:33.104</span></div>
+</div>
+
+<!-- 1 · Held right now -->
+<section data-screen-label="1 Held right now" style="border-top:1px solid var(--border);padding:24px 0 40px;display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px">
+  <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">1 · Held right now</span>
+  <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div style="font-size:15px;font-weight:500;font-family:var(--mono)"><span style="display:inline-block;width:1ch;text-align:right">2</span> sessions · <span style="display:inline-block;width:1ch;text-align:right">1</span> slice attachment · held <span style="display:inline-block;width:5ch">00:41</span></div>
+    <div style="display:grid;grid-template-columns:minmax(180px,1.3fr) 80px 130px minmax(150px,1fr) 80px 90px minmax(140px,1fr);gap:0 12px;padding-bottom:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">
+      <span>session</span><span>device</span><span>status</span><span>qos profile</span><span style="text-align:right">requested</span><span style="text-align:right">remaining</span><span>slice</span>
+    </div>
+    <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="3">
+      <div style="display:grid;grid-template-columns:minmax(180px,1.3fr) 80px 130px minmax(150px,1fr) 80px 90px minmax(140px,1fr);gap:0 12px;align-items:baseline;border-top:1px solid var(--border);padding:12px 0;font-family:var(--mono);font-size:13px;color:{{ s.color }}">
+        <span style="font-weight:500;overflow-wrap:anywhere">{{ s.id }}</span>
+        <span>{{ s.device }}</span>
+        <span style="display:inline-flex;align-items:center;gap:8px;color:{{ s.statusColor }}">{{ s.glyph }}{{ s.status }}</span>
+        <span style="font-size:12px">{{ s.profile }}</span>
+        <span style="text-align:right;display:inline-block;width:100%">{{ s.requested }}</span>
+        <span style="text-align:right;display:inline-block;width:100%;font-weight:500">{{ s.remaining }}</span>
+        <span style="font-size:12px;color:{{ s.sliceColor }}">{{ s.slice }}</span>
+      </div>
+    </sc-for>
+    <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span style="display:inline-block;width:24px;height:1px;background:var(--muted-foreground)"></span>mock-qod-crane-a-0007 went UNAVAILABLE at 09:42:29.870 · released by move-1 landing · row clears on next poll</div>
+  </div>
+</section>
+
+<!-- 2 · The slice -->
+<section data-screen-label="2 The slice" style="border-top:1px solid var(--border);padding:24px 0 40px;display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px">
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">2 · The slice</span>
+    <div style="display:flex;flex-direction:column;gap:4px"><span style="display:block;width:24px;height:1px;background:var(--muted-foreground)"></span><p style="margin:0;font-size:12px;color:var(--muted-foreground);text-wrap:pretty;max-width:20ch">Pre-provisioned at bootstrap because provisioning takes minutes. Only attach and detach happen per operation.</p></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px;max-width:760px">
+    <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:0 16px"><span style="font-family:var(--mono);font-size:20px;font-weight:500">mock-urllc-slice-01</span><span style="font-family:var(--mono);font-size:13px;display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:currentColor"></i>OPERATING</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">URLLC · provisioned 06:00:04 · <span style="display:inline-block;width:1ch">1</span> attached</span></div>
+    <div style="display:grid;grid-template-columns:120px minmax(0,1fr) 140px;gap:0 16px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-bottom:6px"><span>attached at</span><span>device · attachment</span><span style="text-align:right">operation</span></div>
+    <div style="display:grid;grid-template-columns:120px minmax(0,1fr) 140px;gap:0 16px;align-items:baseline;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 0;font-family:var(--mono);font-size:13px">
+      <span style="font-size:12px;color:var(--muted-foreground)">09:42:32.998</span>
+      <span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;background:var(--primary)"></i>crane-b <span style="color:var(--muted-foreground)">· att-4d21 · ATTACHED</span></span>
+      <a href="FlowGuard Decision Trail.dc.html" style="text-align:right;font-size:12px;text-decoration:none;border-bottom:1px solid var(--border)">move-4-9b1e44a0</a>
+    </div>
+    <div style="display:grid;grid-template-columns:120px minmax(0,1fr) 140px;gap:0 16px;align-items:baseline;padding:2px 0;font-family:var(--mono);font-size:12px;color:var(--muted-foreground)">
+      <span>09:41:12.560</span><span style="display:inline-flex;align-items:center;gap:8px"><i style="display:inline-block;width:8px;height:8px;border:1px solid currentColor;box-sizing:border-box"></i>crane-a · att-3c90 · DETACHED</span><span style="text-align:right">move-1-5c07d2ee</span>
+    </div>
+  </div>
+</section>
+
+<!-- 3 · Congestion by device -->
+<section data-screen-label="3 Congestion by device" style="border-top:1px solid var(--border);padding:24px 0 40px;display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px">
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">3 · Congestion</span>
+    <div style="display:flex;flex-direction:column;gap:4px"><span style="display:block;width:24px;height:1px;background:var(--muted-foreground)"></span><p style="margin:0;font-size:12px;color:var(--muted-foreground);text-wrap:pretty;max-width:20ch">An input to the decision. Never a trigger on its own.</p></div>
+  </div>
+  <div style="display:flex;flex-direction:column;max-width:560px">
+    <div style="display:grid;grid-template-columns:140px 120px minmax(0,1fr) 100px;gap:0 16px;padding-bottom:6px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)"><span>device</span><span>level</span><span>confidence</span><span style="text-align:right">as of</span></div>
+    <sc-for list="{{ congestion }}" as="c" hint-placeholder-count="6">
+      <div style="display:grid;grid-template-columns:140px 120px minmax(0,1fr) 100px;gap:0 16px;align-items:center;border-top:1px solid var(--border);padding:8px 0;font-family:var(--mono);font-size:13px">
+        <span>{{ c.device }}</span>
+        <span style="display:inline-flex;align-items:center;gap:8px">{{ c.glyph }}{{ c.level }}</span>
+        <span style="display:flex;align-items:center;gap:10px"><span style="display:block;height:6px;background:var(--foreground);width:{{ c.width }}"></span><span style="font-size:12px;color:var(--muted-foreground)">{{ c.conf }}</span></span>
+        <span style="text-align:right;font-size:12px;color:var(--muted-foreground)">{{ c.at }}</span>
+      </div>
+    </sc-for>
+    <div style="border-top:1px solid var(--border);padding-top:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)">levels are exactly Low · Medium · High — camara contract casing, not normalised</div>
+  </div>
+</section>
+
+<!-- 4 · Endpoint status -->
+<section data-screen-label="4 Endpoint status" style="border-top:1px solid var(--border);padding:24px 0 40px;display:grid;grid-template-columns:160px minmax(0,1fr);gap:0 16px">
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <span style="font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground);padding-top:4px">4 · Endpoints</span>
+    <div style="display:flex;flex-direction:column;gap:4px"><span style="display:block;width:24px;height:1px;background:var(--muted-foreground)"></span><p style="margin:0;font-size:12px;color:var(--muted-foreground);text-wrap:pretty;max-width:20ch">None of the catalogue names map onto their paths.</p></div>
+  </div>
+  <div style="display:flex;flex-direction:column;max-width:960px">
+    
+</x-dc>
+</body>
+</html>
