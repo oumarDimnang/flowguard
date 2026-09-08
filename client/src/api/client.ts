@@ -50,6 +50,48 @@ export class ApiError extends Error {
   get isForbidden(): boolean {
     return this.status === 403;
   }
+
+  /** The thing being created already exists — a taken email on sign-up. */
+  get isConflict(): boolean {
+    return this.status === 409;
+  }
+
+  /** Throttled. `retryAfterSeconds` is the server's own figure when it gave one. */
+  get isThrottled(): boolean {
+    return this.status === 429;
+  }
+
+  /**
+   * The validation messages from a 400, one per rejected field. Nest's
+   * ValidationPipe returns them as an array; anything else is a single string.
+   */
+  get messages(): string[] {
+    const body = this.body;
+    if (body && typeof body === 'object' && 'message' in body) {
+      const message = (body as { message: unknown }).message;
+      if (Array.isArray(message)) return message.map(String);
+      if (typeof message === 'string') return [message];
+    }
+    return [];
+  }
+}
+
+type UnauthenticatedListener = () => void;
+const unauthenticatedListeners = new Set<UnauthenticatedListener>();
+
+/**
+ * Notified when any request outside /auth comes back 401.
+ *
+ * A session lasts a week and can be revoked from the server side at any time.
+ * Without this, an expired session shows up as every panel failing separately
+ * — the auth context subscribes so the shell can send the user to the login
+ * form instead. Returns an unsubscribe function.
+ */
+export function onUnauthenticated(listener: UnauthenticatedListener): () => void {
+  unauthenticatedListeners.add(listener);
+  return () => {
+    unauthenticatedListeners.delete(listener);
+  };
 }
 
 function detail(body: unknown): string | undefined {
@@ -94,6 +136,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const parsed: unknown = raw.length > 0 ? safeJson(raw) : undefined;
 
   if (!response.ok) {
+    // The auth routes answer 401 as part of their contract — bad credentials,
+    // or "not signed in" on /auth/me — so those are not a lost session.
+    if (response.status === 401 && !url.pathname.startsWith('/auth/')) {
+      for (const listener of unauthenticatedListeners) listener();
+    }
     throw new ApiError(response.status, url.pathname, parsed);
   }
 

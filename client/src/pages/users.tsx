@@ -1,7 +1,7 @@
 import { api } from '@/api/endpoints';
 import { useAuth } from '@/auth/auth-context';
 import { PageHeader } from '@/components/layout/page-header';
-import { Eyebrow, Glyph, Skeleton, Slot } from '@/components/primitives';
+import { Eyebrow, Glyph, Loadable, SkeletonRows, Slot } from '@/components/primitives';
 import { useResource } from '@/hooks/use-resource';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -52,22 +52,22 @@ export function Users() {
           <span className="text-right">last signed in</span>
         </div>
 
-        {users.loading && rows.length === 0
-          ? Array.from({ length: 3 }, (_, row) => (
-              <div key={row} className={cn(USERS_GRID, 'items-center border-t py-2.5')}>
-                <Skeleton width="60%" />
-                <Skeleton width="80%" />
-                <Skeleton width="7ch" />
-                <Skeleton width="8ch" className="justify-self-end" />
-              </div>
-            ))
-          : null}
-
-        {rows.map((user) => (
-          <UserRow key={user.id} user={user} self={user.id === identity?.user.id} />
-        ))}
-
-        <div className="border-t" />
+        <Loadable
+          loading={users.loading}
+          empty={rows.length === 0}
+          skeleton={
+            <SkeletonRows
+              rows={3}
+              layoutClassName={USERS_GRID}
+              columns={['60%', '80%', '7ch', { width: '8ch', end: true }]}
+            />
+          }
+        >
+          {rows.map((user) => (
+            <UserRow key={user.id} user={user} self={user.id === identity?.user.id} />
+          ))}
+          <div className="border-t" />
+        </Loadable>
       </section>
 
       <p className="log-row pt-3">
@@ -75,7 +75,8 @@ export function Users() {
         <span className="text-xs text-muted-foreground">
           Invites and role changes are deliberately absent rather than disabled. Both alter what
           somebody can do to a live facility, and neither should ship before the change itself
-          is audited — accounts are created by the seed script for now.
+          is audited. Sign-up creates a new organization with its first admin; nobody can join
+          this one from the outside until invites exist.
         </span>
       </p>
 

@@ -78,3 +78,19 @@ export interface Identity {
   user: AuthenticatedUser;
   organization: AuthenticatedOrganization;
 }
+
+/**
+ * Mirrors server/src/auth/dto/register.dto.ts.
+ *
+ * Registration creates a new organization with the registrant as its first
+ * admin. There is deliberately no field naming an existing organization —
+ * without invites, a sign-up form is the one thing that must never be able to
+ * place a stranger inside a tenant.
+ */
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  organizationName: string;
+  industry: Industry;
+}

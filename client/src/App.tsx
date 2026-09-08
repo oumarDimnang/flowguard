@@ -15,12 +15,14 @@ import { NotFound } from '@/pages/not-found';
 import { OperationDetail } from '@/pages/operation-detail';
 import { Operations } from '@/pages/operations';
 import { Policy } from '@/pages/policy';
+import { Register } from '@/pages/register';
 import { Thesis } from '@/pages/thesis';
 
 /**
  * Routes.
  *
- * `/login` is the only page outside the shell. Everything else is inside it,
+ * `/login` and `/register` are the only pages outside the shell. Everything
+ * else is inside it,
  * and the shell redirects anyone without a session — so a route added later is
  * protected by default rather than by remembering to protect it.
  */
@@ -30,6 +32,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           <Route element={<AppShell />}>
             <Route index element={<ControlRoom />} />

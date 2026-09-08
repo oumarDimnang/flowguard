@@ -1,5 +1,7 @@
 import type {
   Identity,
+  Industry,
+  RegisterRequest,
   User,
   FacilityDescriptor,
   FacilityJob,
@@ -30,6 +32,13 @@ import { http } from './client';
 export const auth = {
   login: (email: string, password: string) =>
     http.post<Identity>('/auth/login', { body: { email, password } }),
+
+  /** Creates an organization and its first admin, and signs them in. 409 when the email is taken. */
+  register: (request: RegisterRequest) => http.post<Identity>('/auth/register', { body: request }),
+
+  /** Which industries the server has a facility adapter for — the sign-up form's only choices. */
+  industries: (signal?: AbortSignal) =>
+    http.get<{ industries: Industry[] }>('/auth/industries', { signal }),
 
   /** Destroys the session server-side, so it is revoked rather than forgotten. */
   logout: () => http.post<void>('/auth/logout'),

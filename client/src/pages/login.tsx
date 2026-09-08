@@ -1,23 +1,20 @@
 import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
 
-import { ApiError } from '@/api/client';
+import { AuthFrame } from '@/auth/auth-frame';
 import { useAuth } from '@/auth/auth-context';
-import { Eyebrow, Page } from '@/components/primitives';
+import { describeAuthError, looksLikeEmail } from '@/auth/describe-error';
+import { FormAlert, PasswordField, SubmitButton, TextField } from '@/auth/form-fields';
+import { Eyebrow } from '@/components/primitives';
 
-/**
- * Sign in.
- *
- * A ruled form on warm paper rather than a centred card with a drop shadow —
- * the rest of the product has no cards and no shadows, and the first screen
- * should not be the exception.
- */
+/** Sign in. See AuthFrame for why this is a ruled form and not a card. */
 export function Login() {
   const { identity, loading, signIn } = useAuth();
   const location = useLocation() as { state?: { from?: string } };
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [error, setError] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,94 +23,72 @@ export function Login() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setSubmitting(true);
     setError(undefined);
 
+    // Only what stops a pointless round trip. The server owns the real rules.
+    const problems: typeof fieldErrors = {};
+    if (!looksLikeEmail(email)) problems.email = 'Enter a valid email address.';
+    if (password.length === 0) problems.password = 'Enter your password.';
+    setFieldErrors(problems);
+    if (Object.keys(problems).length > 0) return;
+
+    setSubmitting(true);
     try {
-      await signIn(email, password);
+      await signIn(email.trim(), password);
     } catch (err) {
-      setError(describe(err));
+      // One message for a wrong email and a wrong password alike. Which half
+      // was wrong is not something a login form should reveal, and the server
+      // deliberately does not tell us either.
+      setError(describeAuthError(err, 'Invalid email or password.'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const fill = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword(DEMO_PASSWORD);
+    setFieldErrors({});
+    setError(undefined);
+  };
+
   return (
-    <main className="min-h-screen">
-      <Page className="grid min-h-screen grid-cols-1 items-center lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-24">
-        <div className="flex flex-col gap-8 py-16">
-          <div className="flex flex-col gap-1.5">
-            <span className="datum text-[15px] font-medium tracking-[var(--tracking-wordmark)]">
-              FLOWGUARD
-            </span>
-            <p className="text-xs text-muted-foreground">
-              per-lift connectivity decisions, on the record
-            </p>
-          </div>
+    <AuthFrame
+      heading="Sign in"
+      footer={{ prompt: 'New here?', label: 'Create an organization', to: '/register' }}
+      aside={<DemoAccounts onPick={fill} />}
+    >
+      <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-6">
+        <TextField
+          label="email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          autoComplete="username"
+          autoFocus
+          disabled={submitting}
+          error={fieldErrors.email}
+        />
+        <PasswordField
+          label="password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+          disabled={submitting}
+          error={fieldErrors.password}
+        />
 
-          <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-6 border-t pt-8">
-            <Field
-              label="email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              autoComplete="username"
-              autoFocus
-            />
-            <Field
-              label="password"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="current-password"
-            />
+        {error ? <FormAlert>{error}</FormAlert> : null}
 
-            {/*
-             * One message for a wrong email and a wrong password alike. Which
-             * half was wrong is not something a login form should reveal, and
-             * the server deliberately does not tell us either.
-             */}
-            {error ? (
-              <p role="alert" className="border-l-2 border-l-destructive pl-3 text-[13px] text-destructive">
-                {error}
-              </p>
-            ) : null}
-
-            <button
-              type="submit"
-              className="btn-line self-start px-4 py-2"
-              disabled={submitting || email.length === 0 || password.length === 0}
-            >
-              {submitting ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-        </div>
-
-        <aside className="hidden flex-col gap-4 border-l pl-16 lg:flex">
-          <Eyebrow>Demo accounts</Eyebrow>
-          <dl className="flex flex-col">
-            {DEMO_ACCOUNTS.map((account) => (
-              <div
-                key={account.email}
-                className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-baseline gap-x-4 border-t py-2"
-              >
-                <dt className="datum text-[13px]">{account.email}</dt>
-                <dd className="datum m-0 text-[11px] tracking-[0.06em] text-muted-foreground">
-                  {account.role}
-                </dd>
-                <dd className="col-span-2 m-0 text-xs text-muted-foreground">{account.note}</dd>
-              </div>
-            ))}
-            <div className="border-t" />
-          </dl>
-          <p className="text-xs text-muted-foreground">
-            All demo accounts use the password <span className="datum">flowguard</span>.
-          </p>
-        </aside>
-      </Page>
-    </main>
+        <SubmitButton busy={submitting} busyLabel="Signing in…">
+          Sign in
+        </SubmitButton>
+      </form>
+    </AuthFrame>
   );
 }
+
+const DEMO_PASSWORD = 'flowguard';
 
 /**
  * Listed on screen because this is a seeded sandbox and the whole point of the
@@ -132,49 +107,43 @@ const DEMO_ACCOUNTS = [
     note: 'the same data, read only',
   },
   {
+    email: 'admin@khalifa-port.test',
+    role: 'ADMIN',
+    note: 'the same data, plus the people in it',
+  },
+  {
     email: 'ops@gulf-aerial.test',
     role: 'OPERATOR',
     note: 'a different organization — sees none of it',
   },
 ];
 
-function Field({
-  label,
-  type,
-  value,
-  onChange,
-  autoComplete,
-  autoFocus,
-}: {
-  label: string;
-  type: 'email' | 'password';
-  value: string;
-  onChange: (next: string) => void;
-  autoComplete: string;
-  autoFocus?: boolean;
-}) {
+function DemoAccounts({ onPick }: { onPick: (email: string) => void }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <Eyebrow>{label}</Eyebrow>
-      <input
-        type={type}
-        value={value}
-        autoComplete={autoComplete}
-        autoFocus={autoFocus}
-        onChange={(event) => onChange(event.target.value)}
-        className="datum border-b bg-transparent pb-1 text-[15px] focus:border-b-primary focus:outline-none"
-      />
-    </label>
+    <>
+      <Eyebrow>Demo accounts</Eyebrow>
+      <div className="flex flex-col">
+        {DEMO_ACCOUNTS.map((account) => (
+          <button
+            key={account.email}
+            type="button"
+            onClick={() => onPick(account.email)}
+            className="btn-bare grid grid-cols-[minmax(0,1fr)_5.5rem] items-baseline gap-x-4 border-t py-2 text-left hover:text-primary"
+            title="Fill the form with this account"
+          >
+            <span className="datum text-[13px]">{account.email}</span>
+            <span className="datum text-[11px] tracking-[0.06em] text-muted-foreground">
+              {account.role}
+            </span>
+            <span className="col-span-2 text-xs text-muted-foreground">{account.note}</span>
+          </button>
+        ))}
+        <div className="border-t" />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        All demo accounts use the password <span className="datum">{DEMO_PASSWORD}</span>. Click
+        one to fill the form.
+      </p>
+    </>
   );
-}
-
-function describe(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.isUnauthenticated) return 'Invalid email or password.';
-    if (err.status === 400) return 'Enter a valid email address and password.';
-    return 'The server rejected the request. Try again.';
-  }
-  // No response at all is a different problem from bad credentials, and saying
-  // so saves someone retyping a password that was never wrong.
-  return 'Could not reach the server. Check that it is running.';
 }

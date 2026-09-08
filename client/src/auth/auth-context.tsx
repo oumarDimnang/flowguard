@@ -1,15 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { ApiError } from '@/api/client';
+import { ApiError, onUnauthenticated } from '@/api/client';
 import { api } from '@/api/endpoints';
 import { closeSocket } from '@/api/socket';
-import { Role, roleAtLeast, type Identity } from '@/types';
+import { Role, roleAtLeast, type Identity, type RegisterRequest } from '@/types';
 
 export interface AuthState {
   identity: Identity | undefined;
   /** True until the first /auth/me has resolved one way or the other. */
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  /** Creates an organization with this account as its first admin, then signs in. */
+  register: (request: RegisterRequest) => Promise<void>;
   signOut: () => Promise<void>;
   /** Role check for hiding controls. The server guard is the real enforcement. */
   can: (required: Role) => boolean;
@@ -58,11 +60,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // A 401 from any data route means the session is gone — expired, or revoked
+  // server-side. Drop the identity so the shell sends the user back to sign
+  // in, rather than leaving a dashboard where every panel fails on its own.
+  useEffect(
+    () =>
+      onUnauthenticated(() => {
+        closeSocket();
+        setIdentity(undefined);
+      }),
+    [],
+  );
+
   const signIn = useCallback(async (email: string, password: string) => {
     const found = await api.auth.login(email, password);
     // The socket authenticates from the cookie at handshake, so a connection
     // opened while signed out is anonymous and was rejected. Drop it; the next
     // subscriber opens a fresh one that now carries a session.
+    closeSocket();
+    setIdentity(found);
+  }, []);
+
+  const register = useCallback(async (request: RegisterRequest) => {
+    const found = await api.auth.register(request);
     closeSocket();
     setIdentity(found);
   }, []);
@@ -85,8 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<AuthState>(
-    () => ({ identity, loading, signIn, signOut, can }),
-    [identity, loading, signIn, signOut, can],
+    () => ({ identity, loading, signIn, register, signOut, can }),
+    [identity, loading, signIn, register, signOut, can],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
