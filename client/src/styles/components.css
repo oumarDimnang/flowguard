@@ -191,16 +191,50 @@
   /* ── Loading ──────────────────────────────────────────────────────── */
 
   /**
-   * A placeholder bar.
+   * A placeholder bar, with a highlight sweeping left to right.
    *
-   * No shimmer and no spinner — deliberately. It sits inside a row whose
-   * height already matches the populated row exactly, so nothing shifts when
-   * data lands. Motion would only draw the eye to the one thing on screen
-   * that carries no information.
+   * It sits inside a row whose height already matches the populated row
+   * exactly, so nothing shifts when data lands. The sweep is slow and low in
+   * contrast: a sign that the page is still asking, not a spinner asking to
+   * be watched. `--skeleton-base` is the resting colour and `--skeleton-sheen`
+   * the highlight — the decision graph overrides both, because it runs on its
+   * own palette and the page's muted token is wrong there.
+   *
+   * Still no spinner. And no motion at all for anyone who has asked their
+   * system for none.
    */
   .skeleton {
+    --skeleton-base: var(--muted);
+    --skeleton-sheen: color-mix(in oklch, var(--muted), var(--background) 55%);
     display: block;
     height: 11px;
-    background: var(--muted);
+    background: linear-gradient(
+      90deg,
+      var(--skeleton-base) 0%,
+      var(--skeleton-base) 35%,
+      var(--skeleton-sheen) 50%,
+      var(--skeleton-base) 65%,
+      var(--skeleton-base) 100%
+    );
+    /* Three bar-widths wide, so the highlight enters from the left, crosses,
+       and leaves on the right before the cycle restarts. */
+    background-size: 300% 100%;
+    animation: skeleton-sweep 1.6s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-sweep {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: 0 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+      background: var(--skeleton-base);
+    }
   }
 }
