@@ -8,6 +8,7 @@ import { OperationSummaryPanel } from '@/features/operations/operation-summary-p
 import { useOperationTrail } from '@/hooks/use-operation-trail';
 import { useResource } from '@/hooks/use-resource';
 import { api } from '@/api/endpoints';
+import { ApiError } from '@/api/client';
 import { duration } from '@/lib/format';
 import { isExecutionFound } from '@/types';
 
@@ -50,6 +51,27 @@ export function OperationDetail() {
         }
       />
 
+      {trail.error ? (
+        <div className="flex flex-wrap items-baseline gap-3 border-t py-3 text-sm">
+          <p role="alert">
+            {trail.error instanceof ApiError && trail.error.isNotFound
+              ? 'This operation is not available. A scheduled scenario step may not have started yet, or the operation may not exist in this organization.'
+              : 'Could not load the complete operation and decision trail. Any evidence shown below may be incomplete.'}
+          </p>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={trail.reload}
+            disabled={trail.loading}
+          >
+            {trail.loading ? 'Checking...' : 'Check again'}
+          </button>
+          <Link to="/operations" className="link-rule">Back to operations</Link>
+        </div>
+      ) : null}
+
+      {!trail.error || operation || trail.records.length > 0 ? (
+        <>
       {/* Above the trail, not below it. Someone opening this page wants the
           outcome first and the evidence second — and the evidence is right
           there to check the summary against, which is the only reason a
@@ -78,6 +100,9 @@ export function OperationDetail() {
       >
         <DecisionTrail records={trail.records} loading={trail.loading} />
       </Section>
+
+        </>
+      ) : null}
 
       {operationId ? <ExecutionPanel operationId={operationId} /> : null}
     </>
