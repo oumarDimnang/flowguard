@@ -80,7 +80,7 @@ export function ScenarioRunner() {
       {open ? (
         <div
           role="menu"
-          className="absolute top-7 right-0 z-20 flex min-w-60 flex-col border-t border-b border-t-foreground border-b-foreground bg-background"
+          className="mt-2 flex max-h-[min(30dvh,12rem)] w-full flex-col overflow-y-auto border-t border-b border-t-foreground border-b-foreground bg-background"
         >
           {scenarios.loading ? (
             <span role="status" className="py-2 text-muted-foreground">Loading scenarios...</span>
@@ -102,8 +102,8 @@ export function ScenarioRunner() {
               title={scenario.description}
               style={index > 0 ? { borderTop: '1px solid var(--border)' } : undefined}
             >
-              <span>{scenario.id}</span>
-              <span className="text-muted-foreground">
+              <span className="min-w-0 flex-1 break-words">{scenario.id}</span>
+              <span className="shrink-0 text-muted-foreground">
                 {running === scenario.id ? 'scheduling…' : `${scenario.steps.length} events`}
               </span>
             </button>
