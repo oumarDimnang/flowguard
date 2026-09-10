@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
 import { api } from '@/api/endpoints';
+import { ApiError } from '@/api/client';
+import { useAuth } from '@/auth/auth-context';
 import { PageHeader } from '@/components/layout/page-header';
 import { Eyebrow, Loadable, SkeletonRows, SkeletonText, Status } from '@/components/primitives';
 import { useContrastPair } from '@/features/thesis/use-contrast-pair';
 import { clock } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { useResource } from '@/hooks/use-resource';
-import { CONTRAST_SCENARIO_ID, DecisionStep, NetworkAction, type Operation } from '@/types';
+import { CONTRAST_SCENARIO_ID, DecisionStep, NetworkAction, Role, type Operation } from '@/types';
 
 /**
  * The argument, in two columns.
@@ -230,20 +232,44 @@ function NoPairYet() {
 }
 
 function RunContrast() {
+  const { can } = useAuth();
   const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [scheduled, setScheduled] = useState(false);
 
   const run = async () => {
     setRunning(true);
+    setError(null);
+    setScheduled(false);
     try {
       await api.simulator.run(CONTRAST_SCENARIO_ID);
+      setScheduled(true);
+    } catch (failure) {
+      if (!(failure instanceof ApiError && failure.isUnauthenticated)) {
+        setError(
+          failure instanceof ApiError && failure.isForbidden
+            ? 'Running a scenario requires operator access.'
+            : 'Scheduling could not be confirmed. Check Operations before trying again.',
+        );
+      }
     } finally {
       setRunning(false);
     }
   };
 
+  if (!can(Role.OPERATOR)) {
+    return <span className="text-xs text-muted-foreground">Read only: operator access is required to run a contrast.</span>;
+  }
+
   return (
-    <button type="button" className="btn-line px-3.5 py-1.5" onClick={() => void run()} disabled={running}>
-      {running ? 'Running…' : 'Run contrast scenario'}
-    </button>
+    <div className="flex max-w-[42ch] flex-col items-start gap-2">
+      <button type="button" className="btn-line px-3.5 py-1.5" onClick={() => void run()} disabled={running}>
+        {running ? 'Scheduling...' : 'Run contrast scenario'}
+      </button>
+      {error ? <p role="alert" className="text-xs">{error}</p> : null}
+      <p role="status" className="text-xs text-muted-foreground">
+        {scheduled ? 'Contrast scheduled. Follow its progress in Operations.' : ''}
+      </p>
+    </div>
   );
 }
