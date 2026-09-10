@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 
+import { ApiError } from '@/api/client';
 import { api } from '@/api/endpoints';
 import { useAuth } from '@/auth/auth-context';
 import { PageHeader } from '@/components/layout/page-header';
@@ -57,14 +58,25 @@ export function Scenarios() {
   const [busy, setBusy] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
+  const [runError, setRunError] = useState<string | null>(null);
+
   const dispatchable = can(Role.OPERATOR);
 
   const run = async (scenarioId: string) => {
     setBusy(scenarioId);
+    setRunError(null);
     try {
       const result = await api.simulator.run(scenarioId);
       setRuns((previous) => ({ ...previous, [scenarioId]: result }));
       setOpen(scenarioId);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.isUnauthenticated)) {
+        setRunError(
+          error instanceof ApiError && error.isForbidden
+            ? 'Running a scenario requires operator access.'
+            : `${scenarioId}: scheduling could not be confirmed. Check Operations before trying again.`,
+        );
+      }
     } finally {
       setBusy(null);
     }
@@ -97,38 +109,52 @@ export function Scenarios() {
         </p>
       ) : null}
 
+      {runError ? (
+        <p role="alert" className="border-t py-3 text-sm">{runError}</p>
+      ) : null}
+
       <section className="border-t">
-        <Loadable
-          loading={scenarios.loading}
-          empty={list.length === 0}
-          skeleton={
-            <SkeletonRows
-              rows={7}
-              layoutClassName="flex flex-col gap-2"
-              rowClassName="border-t py-3"
-              columns={['30%', '60%']}
-              closing={false}
+        {scenarios.error && !scenarios.loading ? (
+          <div className="flex items-baseline gap-3 py-3 text-sm">
+            <p role="alert">Could not load scenarios.</p>
+            <button type="button" className="btn-line" onClick={scenarios.reload}>
+              Retry loading
+            </button>
+          </div>
+        ) : (
+          <Loadable
+            loading={scenarios.loading}
+            empty={list.length === 0}
+            skeleton={
+              <SkeletonRows
+                rows={7}
+                layoutClassName="flex flex-col gap-2"
+                rowClassName="border-t py-3"
+                columns={['30%', '60%']}
+                closing={false}
+              />
+            }
+            whenEmpty={
+              <p className="border-t py-3 text-xs text-muted-foreground">
+                No scenarios are defined on the server.
+              </p>
+            }
+          >
+          {list.map((scenario) => (
+            <ScenarioRow
+              key={scenario.id}
+              scenario={scenario}
+              run={runs[scenario.id]}
+              busy={busy === scenario.id}
+              runDisabled={busy !== null}
+              canRun={dispatchable}
+              expanded={open === scenario.id}
+              onToggle={() => setOpen((current) => (current === scenario.id ? null : scenario.id))}
+              onRun={() => void run(scenario.id)}
             />
-          }
-          whenEmpty={
-            <p className="border-t py-3 text-xs text-muted-foreground">
-              No scenarios are defined on the server.
-            </p>
-          }
-        >
-        {list.map((scenario) => (
-          <ScenarioRow
-            key={scenario.id}
-            scenario={scenario}
-            run={runs[scenario.id]}
-            busy={busy === scenario.id}
-            canRun={dispatchable}
-            expanded={open === scenario.id}
-            onToggle={() => setOpen((current) => (current === scenario.id ? null : scenario.id))}
-            onRun={() => void run(scenario.id)}
-          />
-        ))}
-        </Loadable>
+          ))}
+          </Loadable>
+        )}
 
         <div className="border-t" />
       </section>
@@ -147,6 +173,7 @@ function ScenarioRow({
   scenario,
   run,
   busy,
+  runDisabled,
   canRun,
   expanded,
   onToggle,
@@ -155,6 +182,7 @@ function ScenarioRow({
   scenario: Scenario;
   run: ScenarioRun | undefined;
   busy: boolean;
+  runDisabled: boolean;
   canRun: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -191,10 +219,10 @@ function ScenarioRow({
             <button
               type="button"
               onClick={onRun}
-              disabled={busy}
+              disabled={runDisabled}
               className="btn-line shrink-0"
             >
-              {busy ? 'running…' : 'Run'}
+              {busy ? 'scheduling…' : 'Run'}
             </button>
           ) : (
             <span className="datum text-[11px] text-muted-foreground">operator only</span>
@@ -231,7 +259,7 @@ function ScenarioRow({
 
             {run ? (
               <div className="flex flex-col gap-1 border-t pt-2.5">
-                <Eyebrow>operations started</Eyebrow>
+                <Eyebrow>operations scheduled</Eyebrow>
                 {run.scheduled.map((entry) => (
                   <Link
                     key={entry.operationId}

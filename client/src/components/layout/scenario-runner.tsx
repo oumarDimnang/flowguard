@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { ApiError } from '@/api/client';
 import { api } from '@/api/endpoints';
 import { useResource } from '@/hooks/use-resource';
 
@@ -16,6 +17,8 @@ export function ScenarioRunner() {
   const scenarios = useResource((signal) => api.simulator.scenarios(signal), []);
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [scheduled, setScheduled] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
 
   // Dismiss on outside click and on Escape. A menu that traps the pointer is
@@ -40,9 +43,20 @@ export function ScenarioRunner() {
 
   const run = async (scenarioId: string) => {
     setRunning(scenarioId);
+    setRunError(null);
+    setScheduled(null);
     try {
       await api.simulator.run(scenarioId);
+      setScheduled(`${scenarioId} scheduled. Follow its progress in Operations.`);
       setOpen(false);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.isUnauthenticated)) {
+        setRunError(
+          error instanceof ApiError && error.isForbidden
+            ? 'Running a scenario requires operator access.'
+            : `${scenarioId}: scheduling could not be confirmed. Check Operations before trying again.`,
+        );
+      }
     } finally {
       setRunning(null);
     }
@@ -60,12 +74,24 @@ export function ScenarioRunner() {
         Run scenario ▾
       </button>
 
+      {runError ? <p role="alert" className="pt-2 text-xs">{runError}</p> : null}
+      <p role="status" className="text-xs text-muted-foreground">{scheduled}</p>
+
       {open ? (
         <div
           role="menu"
           className="absolute top-7 right-0 z-20 flex min-w-60 flex-col border-t border-b border-t-foreground border-b-foreground bg-background"
         >
-          {(scenarios.data ?? []).map((scenario, index) => (
+          {scenarios.loading ? (
+            <span role="status" className="py-2 text-muted-foreground">Loading scenarios...</span>
+          ) : scenarios.error ? (
+            <>
+              <p role="alert" className="py-2">Could not load scenarios.</p>
+              <button type="button" role="menuitem" className="btn-bare py-2 text-left" onClick={scenarios.reload}>
+                Retry loading
+              </button>
+            </>
+          ) : (scenarios.data ?? []).map((scenario, index) => (
             <button
               key={scenario.id}
               type="button"
@@ -78,12 +104,12 @@ export function ScenarioRunner() {
             >
               <span>{scenario.id}</span>
               <span className="text-muted-foreground">
-                {running === scenario.id ? 'starting…' : `${scenario.steps.length} events`}
+                {running === scenario.id ? 'scheduling…' : `${scenario.steps.length} events`}
               </span>
             </button>
           ))}
 
-          {scenarios.data?.length === 0 ? (
+          {!scenarios.loading && !scenarios.error && scenarios.data?.length === 0 ? (
             <span className="py-2 text-muted-foreground">no scenarios</span>
           ) : null}
         </div>
