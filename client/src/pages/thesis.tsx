@@ -49,8 +49,8 @@ export function Thesis() {
           />
 
           <div className="mt-10 grid grid-cols-1 gap-10 border-t pt-6 lg:grid-cols-2">
-            <Reasoning operation={pair.restrained} />
-            <Reasoning operation={pair.protectedOp} />
+            <Reasoning key={pair.restrained.operationId} operation={pair.restrained} />
+            <Reasoning key={pair.protectedOp.operationId} operation={pair.protectedOp} />
           </div>
 
           <p className="mt-10 max-w-[68ch] border-t pt-6 text-[17px] leading-snug">
@@ -191,7 +191,7 @@ function Reasoning({ operation }: { operation: Operation }) {
   );
 
   const assessed = trail.data?.find((r) => r.step === DecisionStep.CRITICALITY_ASSESSED);
-  const reasoning = assessed?.reasoning ?? operation.reasoning;
+  const reasoning = assessed?.reasoning;
 
   return (
     <div className="flex flex-col gap-3">
@@ -201,13 +201,38 @@ function Reasoning({ operation }: { operation: Operation }) {
         </span>
       </Status>
 
+      {trail.error ? (
+        <div className="flex flex-col items-start gap-2">
+          <p role="alert" className="text-sm">
+            Could not load the recorded criticality assessment.
+            {reasoning ? ' The explanation below is from an earlier request.' : ''}
+          </p>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={trail.reload}
+            disabled={trail.loading}
+          >
+            {trail.loading ? 'Retrying...' : 'Retry reasoning'}
+          </button>
+        </div>
+      ) : null}
+
+      {trail.loading && !trail.data ? (
+        <p role="status" className="text-muted-foreground">Loading recorded reasoning...</p>
+      ) : null}
+
       {reasoning ? (
         <blockquote className="m-0 max-w-[60ch] border-l pl-4 text-[15px] leading-relaxed">
           {reasoning}
         </blockquote>
-      ) : (
-        <p className="text-muted-foreground">No reasoning recorded.</p>
-      )}
+      ) : !trail.loading && !trail.error ? (
+        <p className="text-muted-foreground">
+          {assessed
+            ? 'The criticality assessment has no recorded explanation.'
+            : 'No criticality assessment recorded yet.'}
+        </p>
+      ) : null}
     </div>
   );
 }
