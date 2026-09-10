@@ -1,6 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'flowguard.sidebar';
+const MOBILE_QUERY = '(max-width: 767px)';
+
+function subscribeToViewport(onChange: () => void) {
+  const query = window.matchMedia(MOBILE_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function isMobileViewport() {
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
 
 /**
  * Whether the sidebar is folded to its rail, remembered per browser.
@@ -9,7 +20,13 @@ const STORAGE_KEY = 'flowguard.sidebar';
  * and every storage access is guarded because `localStorage` throws outright
  * in a private window — a folded sidebar is not worth a blank screen.
  */
-export function useSidebarCollapsed(): { collapsed: boolean; toggle: () => void } {
+export function useSidebarCollapsed(): {
+  collapsed: boolean;
+  toggle: () => void;
+  closeMobile: () => void;
+} {
+  const mobile = useSyncExternalStore(subscribeToViewport, isMobileViewport, () => false);
+  const [mobileCollapsed, setMobileCollapsed] = useState(true);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) === 'collapsed';
@@ -26,7 +43,12 @@ export function useSidebarCollapsed(): { collapsed: boolean; toggle: () => void 
     }
   }, [collapsed]);
 
-  const toggle = useCallback(() => setCollapsed((c) => !c), []);
+  const toggle = useCallback(() => {
+    if (mobile) setMobileCollapsed((c) => !c);
+    else setCollapsed((c) => !c);
+  }, [mobile]);
+  const closeMobile = useCallback(() => setMobileCollapsed(true), []);
 
-  return { collapsed, toggle };
+  // Mobile navigation starts folded without overwriting the desktop preference.
+  return { collapsed: mobile ? mobileCollapsed : collapsed, toggle, closeMobile };
 }

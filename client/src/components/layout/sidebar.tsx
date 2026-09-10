@@ -35,7 +35,7 @@ const RAIL_WIDTH = '3.25rem';
  */
 export function Sidebar() {
   const { identity, can } = useAuth();
-  const { collapsed, toggle } = useSidebarCollapsed();
+  const { collapsed, toggle, closeMobile } = useSidebarCollapsed();
   // Read once here and handed to both layers: useHealth polls per mount, and
   // the folded rail must not cost a second poller on top of the footer's.
   const connected = useSocketStatus();
@@ -46,14 +46,14 @@ export function Sidebar() {
       // Sticky, so it stays put while the page scrolls beside it. Without
       // this it is a screen-tall box at the top of a taller document, and
       // scrolling carries it off with everything else.
-      className="sticky top-0 h-screen shrink-0 self-start overflow-hidden border-r transition-[width] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none"
+      className="sticky top-0 h-screen max-md:relative max-md:h-[min(70dvh,36rem)] max-md:w-full! max-md:data-[collapsed]:h-14 shrink-0 self-start overflow-hidden border-r transition-[width] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none"
       style={{ width: collapsed ? RAIL_WIDTH : OPEN_WIDTH }}
       data-collapsed={collapsed || undefined}
     >
       {/* The open column. Pinned to its full width so text never wraps while the aside narrows. */}
       <div
         className={cn(
-          'flex h-full flex-col transition-opacity duration-200 motion-reduce:transition-none',
+          'flex h-full flex-col max-md:w-full! transition-opacity duration-200 motion-reduce:transition-none',
           collapsed && 'pointer-events-none opacity-0',
         )}
         style={{ width: OPEN_WIDTH }}
@@ -86,6 +86,7 @@ export function Sidebar() {
                     key={route.to}
                     to={route.to}
                     end={route.end}
+                    onClick={closeMobile}
                     className={({ isActive }) =>
                       cn(
                         'block border-l-2 border-l-transparent py-1.5 pr-5 pl-[1.125rem] text-[13px]',
@@ -107,7 +108,7 @@ export function Sidebar() {
       {/* The rail: the mark, the two health glyphs, and the way back out. */}
       <div
         className={cn(
-          'absolute inset-0 flex flex-col items-center justify-between py-4 transition-opacity duration-200 motion-reduce:transition-none',
+          'absolute inset-0 flex flex-col items-center justify-between py-4 max-md:flex-row max-md:px-5 transition-opacity duration-200 motion-reduce:transition-none',
           !collapsed && 'pointer-events-none opacity-0',
         )}
         inert={!collapsed}
@@ -123,7 +124,7 @@ export function Sidebar() {
           <Mark height={22} />
         </button>
 
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-3 max-md:flex-row">
           <RailGlyphs connected={connected} health={health} />
           <FoldButton collapsed onClick={toggle} />
         </div>

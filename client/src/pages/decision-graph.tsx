@@ -45,7 +45,7 @@ export function DecisionGraphPage() {
             Decision Graph
           </Eyebrow>
 
-          <h1 className="datum text-2xl font-medium">{operationId}</h1>
+          <h1 className="datum text-2xl font-medium break-words">{operationId}</h1>
 
           {operation ? (
             <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
@@ -64,7 +64,7 @@ export function DecisionGraphPage() {
               {duration(operation?.startedAt, operation?.completedAt)}
             </span>
           </span>
-          <span className="flex gap-4">
+          <span className="flex flex-wrap gap-4">
             <span>
               <Slot ch={2}>{graph.agentDecisions}</Slot> agent decisions
             </span>
