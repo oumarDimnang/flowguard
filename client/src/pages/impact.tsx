@@ -68,16 +68,15 @@ export function Impact() {
         </div>
       ) : null}
 
-      <Section title="Protection" meta="of operations that were genuinely at risk" ruled>
+      <Section title="Protection" meta="of operations that were genuinely at risk" className="[&>header]:flex-wrap [&>header]:gap-x-3 [&>header]:gap-y-1" ruled>
         <Loadable
           loading={loading}
           skeleton={
             <SkeletonRows
               rows={4}
-              layoutClassName="grid grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] gap-x-6"
+              layoutClassName="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 lg:grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] lg:gap-x-6 [&>:last-child]:col-span-2 lg:[&>:last-child]:col-span-1"
               rowClassName="items-center border-t py-3"
               columns={['70%', { width: '4ch', end: true }, '85%']}
-              height={41}
             />
           }
         >
@@ -109,8 +108,8 @@ export function Impact() {
         </Loadable>
       </Section>
 
-      <Section title="In your terms" meta="your assumption, not our claim" className="mt-12">
-        <div className="log-row py-4">
+      <Section title="In your terms" meta="your assumption, not our claim" className="mt-12 [&>header]:flex-wrap [&>header]:gap-x-3 [&>header]:gap-y-1">
+        <div className="log-row gap-y-3 py-4 max-sm:grid-cols-1">
           <Eyebrow className="pt-2">cost input</Eyebrow>
 
           <div className="flex flex-col gap-4">
@@ -132,7 +131,7 @@ export function Impact() {
 
             <div className="flex flex-col gap-1">
               <div className={cn(
-                'datum leading-none font-medium',
+                'datum leading-none font-medium [overflow-wrap:anywhere]',
                 protectedCount === undefined ? 'text-xl text-muted-foreground' : 'text-[44px] text-primary',
               )}>
                 {protectedCount === undefined
@@ -167,7 +166,7 @@ export function Impact() {
         </div>
       </Section>
 
-      <Section title="Distribution" meta="decided operations" className="mt-12">
+      <Section title="Distribution" meta="decided operations" className="mt-12 [&>header]:flex-wrap [&>header]:gap-x-3 [&>header]:gap-y-1">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
           <Breakdown title="By action" counts={data?.byAction} loading={loading} />
           <Breakdown title="By criticality" counts={data?.byCriticality} loading={loading} />
@@ -191,7 +190,7 @@ function Figure({
   alarming?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] items-baseline gap-x-6 border-t py-3">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-2 border-t py-3 lg:grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] lg:gap-x-6">
       <dt className="text-[15px]">{label}</dt>
       <dd
         className={cn(
@@ -202,7 +201,7 @@ function Figure({
       >
         {value}
       </dd>
-      <dd className="m-0 max-w-[52ch] text-xs text-muted-foreground">{note}</dd>
+      <dd className="col-span-2 m-0 max-w-[52ch] text-xs text-muted-foreground lg:col-span-1">{note}</dd>
     </div>
   );
 }
@@ -234,7 +233,7 @@ function Breakdown({
         skeleton={
           <SkeletonRows
             rows={3}
-            layoutClassName="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] gap-x-4"
+            layoutClassName="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem] sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] gap-x-4"
             rowClassName="items-center border-t py-2"
             columns={['60%', '50%', { width: '2ch', end: true }]}
             closing={false}
@@ -247,8 +246,8 @@ function Breakdown({
         }
       >
         {entries.map(([key, count]) => (
-          <div key={key} className="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] items-center gap-x-4 border-t py-2">
-            <span className="datum text-[13px]">{key}</span>
+          <div key={key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem] sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] items-center gap-x-4 border-t py-2">
+            <span className="datum min-w-0 text-[13px] [overflow-wrap:anywhere]">{key}</span>
             <span className="h-0.5 bg-border">
               <span className="block h-0.5 bg-foreground" style={{ width: `${(count / max) * 100}%` }} />
             </span>

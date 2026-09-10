@@ -68,7 +68,7 @@ export function Thesis() {
   );
 }
 
-const CONTRAST_GRID = 'grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1fr)] gap-x-6';
+const CONTRAST_GRID = 'grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1fr)] sm:gap-x-6 [&>*]:min-w-0 [&>*]:[overflow-wrap:anywhere]';
 
 /** The comparison table's footprint, one placeholder row per input. */
 function ContrastSkeleton() {
@@ -76,11 +76,11 @@ function ContrastSkeleton() {
     <>
       <section className="border-t">
         <div className={cn(CONTRAST_GRID, 'items-baseline pt-3 pb-2')}>
-          <Eyebrow>input</Eyebrow>
+          <Eyebrow className="col-span-2 sm:col-span-1">input</Eyebrow>
           <Eyebrow>left alone</Eyebrow>
           <Eyebrow>protected</Eyebrow>
         </div>
-        <SkeletonRows rows={ROWS.length} layoutClassName={CONTRAST_GRID} columns={['8ch', '55%', '55%']} />
+        <SkeletonRows rows={ROWS.length} layoutClassName={cn(CONTRAST_GRID, '[&>:first-child]:col-span-2 sm:[&>:first-child]:col-span-1')} columns={['8ch', '55%', '55%']} />
       </section>
       <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
         <SkeletonText lines={['30%', '90%', '75%']} />
@@ -120,8 +120,8 @@ function ContrastTable({
 }) {
   return (
     <section className="border-t">
-      <div className="grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1fr)] items-baseline gap-x-6 pt-3 pb-2">
-        <Eyebrow>input</Eyebrow>
+      <div className={cn(CONTRAST_GRID, 'items-baseline pt-3 pb-2')}>
+        <Eyebrow className="col-span-2 sm:col-span-1">input</Eyebrow>
         <Eyebrow>left alone</Eyebrow>
         <Eyebrow>protected</Eyebrow>
       </div>
@@ -135,11 +135,12 @@ function ContrastTable({
           <div
             key={row.label}
             className={cn(
-              'grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1fr)] items-baseline gap-x-6 border-t py-2.5 text-[13px]',
+              CONTRAST_GRID,
+              'items-baseline border-t py-2.5 text-[13px]',
               same && 'text-muted-foreground',
             )}
           >
-            <span className="datum text-xs">
+            <span className="datum col-span-2 text-xs sm:col-span-1">
               {row.label}
               {same ? <span className="ml-2 text-[10px] tracking-[0.08em]">MATCHES</span> : null}
             </span>
@@ -149,8 +150,8 @@ function ContrastTable({
         );
       })}
 
-      <div className="grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1fr)] items-baseline gap-x-6 border-t border-b py-2.5 text-xs">
-        <span className="datum text-muted-foreground">trail</span>
+      <div className={cn(CONTRAST_GRID, 'items-baseline border-t border-b py-2.5 text-xs')}>
+        <span className="datum col-span-2 text-muted-foreground sm:col-span-1">trail</span>
         <Link to={`/operations/${restrained.operationId}`} className="datum">
           {restrained.operationId} ↗
         </Link>

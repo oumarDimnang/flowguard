@@ -35,6 +35,9 @@ export interface OperationsTableProps {
 export function OperationsTable({ operations, loading }: OperationsTableProps) {
   return (
     <section className="border-t">
+      <p className="py-2 text-xs text-muted-foreground lg:hidden">Scroll the table horizontally to see all columns.</p>
+      <div role="region" aria-label="Operations history table" tabIndex={0} className="overflow-x-auto focus-visible:outline focus-visible:outline-primary">
+      <div className="min-w-[60rem]">
       <div className={cn(HISTORY_GRID, 'eyebrow pt-3 pb-2')}>
         {COLUMNS.map((column, index) => (
           <span key={column} className={index >= 6 ? 'text-right' : undefined}>
@@ -66,6 +69,8 @@ export function OperationsTable({ operations, loading }: OperationsTableProps) {
       </Loadable>
 
       <div className="border-t" />
+      </div>
+      </div>
     </section>
   );
 }
@@ -83,7 +88,7 @@ function OperationRow({ operation }: { operation: Operation }) {
     >
       <span className="text-xs text-muted-foreground">{clock(operation.startedAt)}</span>
       <span className="font-medium [overflow-wrap:anywhere]">{operation.operationId}</span>
-      <span>{operation.deviceId}</span>
+      <span className="min-w-0 [overflow-wrap:anywhere]">{operation.deviceId}</span>
 
       <span className="status-line">
         <Glyph kind={operation.criticality === Criticality.HIGH ? 'filled' : 'hollow'} />
