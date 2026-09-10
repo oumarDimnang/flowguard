@@ -62,7 +62,7 @@ A model classifies. Rules decide. That separation is what makes the decision tra
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  client/    React · Vite · Tailwind        (not started)  │
+│  client/    React · Vite · Tailwind        (dashboard)    │
 └──────────────┬───────────────────────▲───────────────────┘
                │ REST          WebSocket│
 ┌──────────────▼───────────────────────┴───────────────────┐
@@ -105,7 +105,7 @@ A model classifies. Rules decide. That separation is what makes the decision tra
 |---|---|
 | `server/` | **built** — 58 files, 13 tests passing |
 | `agent/` | **built** — 45 files, 115 tests passing |
-| `client/` | **not started** — decision trail reachable via REST API and Temporal UI |
+| `client/` | **built** — authenticated dashboard, scenarios, operations, and decision trails |
 | Nokia sandbox | all 5 CAMARA endpoint paths verified live |
 | Real LLM | run and validated — OpenRouter model reproduces the criticality-not-congestion thesis exactly, including choosing to call Location Verification with no prompting |
 | Server + agent + Temporal | run together live end-to-end, all four scenarios, real MongoDB Atlas persistence |
@@ -131,16 +131,23 @@ cd server && npm install && npm run start:dev
 cd agent && uv sync && uv run flowguard-worker
 ```
 
-**4. Fire the flagship scenario**
-```bash
-curl -X POST http://localhost:3000/simulator/scenarios/stadium-incident/run
-```
-Or trigger any event directly via Temporal, no server needed:
-```bash
-temporal workflow start --task-queue flowguard --type CriticalOperationWorkflow --workflow-id op-1 --input-file docs/examples/stadium-incident.json
-```
+**4. Open the dashboard and sign in**
 
-Watch it at **http://localhost:8233**, or read the decision trail back at `GET /decision-log/:operationId` and the reproducible impact numbers at `GET /metrics`.
+With client dependencies installed, run `npm run dev` from `client/` and open
+its displayed URL. Sign in to the intended organization with an **OPERATOR or
+ADMIN** account, open **Scenarios**, and run `stadium-incident` once.
+
+Follow the two scheduled operations and their decision trails in **Operations**.
+The [authenticated demo runbook](docs/demo-runbook.md) covers expected results,
+timing, and troubleshooting. Simulator launches and decision-log/metrics reads
+require a session; a bare `curl` request does not inherit your browser login.
+
+The files in `docs/examples/` are business-event bodies, not complete direct
+Temporal demo inputs. They omit `organizationId`, which the server normally
+adds from the session. Direct execution can fail decision emission with HTTP 400
+and bypasses dashboard operation registration. See the
+[REST versus Temporal explanation](docs/demo-runbook.md#rest-and-direct-temporal-inputs-are-different)
+before using them for workflow debugging.
 
 **Tests**
 ```bash
@@ -153,6 +160,8 @@ cd server && npm test
 To run against live services (not required for the demo above): set `NETWORK_PROVIDER=nokia` + `NOKIA_API_KEY`, and `LLM_PROVIDER=openrouter` + `OPENROUTER_API_KEY` in `agent/.env`.
 
 ## Documentation
+
+- [`docs/demo-runbook.md`](docs/demo-runbook.md) — authenticated stadium demo and troubleshooting.
 
 - [`CLAUDE.md`](CLAUDE.md) — full engineering context: architecture decisions and their rationale, cross-language contracts, hard-won API details, and known gaps.
 - [`docs/evidence.md`](docs/evidence.md) — sourcing for every claim in this README and the pitch deck, including how to regenerate the impact metrics.
