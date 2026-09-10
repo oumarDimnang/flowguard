@@ -66,7 +66,7 @@ export function useContrastPair(explicit?: { a?: string; b?: string }): Contrast
 
       // Matching congestion is the whole point, so a pair that has it always
       // wins over one that does not.
-      if (restrained.congestion === protectedOp.congestion) return candidate;
+      if (restrained.congestion != null && restrained.congestion === protectedOp.congestion) return candidate;
       best ??= candidate;
     }
 
@@ -77,7 +77,10 @@ export function useContrastPair(explicit?: { a?: string; b?: string }): Contrast
     pair,
     loading: history.loading,
     congestionDiffers:
-      pair !== undefined && pair.restrained.congestion !== pair.protectedOp.congestion,
+      pair !== undefined
+      && pair.restrained.congestion != null
+      && pair.protectedOp.congestion != null
+      && pair.restrained.congestion !== pair.protectedOp.congestion,
   };
 }
 

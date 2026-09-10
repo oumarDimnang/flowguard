@@ -12,15 +12,7 @@ import { cn } from '@/lib/utils';
 import { useResource } from '@/hooks/use-resource';
 import { CONTRAST_SCENARIO_ID, DecisionStep, NetworkAction, Role, type Operation } from '@/types';
 
-/**
- * The argument, in two columns.
- *
- * Same device, same SIM, same cell, same congestion, minutes apart — opposite
- * outcomes. Everything that matches is set quietly and marked as matching,
- * because the matching rows are what make the diverging ones mean something. If
- * six of eight inputs are identical, the difference cannot be explained by the
- * network.
- */
+/** Compare recorded operation inputs without treating missing data as evidence. */
 export function Thesis() {
   const [params] = useSearchParams();
   const { pair, loading, congestionDiffers } = useContrastPair({
@@ -28,12 +20,16 @@ export function Thesis() {
     b: params.get('b') ?? undefined,
   });
 
+  const congestionKnown = pair !== undefined
+    && pair.restrained.congestion != null
+    && pair.protectedOp.congestion != null;
+
   return (
     <>
       <PageHeader
         trail={[{ label: 'FlowGuard', to: '/' }, { label: 'Thesis' }]}
         title="Criticality, not congestion"
-        description="The same device under the same network conditions, minutes apart. One operation is left on standard connectivity; the other is protected. Nothing about the network explains the difference — only what the job was."
+        description="Compare recorded operation inputs and decisions to explore how business criticality affects connectivity allocation."
         meta={<RunContrast />}
       />
 
@@ -49,6 +45,7 @@ export function Thesis() {
             restrained={pair.restrained}
             protectedOp={pair.protectedOp}
             congestionDiffers={congestionDiffers}
+            congestionKnown={congestionKnown}
           />
 
           <div className="mt-10 grid grid-cols-1 gap-10 border-t pt-6 lg:grid-cols-2">
@@ -57,8 +54,12 @@ export function Thesis() {
           </div>
 
           <p className="mt-10 max-w-[68ch] border-t pt-6 text-[17px] leading-snug">
-            The network was the same for both. The decision was not. That is the entire product:
-            criticality triggers action, and congestion never does on its own.
+            {!congestionKnown
+              ? 'Congestion was not recorded for both operations, so matching network conditions cannot be confirmed.'
+              : congestionDiffers
+                ? 'These operations recorded different congestion levels, so this pair does not isolate the effect of business criticality.'
+                : 'Both operations recorded the same congestion level. Compare their criticality and decisions above.'}
+            {' '}The policy principle: criticality triggers action, and congestion never does on its own.
           </p>
         </>
       ) : null}
@@ -91,7 +92,7 @@ function ContrastSkeleton() {
 
 interface RowSpec {
   label: string;
-  of: (operation: Operation) => React.ReactNode;
+  of: (operation: Operation) => string | undefined;
   /** Forced divergent even if the rendered values happen to match. */
   diverges?: boolean;
 }
@@ -99,21 +100,23 @@ interface RowSpec {
 const ROWS: RowSpec[] = [
   { label: 'device', of: (o) => o.deviceId },
   { label: 'operation', of: (o) => o.operationName },
-  { label: 'site', of: (o) => o.site ?? '—' },
-  { label: 'device reachable', of: (o) => (o.deviceReachable === false ? 'no' : 'yes') },
-  { label: 'congestion', of: (o) => o.congestion ?? '—' },
-  { label: 'criticality', of: (o) => o.criticality ?? '—', diverges: true },
-  { label: 'action', of: (o) => o.action ?? '—', diverges: true },
+  { label: 'site', of: (o) => o.site },
+  { label: 'device reachable', of: (o) => (o.deviceReachable == null ? undefined : o.deviceReachable ? 'yes' : 'no') },
+  { label: 'congestion', of: (o) => o.congestion },
+  { label: 'criticality', of: (o) => o.criticality, diverges: true },
+  { label: 'action', of: (o) => o.action, diverges: true },
 ];
 
 function ContrastTable({
   restrained,
   protectedOp,
   congestionDiffers,
+  congestionKnown,
 }: {
   restrained: Operation;
   protectedOp: Operation;
   congestionDiffers: boolean;
+  congestionKnown: boolean;
 }) {
   return (
     <section className="border-t">
@@ -126,7 +129,7 @@ function ContrastTable({
       {ROWS.map((row) => {
         const left = row.of(restrained);
         const right = row.of(protectedOp);
-        const same = !row.diverges && String(left) === String(right);
+        const same = !row.diverges && left != null && right != null && left === right;
 
         return (
           <div
@@ -140,8 +143,8 @@ function ContrastTable({
               {row.label}
               {same ? <span className="ml-2 text-[10px] tracking-[0.08em]">MATCHES</span> : null}
             </span>
-            <span className={cn('datum', !same && 'font-medium text-primary')}>{left}</span>
-            <span className={cn('datum', !same && 'font-medium text-primary')}>{right}</span>
+            <span className={cn('datum', !same && 'font-medium text-primary')}>{left ?? 'unknown'}</span>
+            <span className={cn('datum', !same && 'font-medium text-primary')}>{right ?? 'unknown'}</span>
           </div>
         );
       })}
@@ -156,12 +159,13 @@ function ContrastTable({
         </Link>
       </div>
 
-      {congestionDiffers ? (
+      {!congestionKnown || congestionDiffers ? (
         <p className="log-row pt-3">
           <Eyebrow>caveat</Eyebrow>
           <span className="max-w-[68ch] text-xs text-muted-foreground">
-            These two ran under different congestion, so the comparison is weaker than it looks.
-            Run the contrast scenario for a pair observed under identical conditions.
+            {!congestionKnown
+              ? 'A congestion reading is missing. Unknown values are not evidence of matching conditions.'
+              : 'Congestion differs between these operations. Run the contrast scenario and compare its recorded readings.'}
           </span>
         </p>
       ) : null}
