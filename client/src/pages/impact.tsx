@@ -33,7 +33,7 @@ export function Impact() {
   // `premiumGranted` is reported directly. The protected count cannot be
   // recovered from `criticalOperationsProtectedPct` — at 100% the ratio is
   // satisfied by any numerator, so inverting it would invent a number.
-  const protectedCount = data?.premiumGranted ?? 0;
+  const protectedCount = data?.premiumGranted;
 
   return (
     <>
@@ -49,6 +49,24 @@ export function Impact() {
           ) : null
         }
       />
+
+      {metrics.error ? (
+        <div className="flex flex-wrap items-baseline gap-3 border-t py-3 text-sm">
+          <p role="alert">
+            {data
+              ? 'Could not refresh impact metrics. Figures shown are from an earlier request and may be stale.'
+              : 'Could not load impact metrics. Figures are unavailable.'}
+          </p>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={metrics.reload}
+            disabled={metrics.loading}
+          >
+            {metrics.loading ? 'Retrying...' : 'Retry metrics'}
+          </button>
+        </div>
+      ) : null}
 
       <Section title="Protection" meta="of operations that were genuinely at risk" ruled>
         <Loadable
@@ -113,13 +131,24 @@ export function Impact() {
             </label>
 
             <div className="flex flex-col gap-1">
-              <div className="datum text-[44px] leading-none font-medium text-primary">
-                {formatMoney(exposureFor(protectedCount, costPerHour))}
+              <div className={cn(
+                'datum leading-none font-medium',
+                protectedCount === undefined ? 'text-xl text-muted-foreground' : 'text-[44px] text-primary',
+              )}>
+                {protectedCount === undefined
+                  ? loading ? 'Loading...' : 'Unavailable'
+                  : formatMoney(exposureFor(protectedCount, costPerHour))}
               </div>
               <p className="max-w-[60ch] text-xs text-muted-foreground">
-                exposure across <Slot ch={2}>{protectedCount}</Slot> protected operation
-                {protectedCount === 1 ? '' : 's'}, valued at roughly {SECONDS_PER_MOVE}s per
-                move at the rate above.
+                {protectedCount === undefined ? (
+                  'An exposure estimate requires recorded decision metrics.'
+                ) : (
+                  <>
+                    exposure across <Slot ch={2}>{protectedCount}</Slot> protected operation
+                    {protectedCount === 1 ? '' : 's'}, valued at roughly {SECONDS_PER_MOVE}s per
+                    move at the rate above.
+                  </>
+                )}
               </p>
             </div>
 
@@ -211,7 +240,11 @@ function Breakdown({
             closing={false}
           />
         }
-        whenEmpty={<p className="border-t py-2 text-muted-foreground">No decisions yet.</p>}
+        whenEmpty={
+          <p className="border-t py-2 text-muted-foreground">
+            {counts === undefined ? 'Distribution unavailable.' : 'No decisions yet.'}
+          </p>
+        }
       >
         {entries.map(([key, count]) => (
           <div key={key} className="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] items-center gap-x-4 border-t py-2">
