@@ -13,6 +13,8 @@ export interface ContrastPair {
 export interface ContrastResult {
   pair: ContrastPair | undefined;
   loading: boolean;
+  error: Error | undefined;
+  reload: () => void;
   /** True when a pair exists but the two ran under different congestion. */
   congestionDiffers: boolean;
 }
@@ -76,6 +78,8 @@ export function useContrastPair(explicit?: { a?: string; b?: string }): Contrast
   return {
     pair,
     loading: history.loading,
+    error: history.error,
+    reload: history.reload,
     congestionDiffers:
       pair !== undefined
       && pair.restrained.congestion != null

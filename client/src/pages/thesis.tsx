@@ -15,7 +15,7 @@ import { CONTRAST_SCENARIO_ID, DecisionStep, NetworkAction, Role, type Operation
 /** Compare recorded operation inputs without treating missing data as evidence. */
 export function Thesis() {
   const [params] = useSearchParams();
-  const { pair, loading, congestionDiffers } = useContrastPair({
+  const { pair, loading, error, reload, congestionDiffers } = useContrastPair({
     a: params.get('a') ?? undefined,
     b: params.get('b') ?? undefined,
   });
@@ -33,11 +33,24 @@ export function Thesis() {
         meta={<RunContrast />}
       />
 
+      {error ? (
+        <div className="flex flex-wrap items-baseline gap-3 border-t py-3 text-sm">
+          <p role="alert">
+            {pair
+              ? 'Could not refresh comparison history. The comparison shown may be stale.'
+              : 'Could not load comparison history. A contrast pair cannot be determined.'}
+          </p>
+          <button type="button" className="btn-line" onClick={reload} disabled={loading}>
+            {loading ? 'Retrying...' : 'Retry comparison'}
+          </button>
+        </div>
+      ) : null}
+
       <Loadable
         loading={loading}
         empty={pair === undefined}
         skeleton={<ContrastSkeleton />}
-        whenEmpty={<NoPairYet />}
+        whenEmpty={error ? null : <NoPairYet />}
       >
       {pair ? (
         <>
