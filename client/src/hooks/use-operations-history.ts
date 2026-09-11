@@ -36,6 +36,8 @@ export interface OperationsHistory {
   counts: Record<HistoryFilter, number>;
   total: number;
   loading: boolean;
+  /** Whether a history response has arrived, including an empty result. */
+  hasData: boolean;
   error: Error | undefined;
   reload: () => void;
 }
@@ -100,6 +102,7 @@ export function useOperationsHistory(filter: HistoryFilter): OperationsHistory {
     counts,
     total: resource.data?.total ?? 0,
     loading: resource.loading,
+    hasData: resource.data !== undefined,
     error: resource.error,
     reload: resource.reload,
   };
