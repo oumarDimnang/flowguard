@@ -2,6 +2,7 @@
 
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import Mock
+
 from temporalio.exceptions import ApplicationError
 
 from flowguard_agent.activities.network import NetworkActivities
