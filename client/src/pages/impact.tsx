@@ -33,7 +33,7 @@ export function Impact() {
   // `premiumGranted` is reported directly. The protected count cannot be
   // recovered from `criticalOperationsProtectedPct` — at 100% the ratio is
   // satisfied by any numerator, so inverting it would invent a number.
-  const protectedCount = data?.premiumGranted ?? 0;
+  const protectedCount = data?.premiumGranted;
 
   return (
     <>
@@ -50,16 +50,33 @@ export function Impact() {
         }
       />
 
-      <Section title="Protection" meta="of operations that were genuinely at risk" ruled>
+      {metrics.error ? (
+        <div className="flex flex-wrap items-baseline gap-3 border-t py-3 text-sm">
+          <p role="alert">
+            {data
+              ? 'Could not refresh impact metrics. Figures shown are from an earlier request and may be stale.'
+              : 'Could not load impact metrics. Figures are unavailable.'}
+          </p>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={metrics.reload}
+            disabled={metrics.loading}
+          >
+            {metrics.loading ? 'Retrying...' : 'Retry metrics'}
+          </button>
+        </div>
+      ) : null}
+
+      <Section title="Protection" meta="of operations that were genuinely at risk" className="[&>header]:flex-wrap [&>header]:gap-x-3 [&>header]:gap-y-1" ruled>
         <Loadable
           loading={loading}
           skeleton={
             <SkeletonRows
               rows={4}
-              layoutClassName="grid grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] gap-x-6"
+              layoutClassName="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 lg:grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] lg:gap-x-6 [&>:last-child]:col-span-2 lg:[&>:last-child]:col-span-1"
               rowClassName="items-center border-t py-3"
               columns={['70%', { width: '4ch', end: true }, '85%']}
-              height={41}
             />
           }
         >
@@ -91,8 +108,8 @@ export function Impact() {
         </Loadable>
       </Section>
 
-      <Section title="In your terms" meta="your assumption, not our claim" className="mt-12">
-        <div className="log-row py-4">
+      <Section title="In your terms" meta="your assumption, not our claim" className="mt-12 [&>header]:flex-wrap [&>header]:gap-x-3 [&>header]:gap-y-1">
+        <div className="log-row gap-y-3 py-4 max-sm:grid-cols-1">
           <Eyebrow className="pt-2">cost input</Eyebrow>
 
           <div className="flex flex-col gap-4">
@@ -113,13 +130,24 @@ export function Impact() {
             </label>
 
             <div className="flex flex-col gap-1">
-              <div className="datum text-[44px] leading-none font-medium text-primary">
-                {formatMoney(exposureFor(protectedCount, costPerHour))}
+              <div className={cn(
+                'datum leading-none font-medium [overflow-wrap:anywhere]',
+                protectedCount === undefined ? 'text-xl text-muted-foreground' : 'text-[44px] text-primary',
+              )}>
+                {protectedCount === undefined
+                  ? loading ? 'Loading...' : 'Unavailable'
+                  : formatMoney(exposureFor(protectedCount, costPerHour))}
               </div>
               <p className="max-w-[60ch] text-xs text-muted-foreground">
-                exposure across <Slot ch={2}>{protectedCount}</Slot> protected operation
-                {protectedCount === 1 ? '' : 's'}, valued at roughly {SECONDS_PER_MOVE}s per
-                move at the rate above.
+                {protectedCount === undefined ? (
+                  'An exposure estimate requires recorded decision metrics.'
+                ) : (
+                  <>
+                    exposure across <Slot ch={2}>{protectedCount}</Slot> protected operation
+                    {protectedCount === 1 ? '' : 's'}, valued at roughly {SECONDS_PER_MOVE}s per
+                    move at the rate above.
+                  </>
+                )}
               </p>
             </div>
 
@@ -138,7 +166,7 @@ export function Impact() {
         </div>
       </Section>
 
-      <Section title="Distribution" meta="decided operations" className="mt-12">
+      <Section title="Distribution" meta="decided operations" className="mt-12 [&>header]:flex-wrap [&>header]:gap-x-3 [&>header]:gap-y-1">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
           <Breakdown title="By action" counts={data?.byAction} loading={loading} />
           <Breakdown title="By criticality" counts={data?.byCriticality} loading={loading} />
@@ -162,7 +190,7 @@ function Figure({
   alarming?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] items-baseline gap-x-6 border-t py-3">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-2 border-t py-3 lg:grid-cols-[minmax(0,24rem)_8rem_minmax(0,1fr)] lg:gap-x-6">
       <dt className="text-[15px]">{label}</dt>
       <dd
         className={cn(
@@ -173,7 +201,7 @@ function Figure({
       >
         {value}
       </dd>
-      <dd className="m-0 max-w-[52ch] text-xs text-muted-foreground">{note}</dd>
+      <dd className="col-span-2 m-0 max-w-[52ch] text-xs text-muted-foreground lg:col-span-1">{note}</dd>
     </div>
   );
 }
@@ -205,17 +233,21 @@ function Breakdown({
         skeleton={
           <SkeletonRows
             rows={3}
-            layoutClassName="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] gap-x-4"
+            layoutClassName="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem] sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] gap-x-4"
             rowClassName="items-center border-t py-2"
             columns={['60%', '50%', { width: '2ch', end: true }]}
             closing={false}
           />
         }
-        whenEmpty={<p className="border-t py-2 text-muted-foreground">No decisions yet.</p>}
+        whenEmpty={
+          <p className="border-t py-2 text-muted-foreground">
+            {counts === undefined ? 'Distribution unavailable.' : 'No decisions yet.'}
+          </p>
+        }
       >
         {entries.map(([key, count]) => (
-          <div key={key} className="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] items-center gap-x-4 border-t py-2">
-            <span className="datum text-[13px]">{key}</span>
+          <div key={key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem] sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_3rem] items-center gap-x-4 border-t py-2">
+            <span className="datum min-w-0 text-[13px] [overflow-wrap:anywhere]">{key}</span>
             <span className="h-0.5 bg-border">
               <span className="block h-0.5 bg-foreground" style={{ width: `${(count / max) * 100}%` }} />
             </span>

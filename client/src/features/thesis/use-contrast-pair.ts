@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import { useOperationsHistory } from '@/hooks/use-operations-history';
 import { NetworkAction, type Operation } from '@/types';
 
@@ -12,7 +10,10 @@ export interface ContrastPair {
 
 export interface ContrastResult {
   pair: ContrastPair | undefined;
+  selectionError?: string;
   loading: boolean;
+  error: Error | undefined;
+  reload: () => void;
   /** True when a pair exists but the two ran under different congestion. */
   congestionDiffers: boolean;
 }
@@ -32,53 +33,75 @@ export interface ContrastResult {
 export function useContrastPair(explicit?: { a?: string; b?: string }): ContrastResult {
   const history = useOperationsHistory('all');
 
-  // Destructured so the memo's dependencies are the primitives it actually
-  // reads. Listing `explicit?.a` while closing over `explicit` makes the
-  // React Compiler bail out of optimising this hook entirely.
-  const explicitA = explicit?.a;
-  const explicitB = explicit?.b;
-
-  const pair = useMemo(() => {
-    const operations = history.operations;
-
-    if (explicitA && explicitB) {
-      const a = operations.find((o) => o.operationId === explicitA);
-      const b = operations.find((o) => o.operationId === explicitB);
-      if (a && b) return orient(a, b);
-    }
-
-    const byDevice = new Map<string, Operation[]>();
-    for (const operation of operations) {
-      if (!operation.action) continue;
-      byDevice.set(operation.deviceId, [...(byDevice.get(operation.deviceId) ?? []), operation]);
-    }
-
-    let best: ContrastPair | undefined;
-
-    for (const group of byDevice.values()) {
-      const restrained = group.find((o) => o.action === NetworkAction.NONE);
-      const protectedOp = group.find(
-        (o) => o.action === NetworkAction.QOD || o.action === NetworkAction.QOD_AND_SLICE,
-      );
-      if (!restrained || !protectedOp) continue;
-
-      const candidate = { restrained, protectedOp };
-
-      // Matching congestion is the whole point, so a pair that has it always
-      // wins over one that does not.
-      if (restrained.congestion === protectedOp.congestion) return candidate;
-      best ??= candidate;
-    }
-
-    return best;
-  }, [history.operations, explicitA, explicitB]);
+  const { pair, selectionError } = selectPair(history.operations, explicit?.a, explicit?.b);
 
   return {
     pair,
+    selectionError,
     loading: history.loading,
+    error: history.error,
+    reload: history.reload,
     congestionDiffers:
-      pair !== undefined && pair.restrained.congestion !== pair.protectedOp.congestion,
+      pair !== undefined
+      && pair.restrained.congestion != null
+      && pair.protectedOp.congestion != null
+      && pair.restrained.congestion !== pair.protectedOp.congestion,
   };
+}
+
+function selectPair(
+  operations: readonly Operation[],
+  explicitA?: string,
+  explicitB?: string,
+): { pair?: ContrastPair; selectionError?: string } {
+  if (explicitA !== undefined || explicitB !== undefined) {
+    if (!explicitA || !explicitB) {
+      return { selectionError: 'This comparison link needs two operation IDs.' };
+    }
+    if (explicitA === explicitB) {
+      return { selectionError: 'Select two different operations to compare.' };
+    }
+    const a = operations.find((o) => o.operationId === explicitA);
+    const b = operations.find((o) => o.operationId === explicitB);
+    if (!a || !b) {
+      return { selectionError: 'One or both selected operations are not in the loaded history. They may be older than the latest 100 results or unavailable in this organization.' };
+    }
+    if (a.deviceId !== b.deviceId) {
+      return { selectionError: 'A contrast must compare operations on the same device.' };
+    }
+    const candidate = orient(a, b);
+    if (candidate.restrained.action !== NetworkAction.NONE
+      || (candidate.protectedOp.action !== NetworkAction.QOD
+        && candidate.protectedOp.action !== NetworkAction.QOD_AND_SLICE)) {
+      return { selectionError: 'A contrast needs one NONE decision and one QOD or QOD_AND_SLICE decision.' };
+    }
+    return { pair: candidate };
+  }
+
+  const byDevice = new Map<string, Operation[]>();
+  for (const operation of operations) {
+    if (!operation.action) continue;
+    byDevice.set(operation.deviceId, [...(byDevice.get(operation.deviceId) ?? []), operation]);
+  }
+
+  let best: ContrastPair | undefined;
+
+  for (const group of byDevice.values()) {
+    const restrained = group.find((o) => o.action === NetworkAction.NONE);
+    const protectedOp = group.find(
+      (o) => o.action === NetworkAction.QOD || o.action === NetworkAction.QOD_AND_SLICE,
+    );
+    if (!restrained || !protectedOp) continue;
+
+    const candidate = { restrained, protectedOp };
+
+    // Matching congestion is the whole point, so a pair that has it always
+    // wins over one that does not.
+    if (restrained.congestion != null && restrained.congestion === protectedOp.congestion) return { pair: candidate };
+    best ??= candidate;
+  }
+
+  return { pair: best };
 }
 
 function orient(a: Operation, b: Operation): ContrastPair {

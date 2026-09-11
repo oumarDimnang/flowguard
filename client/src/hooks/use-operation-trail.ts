@@ -52,6 +52,25 @@ export function useOperationTrail(operationId: string | undefined): OperationTra
     [operationId, setData],
   );
 
+  const { setData: setOperation } = operation;
+  const updateOperation = useCallback(
+    (updated: Operation) => {
+      if (updated.operationId !== operationId) return;
+
+      setOperation((previous) => {
+        // Delayed notifications must not move a completed operation backwards.
+        if (
+          previous?.operationId === updated.operationId &&
+          Date.parse(previous.updatedAt) > Date.parse(updated.updatedAt)
+        ) return previous;
+        return updated;
+      });
+    },
+    [operationId, setOperation],
+  );
+
+  useLiveEvent(LIVE_EVENTS.OPERATION_STARTED, updateOperation);
+  useLiveEvent(LIVE_EVENTS.OPERATION_UPDATED, updateOperation);
   useLiveEvent(LIVE_EVENTS.DECISION_RECORDED, append);
 
   const reload = useCallback(() => {

@@ -132,3 +132,10 @@
   --input: oklch(0.3618 0.0101 106.8928);
   --ring: oklch(0.72 0.16 304);
 }
+
+/* Keep room for evidence on phone-sized screens. */
+@media (max-width: 767px) {
+  :root {
+    --page-gutter: 1rem;
+  }
+}

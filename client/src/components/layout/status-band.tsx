@@ -30,7 +30,7 @@ export function StatusBands() {
 function DisconnectedBand({ since }: { since: string | undefined }) {
   return (
     <div className="border-b border-b-foreground">
-      <Page className="log-row log-row-actionable py-3">
+      <Page className="log-row log-row-actionable py-3 max-md:flex max-md:flex-col max-md:items-start max-md:gap-2">
         <span className="datum text-xs text-muted-foreground">{logTime(since)}</span>
         <div className="flex flex-wrap items-baseline gap-x-3">
           <Status kind="slash" className="font-semibold">
@@ -50,7 +50,7 @@ function DisconnectedBand({ since }: { since: string | undefined }) {
 function UnreachableBand() {
   return (
     <div className="border-b border-b-destructive">
-      <Page className="log-row log-row-actionable py-3">
+      <Page className="log-row log-row-actionable py-3 max-md:flex max-md:flex-col max-md:items-start max-md:gap-2">
         <span className="datum text-xs text-muted-foreground">{logTime(new Date().toISOString())}</span>
         <div className="flex flex-wrap items-baseline gap-x-3">
           <Status kind="filled" className="font-semibold text-destructive">

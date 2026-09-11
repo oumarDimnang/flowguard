@@ -28,13 +28,31 @@ export function Operations() {
         title="Operations History"
         description="Every operation the system has decided on, newest first. Each row opens its decision trail."
         meta={
-          <>
+          history.hasData ? <>
             Khalifa Bin Salman Port — Berth 3 · <Slot ch={3}>{history.total}</Slot> operations
-          </>
+          </> : history.loading ? 'Loading history...' : 'History unavailable'
         }
       />
 
-      <nav className="log-row border-t py-3">
+      {history.error ? (
+        <div className="flex flex-wrap items-baseline gap-3 border-t py-3 text-sm">
+          <p role="alert">
+            {history.hasData
+              ? 'Could not refresh operations history. Previously loaded results may be stale.'
+              : 'Could not load operations history. Results are unavailable.'}
+          </p>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={history.reload}
+            disabled={history.loading}
+          >
+            {history.loading ? 'Retrying...' : 'Retry history'}
+          </button>
+        </div>
+      ) : null}
+
+      {history.hasData ? <nav className="log-row border-t py-3">
         <Eyebrow className="pt-0.5">filter</Eyebrow>
         <div className="flex flex-wrap gap-x-7 text-[15px]">
           {(Object.keys(HISTORY_FILTERS) as HistoryFilter[]).map((key) => (
@@ -47,18 +65,20 @@ export function Operations() {
             />
           ))}
         </div>
-      </nav>
+      </nav> : null}
 
-      <OperationsTable operations={history.operations} loading={history.loading} />
+      {!history.error || history.operations.length > 0 ? (
+        <OperationsTable operations={history.operations} loading={history.loading} />
+      ) : null}
 
-      <p className="log-row pt-3">
+      {history.hasData ? <p className="log-row pt-3">
         <span className="datum text-xs text-muted-foreground">
           <Slot ch={3}>{history.operations.length}</Slot> of <Slot ch={3}>{history.total}</Slot>
         </span>
         <span className="text-xs text-muted-foreground">
           Rows are appended live as decisions land.
         </span>
-      </p>
+      </p> : null}
     </>
   );
 }

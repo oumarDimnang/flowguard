@@ -8,6 +8,7 @@ import { OperationSummaryPanel } from '@/features/operations/operation-summary-p
 import { useOperationTrail } from '@/hooks/use-operation-trail';
 import { useResource } from '@/hooks/use-resource';
 import { api } from '@/api/endpoints';
+import { ApiError } from '@/api/client';
 import { duration } from '@/lib/format';
 import { isExecutionFound } from '@/types';
 
@@ -50,6 +51,27 @@ export function OperationDetail() {
         }
       />
 
+      {trail.error ? (
+        <div className="flex flex-wrap items-baseline gap-3 border-t py-3 text-sm">
+          <p role="alert">
+            {trail.error instanceof ApiError && trail.error.isNotFound
+              ? 'This operation is not available. A scheduled scenario step may not have started yet, or the operation may not exist in this organization.'
+              : 'Could not load the complete operation and decision trail. Any evidence shown below may be incomplete.'}
+          </p>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={trail.reload}
+            disabled={trail.loading}
+          >
+            {trail.loading ? 'Checking...' : 'Check again'}
+          </button>
+          <Link to="/operations" className="link-rule">Back to operations</Link>
+        </div>
+      ) : null}
+
+      {!trail.error || operation || trail.records.length > 0 ? (
+        <>
       {/* Above the trail, not below it. Someone opening this page wants the
           outcome first and the evidence second — and the evidence is right
           there to check the summary against, which is the only reason a
@@ -79,6 +101,9 @@ export function OperationDetail() {
         <DecisionTrail records={trail.records} loading={trail.loading} />
       </Section>
 
+        </>
+      ) : null}
+
       {operationId ? <ExecutionPanel operationId={operationId} /> : null}
     </>
   );
@@ -101,7 +126,7 @@ function ExecutionPanel({ operationId }: { operationId: string }) {
 
   return (
     <section className="border-t pt-4">
-      <button type="button" className="btn-bare text-xs text-muted-foreground" onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="btn-bare text-xs text-muted-foreground" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         {open ? '− ' : '+ '}raw execution · straight from Temporal
       </button>
 
@@ -110,9 +135,27 @@ function ExecutionPanel({ operationId }: { operationId: string }) {
           <Eyebrow className="pt-1">source of truth</Eyebrow>
           <div className="flex flex-col gap-2">
             <p className="max-w-[68ch] text-[13px] text-muted-foreground">
-              Everything above is a projection built from emitted decision events. This is the
-              workflow history itself. Where the two disagree, this one is correct.
+              This snapshot reports the workflow status from Temporal when requested. It is
+              separate from the decision trail above and does not refresh automatically.
             </p>
+
+            {execution.error ? (
+              <p role="alert" className="text-sm">
+                {execution.error instanceof ApiError && execution.error.isNotFound
+                  ? 'This operation is not available in the current organization.'
+                  : 'Could not retrieve the workflow status from Temporal.'}
+                {execution.data ? ' The snapshot below is from an earlier request.' : ''}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              className="btn-line self-start"
+              onClick={execution.reload}
+              disabled={execution.loading}
+            >
+              {execution.loading ? 'Checking...' : execution.error ? 'Retry status' : 'Refresh status'}
+            </button>
 
             <Loadable
               loading={execution.loading}

@@ -7,6 +7,7 @@ import { buildDecisionGraph } from '@/features/graph/graph-model';
 import { summariseOperation } from '@/features/operations/operation-summary';
 import { useOperationTrail } from '@/hooks/use-operation-trail';
 import { duration } from '@/lib/format';
+import { ApiError } from '@/api/client';
 
 /**
  * One workflow, as a volume.
@@ -44,7 +45,7 @@ export function DecisionGraphPage() {
             Decision Graph
           </Eyebrow>
 
-          <h1 className="datum text-2xl font-medium">{operationId}</h1>
+          <h1 className="datum text-2xl font-medium break-words">{operationId}</h1>
 
           {operation ? (
             <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
@@ -63,7 +64,7 @@ export function DecisionGraphPage() {
               {duration(operation?.startedAt, operation?.completedAt)}
             </span>
           </span>
-          <span className="flex gap-4">
+          <span className="flex flex-wrap gap-4">
             <span>
               <Slot ch={2}>{graph.agentDecisions}</Slot> agent decisions
             </span>
@@ -91,15 +92,39 @@ export function DecisionGraphPage() {
         </div>
       ) : null}
 
+      {trail.error ? (
+        <div
+          className="flex flex-wrap items-baseline gap-3 border-t py-4 text-sm"
+          style={{ borderColor: 'var(--edge)', color: 'var(--ink)' }}
+        >
+          <p role="alert">
+            {trail.error instanceof ApiError && trail.error.isNotFound
+              ? 'This operation is not available. A scheduled step may not have started yet, or the operation may not exist in this organization.'
+              : 'Could not load the complete decision graph. Any evidence shown may be incomplete.'}
+          </p>
+          <button
+            type="button"
+            className="btn-line"
+            disabled={trail.loading}
+            onClick={trail.reload}
+          >
+            {trail.loading ? 'Checking...' : 'Check again'}
+          </button>
+          <Link to="/operations" className="link-rule" style={{ color: 'inherit' }}>
+            Back to operations
+          </Link>
+        </div>
+      ) : null}
+
       <Loadable
         loading={trail.loading}
         empty={graph.nodes.length === 0}
         skeleton={<SceneSkeleton />}
-        whenEmpty={
+        whenEmpty={trail.error ? null : (
           <p className="border-t py-8" style={{ borderColor: 'var(--edge)', color: 'var(--ink-dim)' }}>
             No decision records for this operation, so there is nothing to draw.
           </p>
-        }
+        )}
       >
         <DecisionGraph graph={graph} story={summary.narrative} />
       </Loadable>
