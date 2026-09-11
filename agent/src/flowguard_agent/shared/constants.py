@@ -12,6 +12,15 @@ WORKFLOW_NETWORK_BOOTSTRAP = "NetworkBootstrapWorkflow"
 
 # Signal names — must match SIGNALS in the same server file.
 SIGNAL_OPERATION_COMPLETED = "operation_completed"
+#: The facility reports its operation halted mid-way with the load committed —
+#: a crane emergency stop, an aborted lift with the box in the air. Not a
+#: completion: connectivity is held through it, and the safety valve stops
+#: counting until the operation resumes or is reported safe.
+SIGNAL_OPERATION_SUSPENDED = "operation_suspended"
+
+#: The halted operation is moving again, or its load has been landed. Releases
+#: the valve to resume its normal countdown.
+SIGNAL_OPERATION_RESUMED = "operation_resumed"
 SIGNAL_QOD_STATUS_CHANGED = "qod_status_changed"
 SIGNAL_CONGESTION_UPDATED = "congestion_updated"
 SIGNAL_DEVICE_STATUS_CHANGED = "device_status_changed"

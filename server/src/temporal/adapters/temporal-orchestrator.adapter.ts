@@ -82,6 +82,26 @@ export class TemporalOrchestratorAdapter extends WorkflowOrchestratorPort {
     await this.signal(organizationId, businessEventId, SIGNALS.OPERATION_COMPLETED);
   }
 
+  async signalOperationSuspended(
+    organizationId: string,
+    businessEventId: string,
+    payload: { reason: string; state?: string },
+  ): Promise<void> {
+    await this.signal(
+      organizationId,
+      businessEventId,
+      SIGNALS.OPERATION_SUSPENDED,
+      payload,
+    );
+  }
+
+  async signalOperationResumed(
+    organizationId: string,
+    businessEventId: string,
+  ): Promise<void> {
+    await this.signal(organizationId, businessEventId, SIGNALS.OPERATION_RESUMED, {});
+  }
+
   async signalQodStatusChanged(
     organizationId: string,
     businessEventId: string,

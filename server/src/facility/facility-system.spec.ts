@@ -8,7 +8,7 @@ import type { CreateBusinessEventDto } from '../events/dto/create-business-event
 import { RealtimePublisherPort } from '../realtime/ports/realtime-publisher.port';
 import { ContainerTerminalSystem } from './adapters/container-terminal/container-terminal.system';
 import { DroneOperationsSystem } from './adapters/drone-operations/drone-operations.system';
-import { JOB_QUEUED } from './domain/facility-job';
+import { JOB_HELD, JOB_QUEUED } from './domain/facility-job';
 
 /**
  * No Mongo, no Temporal, no crane and no aircraft.
@@ -26,6 +26,8 @@ class FakeEventsService {
   accepted: CreateBusinessEventDto[] = [];
   acceptedOrgs: string[] = [];
   completed: string[] = [];
+  suspended: { operationId: string; reason: string }[] = [];
+  resumed: string[] = [];
 
   async accept(organizationId: string, dto: CreateBusinessEventDto) {
     this.accepted.push(dto);
@@ -41,6 +43,20 @@ class FakeEventsService {
   async complete(_organizationId: string, operationId: string) {
     this.completed.push(operationId);
     return { operationId, signalled: true as const };
+  }
+
+  async suspend(
+    _organizationId: string,
+    operationId: string,
+    payload: { reason: string; state?: string },
+  ) {
+    this.suspended.push({ operationId, reason: payload.reason });
+    return { operationId, suspended: true as const };
+  }
+
+  async resume(_organizationId: string, operationId: string) {
+    this.resumed.push(operationId);
+    return { operationId, resumed: true as const };
   }
 }
 
@@ -176,12 +192,79 @@ describe.each([
    * abandoned job holding a QoD session is the exact failure FlowGuard exists
    * to prevent, so abort must not be a leak — in either industry.
    */
-  it('signals completion when a job is aborted mid-sequence', async () => {
+  it('signals completion when a job is aborted before its load is committed', async () => {
     const job = await system.dispatch(ORG, firstJob);
     await system.abort(ORG, firstJob);
 
     expect(job.state).toBe('ABORTED');
     expect(events.completed).toEqual([job.operationId]);
+  });
+
+  /**
+   * The half that used to be wrong, and dangerously so.
+   *
+   * Past the gate the load is committed. "Abort" then does not mean the danger
+   * is over — it means it just started, and the operator is about to land a
+   * suspended load on the video feed. Releasing there withdrew the feed at
+   * exactly the wrong moment.
+   */
+  describe('when the load is already committed', () => {
+    afterEach(() => vi.useRealTimers());
+
+    async function pastTheGate() {
+      vi.useFakeTimers();
+      const job = await system.dispatch(ORG, firstJob);
+      decisions.records.push(decidedFor(job.operationId!));
+      await vi.advanceTimersByTimeAsync(16_000);
+      expect(job.state).not.toBe(gate);
+      return job;
+    }
+
+    it('holds instead of releasing when a committed job is aborted', async () => {
+      const job = await pastTheGate();
+
+      await system.abort(ORG, firstJob);
+
+      expect(job.state).toBe(JOB_HELD);
+      expect(events.completed).toEqual([]);
+      expect(events.suspended).toEqual([
+        { operationId: job.operationId, reason: 'ABORTED_MID_OPERATION' },
+      ]);
+    });
+
+    it('stops the sequence advancing while held', async () => {
+      const job = await pastTheGate();
+      await system.suspend(ORG, firstJob, 'EMERGENCY_STOP');
+      const heldAt = job.heldFrom;
+
+      // Long enough for the rest of the sequence to have run twice over.
+      await vi.advanceTimersByTimeAsync(120_000);
+
+      expect(job.state).toBe(JOB_HELD);
+      expect(job.heldFrom).toBe(heldAt);
+      expect(events.completed).toEqual([]);
+    });
+
+    it('puts the job back where it stopped and finishes normally', async () => {
+      const job = await pastTheGate();
+      await system.suspend(ORG, firstJob, 'EMERGENCY_STOP');
+      const heldAt = job.heldFrom!;
+
+      await system.resume(ORG, firstJob);
+      expect(job.state).toBe(heldAt);
+      expect(events.resumed).toEqual([job.operationId]);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(events.completed).toEqual([job.operationId]);
+    });
+
+    it('refuses to hold a job that has committed nothing', async () => {
+      await system.dispatch(ORG, firstJob);
+
+      await expect(system.suspend(ORG, firstJob, 'EMERGENCY_STOP')).rejects.toThrow(
+        /nothing is committed/,
+      );
+    });
   });
 
   it('releases in-flight jobs when the plan is reset', async () => {

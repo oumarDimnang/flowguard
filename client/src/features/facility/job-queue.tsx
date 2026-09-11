@@ -20,6 +20,8 @@ export interface JobQueueProps {
   renderCells: (job: FacilityJob) => React.ReactNode;
   onDispatch: (jobId: string) => Promise<unknown>;
   onAbort: (jobId: string) => Promise<unknown>;
+  onSuspend: (jobId: string) => Promise<unknown>;
+  onResume: (jobId: string) => Promise<unknown>;
 }
 
 /**
@@ -39,6 +41,8 @@ export function JobQueue({
   renderCells,
   onDispatch,
   onAbort,
+  onSuspend,
+  onResume,
 }: JobQueueProps) {
   const { can } = useAuth();
   const canDispatch = can('OPERATOR');
@@ -122,6 +126,8 @@ export function JobQueue({
           pending={pending === job.id}
           onDispatch={(id) => void act(id, onDispatch)}
           onAbort={(id) => void act(id, onAbort)}
+          onSuspend={(id) => void act(id, onSuspend)}
+          onResume={(id) => void act(id, onResume)}
           error={
             failures[job.id] ? (
               <InlineFailure

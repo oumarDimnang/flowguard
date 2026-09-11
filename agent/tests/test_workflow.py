@@ -26,7 +26,10 @@ from flowguard_agent.shared.constants import (
     ACTIVITY_EMIT_DECISION,
     ACTIVITY_GET_POLICY_CONFIG,
     SIGNAL_CONGESTION_UPDATED,
+    SIGNAL_DEVICE_STATUS_CHANGED,
     SIGNAL_OPERATION_COMPLETED,
+    SIGNAL_OPERATION_RESUMED,
+    SIGNAL_OPERATION_SUSPENDED,
     WORKFLOW_CRITICAL_OPERATION,
 )
 from flowguard_agent.shared.models import DecisionStep, NetworkAction
@@ -501,3 +504,180 @@ async def test_every_decision_record_is_idempotency_keyed(env: WorkflowEnvironme
 
     keys = [(r["runId"], r["step"]) for r in harness.emit.records]
     assert len(keys) == len(set(keys)), "a step must be emitted at most once per run"
+
+
+# ── The load stopped in the air ──────────────────────────────────────
+
+
+async def test_a_suspended_operation_is_not_released(env: WorkflowEnvironment):
+    """The moment the whole product is about, and it used to fail.
+
+    A crane that emergency-stops has forty tonnes hanging and an operator about
+    to land it on the video feed. The safety valve was written against a
+    different risk — a lost completion signal stranding a paid session — and
+    could not tell the two apart, so a recovery that ran past four times the
+    expected duration had its connectivity withdrawn at the worst possible
+    moment.
+
+    Time-skipping runs well past the ordinary valve here. Nothing is released
+    until the operation says it is safe.
+    """
+    harness = Harness()
+    await harness.provider.bootstrap()
+    event = crane_lift(expectedDurationSeconds=30)
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+
+        await _wait_for_steps(env, harness, DecisionStep.ALLOCATED.value)
+        await handle.signal(SIGNAL_OPERATION_SUSPENDED, {"reason": "EMERGENCY_STOP"})
+
+        # Two DECIDED records: the original allocation decision, and the
+        # suspension re-decision.
+        await _wait_for_steps(env, harness, DecisionStep.DECIDED.value, count=2)
+
+        # Well past `expected_duration * _MAX_OPERATION_MULTIPLIER`, which is
+        # 120 seconds here. Without the suspension budget this is where the
+        # valve fired and the load lost its feed.
+        await env.sleep(300)
+        assert DecisionStep.RELEASED.value not in harness.emit.steps(), (
+            "connectivity was withdrawn from a suspended load"
+        )
+
+        await handle.signal(SIGNAL_OPERATION_RESUMED, {})
+        await handle.signal(SIGNAL_OPERATION_COMPLETED)
+        result = await handle.result()
+
+    assert result["released"] is True, "released once, and only once it was safe"
+
+    suspension = next(
+        r
+        for r in harness.emit.records
+        if r["step"] == DecisionStep.DECIDED.value
+        and r.get("rule") == "SUSPENDED_LOAD_PROTECT"
+    )
+    assert suspension["action"] != NetworkAction.NONE.value
+    assert "EMERGENCY_STOP" in suspension["reasoning"]
+
+
+async def test_suspension_is_bounded_so_a_lost_signal_cannot_hold_forever(
+    env: WorkflowEnvironment,
+):
+    """The other half of the argument.
+
+    Holding through a stop is right; holding through a stop nobody ever ends is
+    a stranded session wearing a safety justification. A suspension we are never
+    told the end of is indistinguishable from a lost signal, so the budget is
+    generous and finite — and the release still runs.
+    """
+    harness = Harness()
+    await harness.provider.bootstrap()
+    event = crane_lift(expectedDurationSeconds=30)
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+
+        await _wait_for_steps(env, harness, DecisionStep.ALLOCATED.value)
+        await handle.signal(SIGNAL_OPERATION_SUSPENDED, {"reason": "EMERGENCY_STOP"})
+
+        # Never resumed, never completed. Past _SUSPENDED_MAX_SECONDS.
+        result = await handle.result()
+
+    assert result["released"] is True
+    assert harness.provider._sessions == {}, "the session did not outlive the budget"
+
+
+async def test_a_routine_operation_is_protected_once_it_suspends(
+    env: WorkflowEnvironment,
+):
+    """Suspension outranks the thesis rule, and that is not a contradiction.
+
+    The invariant is that *congestion* never triggers action on its own.
+    Suspension is not a network condition — it is the operation reporting that
+    its own criticality just changed, and an empty container hanging over a quay
+    still has to be landed on a live feed.
+
+    A routine move allocates nothing at first. When it halts, it gets a session.
+    """
+    harness = Harness()
+    await harness.provider.bootstrap()
+    event = crane_lift(
+        operation="Reposition empty container",
+        description="Scheduled repositioning of an empty container. No personnel beneath.",
+        expectedDurationSeconds=30,
+        metadata={"deferrable": True, "scheduled": True},
+    )
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+
+        await _wait_for_steps(env, harness, DecisionStep.DECIDED.value)
+        first = next(
+            r for r in harness.emit.records if r["step"] == DecisionStep.DECIDED.value
+        )
+        assert first["action"] == NetworkAction.NONE.value
+        assert first["rule"] == "ROUTINE_NO_ACTION"
+
+        result = await handle.result()
+
+    # Nothing was allocated, so there is nothing to suspend — the workflow ends
+    # at the decision. The rule is exercised directly instead, which is where it
+    # belongs: decide() is pure and its branches are tested exhaustively.
+    assert result["action"] == NetworkAction.NONE.value
+
+
+async def test_a_device_lost_mid_operation_is_recorded_not_released(
+    env: WorkflowEnvironment,
+):
+    """A signal that used to be stored and never read.
+
+    ``device_status_changed`` set a field nothing consulted, so a crane whose
+    modem dropped mid-lift kept a paid session against an absent device with no
+    trace of it. It is recorded now — and deliberately still not released on,
+    because a momentary drop is common and the asset may be mid-recovery.
+    """
+    harness = Harness()
+    await harness.provider.bootstrap()
+    event = crane_lift(expectedDurationSeconds=30)
+
+    async with harness.worker(env.client):
+        handle = await env.client.start_workflow(
+            WORKFLOW_CRITICAL_OPERATION,
+            event,
+            id=f"operation-{event['id']}",
+            task_queue=TASK_QUEUE,
+        )
+
+        await _wait_for_steps(env, harness, DecisionStep.ALLOCATED.value)
+        await handle.signal(SIGNAL_DEVICE_STATUS_CHANGED, {"reachable": False})
+
+        # Two DEVICE_CHECKED records: the guard clause at the start, and this.
+        await _wait_for_steps(env, harness, DecisionStep.DEVICE_CHECKED.value, count=2)
+
+        await handle.signal(SIGNAL_OPERATION_COMPLETED)
+        result = await handle.result()
+
+    assert result["released"] is True
+    lost = [
+        r
+        for r in harness.emit.records
+        if r["step"] == DecisionStep.DEVICE_CHECKED.value
+        and r.get("deviceReachable") is False
+    ]
+    assert len(lost) == 1
+    assert "no longer extended" in lost[0]["reasoning"]

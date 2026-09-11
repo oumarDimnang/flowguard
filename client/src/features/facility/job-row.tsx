@@ -2,7 +2,15 @@ import { Link } from 'react-router';
 
 import { Status } from '@/components/primitives';
 import { cn } from '@/lib/utils';
-import { GateAuthorisation, JOB_ABORTED, JOB_QUEUED, isJobInFlight, type FacilityJob } from '@/types';
+import {
+  GateAuthorisation,
+  JOB_ABORTED,
+  JOB_QUEUED,
+  isJobHeld,
+  isJobInFlight,
+  isLoadCommitted,
+  type FacilityJob,
+} from '@/types';
 import { GateHold } from './gate-hold';
 import { JobSequence } from './job-sequence';
 
@@ -13,6 +21,8 @@ export interface JobRowProps {
   gridClassName: string;
   onDispatch: (jobId: string) => void;
   onAbort: (jobId: string) => void;
+  onSuspend: (jobId: string) => void;
+  onResume: (jobId: string) => void;
   pending?: boolean;
   readOnly?: boolean;
   error?: React.ReactNode;
@@ -39,6 +49,8 @@ export function JobRow({
   gridClassName,
   onDispatch,
   onAbort,
+  onSuspend,
+  onResume,
   pending,
   readOnly,
   error,
@@ -62,6 +74,8 @@ export function JobRow({
             readOnly={readOnly}
             onDispatch={onDispatch}
             onAbort={onAbort}
+            onSuspend={onSuspend}
+            onResume={onResume}
           />
         </span>
       </div>
@@ -93,6 +107,8 @@ function JobAction({
   readOnly,
   onDispatch,
   onAbort,
+  onSuspend,
+  onResume,
 }: {
   job: FacilityJob;
   queued: boolean;
@@ -101,6 +117,8 @@ function JobAction({
   readOnly?: boolean;
   onDispatch: (jobId: string) => void;
   onAbort: (jobId: string) => void;
+  onSuspend: (jobId: string) => void;
+  onResume: (jobId: string) => void;
 }) {
   // A finished job keeps its link to the trail for every role — reading the
   // evidence is exactly what a viewer account is for.
@@ -116,15 +134,42 @@ function JobAction({
     );
   }
 
-  if (running) {
+  // Held: the load is in the air and connectivity is being held for it. The
+  // only sane next action is to report it safe, so that is the only one
+  // offered — and it is the affirmative button, not the danger one.
+  if (isJobHeld(job)) {
     return (
       <button
         type="button"
-        className="btn-line btn-line-danger"
+        className="btn-line"
         disabled={pending}
-        onClick={() => onAbort(job.id)}
+        onClick={() => onResume(job.id)}
       >
-        Abort
+        {pending ? '…' : 'Load safe'}
+      </button>
+    );
+  }
+
+  if (running) {
+    // Two different things, deliberately worded as two different things.
+    // Before the load is committed, aborting cancels the job and connectivity
+    // goes back. After it, there is a load hanging: "Stop" reports that, holds
+    // the feed, and waits for someone to say it is down.
+    const committed = isLoadCommitted(job);
+
+    return (
+      <button
+        type="button"
+        className={cn('btn-line', !committed && 'btn-line-danger')}
+        disabled={pending}
+        onClick={() => (committed ? onSuspend(job.id) : onAbort(job.id))}
+        title={
+          committed
+            ? 'Report the operation halted. Connectivity is held until the load is reported safe.'
+            : 'Cancel the job. Nothing is committed, so connectivity goes back immediately.'
+        }
+      >
+        {committed ? 'Stop' : 'Abort'}
       </button>
     );
   }

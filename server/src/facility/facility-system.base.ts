@@ -9,8 +9,10 @@ import { LIVE_EVENTS } from '../realtime/realtime.events';
 import {
   GateAuthorisation,
   JOB_ABORTED,
+  JOB_HELD,
   JOB_QUEUED,
   isJobInFlight,
+  isLoadCommitted,
   type FacilityJob,
   type JobEventShape,
 } from './domain/facility-job';
@@ -131,10 +133,18 @@ export abstract class FacilitySystemBase
   }
 
   /**
-   * Cancel a job under way.
+   * Cancel a job under way — and it matters enormously when.
    *
-   * Still signals completion, because an abandoned job that keeps holding a QoD
-   * session is precisely the failure this system exists to prevent.
+   * Before the gate there is no load in the air. Aborting is a cancellation,
+   * the job is done, and connectivity goes back immediately: an abandoned job
+   * still holding a session is precisely the failure this system exists to
+   * prevent.
+   *
+   * After the gate the load is committed, and "abort" does not mean the danger
+   * is over — it means it just started. The job is held rather than finished,
+   * connectivity is kept, and it stays that way until somebody reports the load
+   * safe. This used to release, which withdrew the video feed from an operator
+   * who was, at that exact moment, landing a suspended load by looking at it.
    */
   async abort(organizationId: string, jobId: string): Promise<FacilityJob> {
     const job = this.require(organizationId, jobId);
@@ -143,8 +153,84 @@ export abstract class FacilitySystemBase
       throw new ConflictException(`Job '${jobId}' is ${job.state} and cannot be aborted`);
     }
 
+    if (isLoadCommitted(job)) {
+      this.logger.warn(`Job '${jobId}' aborted during ${job.state} with its load committed`);
+      return this.suspend(organizationId, jobId, 'ABORTED_MID_OPERATION');
+    }
+
     this.logger.warn(`Job '${jobId}' aborted during ${job.state}`);
     this.transition(organizationId, job, JOB_ABORTED);
+
+    return job;
+  }
+
+  /**
+   * The operation halted with its load committed.
+   *
+   * A crane emergency stop, a fault, an abort called too late. The job stops
+   * advancing — its pending timer finds the state changed and abandons itself —
+   * and the workflow is told, so it holds connectivity and stops its safety
+   * valve counting.
+   *
+   * Deliberately not reachable before the gate: there is nothing to suspend
+   * when nothing is committed, and allowing it would create a way to hold paid
+   * capacity indefinitely for a job that never started.
+   */
+  async suspend(
+    organizationId: string,
+    jobId: string,
+    reason: string,
+  ): Promise<FacilityJob> {
+    const job = this.require(organizationId, jobId);
+
+    if (job.state === JOB_HELD) return job;
+
+    if (!isJobInFlight(job) || !isLoadCommitted(job)) {
+      throw new ConflictException(
+        `Job '${jobId}' is ${job.state}; nothing is committed, so there is nothing to hold`,
+      );
+    }
+
+    job.heldFrom = job.state;
+    job.heldReason = reason;
+    this.logger.warn(`Job '${jobId}' held during ${job.state}: ${reason}`);
+
+    this.transition(organizationId, job, JOB_HELD);
+
+    if (job.operationId) {
+      await this.events.suspend(organizationId, job.operationId, {
+        reason,
+        state: job.heldFrom,
+      });
+    }
+
+    return job;
+  }
+
+  /**
+   * Moving again, or the load has been landed.
+   *
+   * Puts the job back where it halted and lets its sequence continue from
+   * there. The workflow is told first: the valve should be counting again
+   * before the job can reach its terminal state and signal completion.
+   */
+  async resume(organizationId: string, jobId: string): Promise<FacilityJob> {
+    const job = this.require(organizationId, jobId);
+
+    if (job.state !== JOB_HELD) {
+      throw new ConflictException(`Job '${jobId}' is ${job.state} and is not held`);
+    }
+
+    const restored = job.heldFrom ?? this.lifecycle[0];
+    this.logger.log(`Job '${jobId}' resumed at ${restored}`);
+
+    if (job.operationId) {
+      await this.events.resume(organizationId, job.operationId);
+    }
+
+    job.heldFrom = undefined;
+    job.heldReason = undefined;
+    this.transition(organizationId, job, restored);
 
     return job;
   }
@@ -212,7 +298,15 @@ export abstract class FacilitySystemBase
     const next = this.lifecycle[this.lifecycle.indexOf(state) + 1];
     const delay = this.durations[state];
     if (next !== undefined && delay !== undefined) {
-      this.defer(async () => this.transition(organizationId, job, next), delay);
+      // Guarded on the state it was scheduled from. A job held or aborted while
+      // this timer was pending must not be walked forward by it — without the
+      // check, a crane that emergency-stopped during HOISTING would still show
+      // as LANDING and then RELEASED on the board, and the operation would
+      // signal a completion that never happened.
+      this.defer(async () => {
+        if (job.state !== state) return;
+        this.transition(organizationId, job, next);
+      }, delay);
     }
   }
 

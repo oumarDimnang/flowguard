@@ -21,6 +21,17 @@ export const JOB_QUEUED = 'QUEUED';
 export const JOB_ABORTED = 'ABORTED';
 
 /**
+ * Halted with the load committed — an emergency stop, a fault, an abort called
+ * with the box already in the air.
+ *
+ * Not a terminal state and not a pause in the ordinary sense: the job is still
+ * in flight, its timers stop advancing, and it can only leave by resuming or by
+ * reporting the load safe. FlowGuard holds connectivity throughout, because the
+ * operator is now landing a suspended load on the video feed.
+ */
+export const JOB_HELD = 'HELD';
+
+/**
  * One job in a facility's work queue, whatever the facility is.
  *
  * The generic part of the contract. `lifecycle` and `gateState` are supplied by
@@ -71,6 +82,15 @@ export interface FacilityJob<A = unknown> {
   /** True for work that can simply be repeated later. */
   deferrable?: boolean;
 
+  /**
+   * The lifecycle state this job halted from, kept so it can be put back.
+   *
+   * Only set while `state` is HELD.
+   */
+  heldFrom?: string;
+  /** Why it halted, in the facility's own words. Carried into the trail. */
+  heldReason?: string;
+
   operationId?: string;
   workflowId?: string;
   dispatchedAt?: Date;
@@ -112,4 +132,25 @@ export interface JobEventShape {
 export function isJobInFlight(job: Pick<FacilityJob, 'state' | 'lifecycle'>): boolean {
   const finished = job.lifecycle[job.lifecycle.length - 1];
   return job.state !== JOB_QUEUED && job.state !== JOB_ABORTED && job.state !== finished;
+}
+
+/**
+ * True once the load is committed and the job can no longer simply be dropped.
+ *
+ * The gate is the last instant before commitment — a crane's twistlock, a
+ * drone's pre-flight — so anything past it has a load in the air. Industry
+ * agnostic by construction: each adapter names its own gate and this reads the
+ * position rather than the name.
+ *
+ * This is the distinction that makes abort safe. Before the gate, aborting is
+ * a cancellation and connectivity can go back. After it, aborting is an
+ * emergency, and dropping the feed is the last thing anyone should do.
+ */
+export function isLoadCommitted(job: Pick<FacilityJob, 'state' | 'lifecycle' | 'gateState'>): boolean {
+  if (job.state === JOB_HELD) return true;
+  if (job.gateState === undefined) return false;
+
+  const gate = job.lifecycle.indexOf(job.gateState);
+  const current = job.lifecycle.indexOf(job.state);
+  return gate >= 0 && current > gate;
 }

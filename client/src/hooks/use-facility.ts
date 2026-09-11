@@ -14,6 +14,10 @@ export interface FacilityState {
   /** Issue the job instruction. The rest of the sequence arrives on the socket. */
   dispatch: (jobId: string) => Promise<FacilityJob>;
   abort: (jobId: string) => Promise<FacilityJob>;
+  /** Report the job halted with its load committed. Holds connectivity. */
+  suspend: (jobId: string) => Promise<FacilityJob>;
+  /** Moving again, or the committed load has been landed. */
+  resume: (jobId: string) => Promise<FacilityJob>;
   /** Restore the plan. Releases anything still in flight. */
   reset: () => Promise<FacilityJob[]>;
 }
@@ -70,6 +74,27 @@ export function useFacility(): FacilityState {
     [upsert],
   );
 
+  // A stop is not an abort, and the wording in the UI reflects that. The job
+  // stays in flight and its connectivity stays held; what changes is that the
+  // workflow stops counting down a valve meant for lost signals.
+  const suspend = useCallback(
+    async (jobId: string) => {
+      const updated = await api.facility.suspend(jobId, 'OPERATOR_STOP');
+      upsert(updated);
+      return updated;
+    },
+    [upsert],
+  );
+
+  const resume = useCallback(
+    async (jobId: string) => {
+      const updated = await api.facility.resume(jobId);
+      upsert(updated);
+      return updated;
+    },
+    [upsert],
+  );
+
   const reset = useCallback(async () => {
     const restored = await api.facility.reset();
     setData(() => restored);
@@ -82,6 +107,8 @@ export function useFacility(): FacilityState {
     loading: descriptor.loading || queue.loading,
     error: descriptor.error ?? queue.error,
     dispatch,
+    suspend,
+    resume,
     abort,
     reset,
   };

@@ -39,6 +39,10 @@ class FakeOrchestrator extends WorkflowOrchestratorPort {
     this.completedSignals.push(id);
   }
 
+  async signalOperationSuspended(): Promise<void> {}
+
+  async signalOperationResumed(): Promise<void> {}
+
   async signalQodStatusChanged(): Promise<void> {}
   async signalCongestionUpdated(): Promise<void> {}
   async signalDeviceStatusChanged(): Promise<void> {}

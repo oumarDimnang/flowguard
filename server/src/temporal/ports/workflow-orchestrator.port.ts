@@ -57,6 +57,25 @@ export abstract class WorkflowOrchestratorPort {
     businessEventId: string,
   ): Promise<void>;
 
+  /**
+   * Tell the workflow its operation halted with its load committed.
+   *
+   * Never a substitute for completion: connectivity is held through this, and
+   * the safety valve stops counting until the operation resumes or reports
+   * itself safe.
+   */
+  abstract signalOperationSuspended(
+    organizationId: string,
+    businessEventId: string,
+    payload: { reason: string; state?: string },
+  ): Promise<void>;
+
+  /** The halted operation is moving again, or its load has been landed. */
+  abstract signalOperationResumed(
+    organizationId: string,
+    businessEventId: string,
+  ): Promise<void>;
+
   /** Relay an asynchronous CAMARA QoD status transition (D8). */
   abstract signalQodStatusChanged(
     organizationId: string,

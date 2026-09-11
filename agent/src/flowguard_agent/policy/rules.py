@@ -59,6 +59,7 @@ def decide(
     device_reachable: bool,
     safety_critical: bool = False,
     slice_available: bool = False,
+    suspended: bool = False,
     config: PolicyConfig | None = None,
 ) -> PolicyDecision:
     """Map observed conditions to a network action.
@@ -75,6 +76,39 @@ def decide(
             action=NetworkAction.NONE,
             rationale="Device is not reachable on the network; allocation would be wasted.",
             rule="GUARD_DEVICE_UNREACHABLE",
+        )
+
+    # ── The load is in the air ────────────────────────────────────────
+    #
+    # An operation that halted mid-way has not become less important; it has
+    # become the most dangerous state the asset can be in. A crane that
+    # emergency-stops leaves forty tonnes hanging, and the operator now has to
+    # land it on a live video feed — which is precisely the feed this system
+    # exists to protect.
+    #
+    # Ranked above the thesis rule on purpose, and it does not contradict it.
+    # The invariant is that *congestion* never triggers action on its own;
+    # suspension is not a network condition, it is the operation telling us its
+    # own criticality just changed. Even a routine lift needs its feed to put
+    # the load down safely, and the cost is bounded by the session's TTL.
+    #
+    # Congestion is not consulted at all here. The reason to protect is not
+    # that the network is busy — it is that a person is about to do something
+    # delicate and irreversible while watching a screen.
+    if suspended:
+        action = (
+            NetworkAction.QOD_AND_SLICE
+            if slice_available and cfg.enable_slice_escalation
+            else NetworkAction.QOD
+        )
+        return PolicyDecision(
+            action=action,
+            rationale=(
+                "Operation is suspended with its load committed. Connectivity is held "
+                "until it is reported safe, regardless of criticality or congestion — "
+                "recovering a stopped operation is the moment the link matters most."
+            ),
+            rule="SUSPENDED_LOAD_PROTECT",
         )
 
     # ── The thesis ────────────────────────────────────────────────────

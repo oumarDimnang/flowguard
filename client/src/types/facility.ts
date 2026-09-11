@@ -12,6 +12,16 @@ export const JOB_QUEUED = 'QUEUED';
 export const JOB_ABORTED = 'ABORTED';
 
 /**
+ * Halted with the load committed — an emergency stop, a fault, an abort called
+ * with the box already in the air.
+ *
+ * Still in flight, and the one state where FlowGuard deliberately holds on
+ * rather than releasing: the operator is now landing a suspended load on the
+ * video feed, which is the feed this whole product exists to protect.
+ */
+export const JOB_HELD = 'HELD';
+
+/**
  * One job in a facility's work queue, whatever the facility is.
  *
  * `lifecycle` and `gateState` travel with the job, so the shared progress strip
@@ -25,6 +35,10 @@ export interface FacilityJob<A = unknown> {
   devicePhoneNumber?: string;
 
   state: string;
+  /** The lifecycle state a held job stopped at, so it can be put back. */
+  heldFrom?: string;
+  /** Why it halted, in the facility's own words. */
+  heldReason?: string;
   lifecycle: readonly string[];
   gateState?: string;
 
@@ -86,4 +100,32 @@ export type FlightJob = FacilityJob<FlightAttributes>;
 export function isJobInFlight(job: Pick<FacilityJob, 'state' | 'lifecycle'>): boolean {
   const finished = job.lifecycle[job.lifecycle.length - 1];
   return job.state !== JOB_QUEUED && job.state !== JOB_ABORTED && job.state !== finished;
+}
+
+/** True while the job is halted with its load committed. */
+export function isJobHeld(job: Pick<FacilityJob, 'state'>): boolean {
+  return job.state === JOB_HELD;
+}
+
+/**
+ * True once the load is committed and the job can no longer simply be dropped.
+ *
+ * Mirrors the server's own check, and reads the gate's *position* rather than
+ * its name so it holds in every industry: a crane's twistlock and a drone's
+ * pre-flight are both the last instant before commitment, and anything past
+ * either has a load in the air.
+ *
+ * This is what makes the difference between "Abort" and "Stop" on a row. Before
+ * the gate, cancelling is free and connectivity goes back. After it, cancelling
+ * is an emergency and the feed is the thing keeping it safe.
+ */
+export function isLoadCommitted(
+  job: Pick<FacilityJob, 'state' | 'lifecycle' | 'gateState'>,
+): boolean {
+  if (job.state === JOB_HELD) return true;
+  if (job.gateState === undefined) return false;
+
+  const gate = job.lifecycle.indexOf(job.gateState);
+  const current = job.lifecycle.indexOf(job.state);
+  return gate >= 0 && current > gate;
 }

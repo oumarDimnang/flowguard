@@ -20,6 +20,19 @@ export const WORKFLOW_TYPES = {
  */
 export const SIGNALS = {
   OPERATION_COMPLETED: 'operation_completed',
+
+  /**
+   * The operation halted with its load committed — a crane emergency stop, an
+   * abort with the box in the air.
+   *
+   * Deliberately not a completion. The workflow holds connectivity through a
+   * suspension and stops its safety valve counting, because a stopped lift is
+   * the state the video feed exists for, not the state to withdraw it in.
+   */
+  OPERATION_SUSPENDED: 'operation_suspended',
+
+  /** Moving again, or the committed load has been landed. */
+  OPERATION_RESUMED: 'operation_resumed',
   QOD_STATUS_CHANGED: 'qod_status_changed',
   CONGESTION_UPDATED: 'congestion_updated',
   DEVICE_STATUS_CHANGED: 'device_status_changed',

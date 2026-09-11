@@ -194,3 +194,84 @@ def test_every_decision_is_explained_and_attributable(criticality, congestion, s
     assert decision.rule, "every decision must name the rule that fired"
     assert len(decision.rationale) > 30, "every decision must carry a human-readable rationale"
     assert decision.action in NetworkAction
+
+
+# ── A load stopped in the air ─────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("criticality", "congestion"),
+    list(itertools.product(ALL_CRITICALITY, ALL_CONGESTION)),
+)
+def test_a_suspended_operation_is_always_protected(criticality, congestion):
+    """Suspension outranks every other rule, including the thesis.
+
+    An operation that halted mid-way has not become less important; it is in
+    the most dangerous state the asset can occupy, and someone is about to land
+    a committed load while watching the feed. That holds for a routine move
+    just as much as a safety-critical one — an empty container still has to come
+    down — and it holds on an idle network, because the reason to protect is
+    physical rather than a matter of contention.
+    """
+    decision = decide(
+        criticality=criticality,
+        congestion=congestion,
+        device_reachable=True,
+        slice_available=True,
+        suspended=True,
+    )
+
+    assert decision.action is not NetworkAction.NONE
+    assert decision.rule == "SUSPENDED_LOAD_PROTECT"
+
+
+def test_suspension_does_not_override_the_guard_clause():
+    """A suspended load on a device that is not there is still nothing to protect.
+
+    The guard runs first for a reason: connectivity cannot be granted to an
+    asset the network cannot see, however urgent its situation.
+    """
+    decision = decide(
+        criticality=Criticality.HIGH,
+        congestion=CongestionLevel.HIGH,
+        device_reachable=False,
+        slice_available=True,
+        suspended=True,
+    )
+
+    assert decision.action is NetworkAction.NONE
+    assert decision.rule == "GUARD_DEVICE_UNREACHABLE"
+
+
+def test_suspension_degrades_to_qod_without_a_slice():
+    """No slice provisioned yet is not a reason to leave a stopped load unprotected."""
+    decision = decide(
+        criticality=Criticality.LOW,
+        congestion=CongestionLevel.LOW,
+        device_reachable=True,
+        slice_available=False,
+        suspended=True,
+    )
+
+    assert decision.action is NetworkAction.QOD
+    assert decision.rule == "SUSPENDED_LOAD_PROTECT"
+
+
+def test_the_thesis_survives_suspension_being_added():
+    """The invariant, restated against the new rule.
+
+    Congestion still never triggers action on its own. A routine operation that
+    has *not* suspended is left alone at every congestion level — suspension is
+    the operation reporting a change in its own criticality, not a network
+    condition, which is why it is allowed to outrank this and congestion is not.
+    """
+    for congestion in ALL_CONGESTION:
+        decision = decide(
+            criticality=Criticality.LOW,
+            congestion=congestion,
+            device_reachable=True,
+            slice_available=True,
+            suspended=False,
+        )
+        assert decision.action is NetworkAction.NONE
+        assert decision.rule == "ROUTINE_NO_ACTION"

@@ -1,10 +1,11 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 
 import { OrgId } from '../auth/decorators/current-user.decorator';
 import { RequireRole } from '../auth/decorators/roles.decorator';
 import { Role } from '../common/domain/tenancy';
 import { OrganizationsService } from '../organizations/organizations.service';
 import type { FacilityDescriptor, FacilityJob } from './domain/facility-job';
+import { SuspendJobDto } from './dto/suspend-job.dto';
 import { FacilityRegistry } from './facility.registry';
 import type { FacilitySystemPort } from './ports/facility-system.port';
 
@@ -62,6 +63,38 @@ export class FacilityController {
   ): Promise<FacilityJob> {
     const system = await this.systemFor(organizationId);
     return system.dispatch(organizationId, jobId);
+  }
+
+  /**
+   * Report the job halted with its load committed.
+   *
+   * OPERATOR, like the other writes: it changes what the network is doing. The
+   * reason is free text from the facility and rides into the decision trail, so
+   * the record says *why* the connectivity was held rather than only that it
+   * was.
+   */
+  @Post('jobs/:jobId/suspend')
+  @RequireRole(Role.OPERATOR)
+  @HttpCode(HttpStatus.ACCEPTED)
+  async suspend(
+    @OrgId() organizationId: string,
+    @Param('jobId') jobId: string,
+    @Body() body: SuspendJobDto,
+  ): Promise<FacilityJob> {
+    const system = await this.systemFor(organizationId);
+    return system.suspend(organizationId, jobId, body.reason);
+  }
+
+  /** The halted job is moving again, or its load has been landed. */
+  @Post('jobs/:jobId/resume')
+  @RequireRole(Role.OPERATOR)
+  @HttpCode(HttpStatus.ACCEPTED)
+  async resume(
+    @OrgId() organizationId: string,
+    @Param('jobId') jobId: string,
+  ): Promise<FacilityJob> {
+    const system = await this.systemFor(organizationId);
+    return system.resume(organizationId, jobId);
   }
 
   @Post('jobs/:jobId/abort')

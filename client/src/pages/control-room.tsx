@@ -60,6 +60,8 @@ export function ControlRoom() {
             loading={facility.loading}
             onDispatch={facility.dispatch}
             onAbort={facility.abort}
+            onSuspend={facility.suspend}
+            onResume={facility.resume}
           />
         </div>
 

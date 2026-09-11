@@ -27,6 +27,19 @@ export abstract class FacilitySystemPort {
   abstract dispatch(organizationId: string, jobId: string): Promise<FacilityJob>;
 
   /** Cancel a job under way. Must still release whatever it was holding. */
+  /**
+   * Report the job halted with its load committed — an emergency stop, a fault,
+   * an abort called too late. Connectivity is held through it.
+   */
+  abstract suspend(
+    organizationId: string,
+    jobId: string,
+    reason: string,
+  ): Promise<FacilityJob>;
+
+  /** The halted job is moving again, or its load has been landed. */
+  abstract resume(organizationId: string, jobId: string): Promise<FacilityJob>;
+
   abstract abort(organizationId: string, jobId: string): Promise<FacilityJob>;
 
   /** Restore the plan. Releases anything still in flight. */

@@ -34,6 +34,8 @@ with workflow.unsafe.imports_passed_through():
         SIGNAL_CONGESTION_UPDATED,
         SIGNAL_DEVICE_STATUS_CHANGED,
         SIGNAL_OPERATION_COMPLETED,
+    SIGNAL_OPERATION_RESUMED,
+    SIGNAL_OPERATION_SUSPENDED,
         SIGNAL_QOD_STATUS_CHANGED,
         WORKFLOW_CRITICAL_OPERATION,
     )
@@ -76,6 +78,21 @@ _QOS_CONFIRM_TIMEOUT_SECONDS = 10
 #: than holding paid capacity forever.
 _MAX_OPERATION_MULTIPLIER = 4
 
+#: How long connectivity is held for an operation that has halted with its load
+#: committed.
+#:
+#: The ordinary safety valve exists to stop a *lost completion signal* from
+#: stranding a paid session forever. A suspended load is the opposite situation
+#: — the operation is very much still happening, and it is in the state where
+#: the feed matters most — so the valve stops counting and this budget takes
+#: over instead.
+#:
+#: Generous, because recovering a stopped lift is a matter of minutes and
+#: nobody should be racing our timer to do it. Bounded, because a suspension we
+#: are never told the end of is indistinguishable from a lost signal, and the
+#: QoD session's own mandatory duration is the only thing underneath it.
+_SUSPENDED_MAX_SECONDS = 15 * 60
+
 
 @workflow.defn(name=WORKFLOW_CRITICAL_OPERATION)
 class CriticalOperationWorkflow:
@@ -86,6 +103,11 @@ class CriticalOperationWorkflow:
         # arriving before run() has executed cannot raise AttributeError.
         self._organization_id = ""
         self._completed = False
+        #: Set while the facility reports the operation halted with its load
+        #: committed. Read by the monitor loop, which stops the valve while it
+        #: is true rather than counting the halt as time running out.
+        self._suspended = False
+        self._suspension_reason: str | None = None
         self._qos_status: str | None = None
         self._qos_status_info: str | None = None
         self._latest_congestion: str | None = None
@@ -98,6 +120,23 @@ class CriticalOperationWorkflow:
     def operation_completed(self) -> None:
         """The facility reports the operation has finished."""
         self._completed = True
+
+    @workflow.signal(name=SIGNAL_OPERATION_SUSPENDED)
+    def operation_suspended(self, payload: dict[str, Any]) -> None:
+        """The operation halted with its load committed.
+
+        Deliberately not a completion. A crane that emergency-stops has a load
+        in the air and an operator about to land it on the video feed, so this
+        must never reach the release path — it pauses the valve instead.
+        """
+        self._suspended = True
+        self._suspension_reason = payload.get("reason")
+
+    @workflow.signal(name=SIGNAL_OPERATION_RESUMED)
+    def operation_resumed(self, payload: dict[str, Any] | None = None) -> None:
+        """Moving again, or the load has been landed."""
+        self._suspended = False
+        self._suspension_reason = None
 
     @workflow.signal(name=SIGNAL_QOD_STATUS_CHANGED)
     def qod_status_changed(self, payload: dict[str, Any]) -> None:
@@ -409,16 +448,66 @@ class CriticalOperationWorkflow:
         known_congestion = congestion_baseline
         max_wait = expected_duration * _MAX_OPERATION_MULTIPLIER
         waited = 0
+        suspended_for = 0
+        was_suspended = False
+        device_lost = False
         chunk = max(expected_duration, 30)
 
-        while not self._completed and waited < max_wait:
+        while (
+            not self._completed
+            and waited < max_wait
+            and suspended_for < _SUSPENDED_MAX_SECONDS
+        ):
             try:
                 await workflow.wait_condition(
-                    lambda kc=known_congestion: self._completed or self._latest_congestion != kc,
+                    lambda kc=known_congestion, sus=was_suspended, dev=device_lost: (
+                        self._completed
+                        or self._latest_congestion != kc
+                        or self._suspended != sus
+                        or (self._device_reachable is False) != dev
+                    ),
                     timeout=timedelta(seconds=chunk),
                 )
                 if self._completed:
                     break
+
+                # The load stopped in the air. Not a completion, and not a
+                # reason to release — it is the state the feed exists for.
+                if self._suspended and not was_suspended:
+                    was_suspended = True
+                    action = await self._protect_suspended(
+                        operation_id, device, allocation, action, policy_config
+                    )
+                    continue
+
+                if not self._suspended and was_suspended:
+                    was_suspended = False
+                    workflow.logger.info("Operation %s resumed", operation_id)
+                    continue
+
+                # The device left the network mid-operation. Recorded, never
+                # released on: a momentary drop is common, the asset may be
+                # mid-recovery, and withdrawing a guarantee from an operation
+                # already under way is not a call this system makes. What it
+                # does do is stop extending the session, so the QoD duration
+                # expires it naturally if the device never returns.
+                if self._device_reachable is False and not device_lost:
+                    device_lost = True
+                    await self._emit(
+                        operation_id,
+                        DecisionStep.DEVICE_CHECKED,
+                        deviceReachable=False,
+                        reasoning=(
+                            "Device left the network while the operation was under way. "
+                            "The session is held but no longer extended, so its duration "
+                            "expires it if the device does not return."
+                        ),
+                    )
+                    continue
+
+                if self._device_reachable is not False and device_lost:
+                    device_lost = False
+                    continue
 
                 # Woke early because a congestion signal arrived, not because
                 # the operation finished — re-decide before waiting again.
@@ -434,10 +523,24 @@ class CriticalOperationWorkflow:
                     policy_config,
                 )
             except TimeoutError:
-                waited += chunk
-                if session_id and waited < max_wait:
+                # A halted operation is not an operation running out of time.
+                # The valve stops counting and the suspension budget takes over
+                # instead, so a stopped crane is never released for taking too
+                # long to be made safe.
+                if self._suspended:
+                    suspended_for += chunk
+                else:
+                    waited += chunk
+
+                extendable = (
+                    session_id
+                    and not device_lost
+                    and waited < max_wait
+                    and suspended_for < _SUSPENDED_MAX_SECONDS
+                )
+                if extendable:
                     workflow.logger.info(
-                        "Operation %s running long; extending QoD", operation_id
+                        "Operation %s still running; extending QoD", operation_id
                     )
                     await workflow.execute_activity(
                         ACTIVITY_EXTEND_QOD,
@@ -448,9 +551,82 @@ class CriticalOperationWorkflow:
 
         if not self._completed:
             workflow.logger.warning(
-                "Operation %s never reported completion; releasing on safety valve",
+                "Operation %s never reported completion (suspended=%s); "
+                "releasing on safety valve",
                 operation_id,
+                self._suspended,
             )
+
+    async def _protect_suspended(
+        self,
+        operation_id: str,
+        device: dict[str, Any],
+        allocation: dict[str, Any],
+        action: NetworkAction,
+        policy_config: PolicyConfig,
+    ) -> NetworkAction:
+        """Re-decide for an operation that halted with its load committed.
+
+        A real decision, recorded like any other: ``decide()`` re-runs with
+        ``suspended=True`` and the branch that fires is written to the trail
+        under its own rule name. The model is not consulted — it has nothing to
+        add about a load that is already in the air, and the reason to protect
+        is physical rather than a matter of judgement.
+
+        Escalate only, in keeping with the rest of the monitor. If the operation
+        already holds everything the policy wants, this records the suspension
+        and changes nothing else.
+        """
+        policy = decide(
+            criticality=Criticality.HIGH,
+            congestion=CongestionLevel(self._latest_congestion or CongestionLevel.LOW.value),
+            device_reachable=self._device_reachable is not False,
+            safety_critical=True,
+            slice_available=True,
+            suspended=True,
+            config=policy_config,
+        )
+
+        await self._emit(
+            operation_id,
+            DecisionStep.DECIDED,
+            action=policy.action.value,
+            deviceReachable=self._device_reachable is not False,
+            reasoning=(
+                f"{policy.rationale} Reported reason: "
+                f"{self._suspension_reason or 'not given'}."
+            ),
+            rule=policy.rule,
+        )
+
+        self._state = {"status": "SUSPENDED", "operationId": operation_id}
+
+        # Nothing to add if the slice is already attached, or if the policy did
+        # not ask for one.
+        if allocation.get("sliceId") or policy.action is not NetworkAction.QOD_AND_SLICE:
+            return action
+
+        attachment = await workflow.execute_activity(
+            ACTIVITY_ESCALATE_TO_SLICE,
+            {"device": device},
+            start_to_close_timeout=timedelta(seconds=45),
+            retry_policy=_ALLOCATE_RETRY,
+        )
+        if attachment.get("sliceUnavailable"):
+            return action
+
+        allocation["sliceId"] = attachment.get("sliceId")
+        allocation["attachmentId"] = attachment.get("attachmentId")
+
+        await self._emit(
+            operation_id,
+            DecisionStep.ALLOCATED,
+            action=NetworkAction.QOD_AND_SLICE.value,
+            qodSessionId=allocation.get("qodSessionId"),
+            sliceId=allocation.get("sliceId"),
+            rule=policy.rule,
+        )
+        return NetworkAction.QOD_AND_SLICE
 
     async def _reassess_congestion(
         self,

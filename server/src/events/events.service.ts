@@ -101,4 +101,33 @@ export class EventsService {
 
     return { operationId, signalled: true };
   }
+  /**
+   * The operation halted with its load committed.
+   *
+   * Relayed to the workflow, which holds connectivity through it and stops its
+   * safety valve counting. Emphatically not a completion — the valve exists to
+   * stop a *lost* signal stranding a paid session, and a stopped crane is the
+   * opposite of a lost signal: the operation is very much still happening, in
+   * the state its video feed exists for.
+   */
+  async suspend(
+    organizationId: string,
+    operationId: string,
+    payload: { reason: string; state?: string },
+  ): Promise<{ operationId: string; suspended: true }> {
+    await this.orchestrator.signalOperationSuspended(organizationId, operationId, payload);
+    this.logger.warn(`Operation '${operationId}' suspended: ${payload.reason}`);
+    return { operationId, suspended: true };
+  }
+
+  /** Moving again, or the committed load has been landed. */
+  async resume(
+    organizationId: string,
+    operationId: string,
+  ): Promise<{ operationId: string; resumed: true }> {
+    await this.orchestrator.signalOperationResumed(organizationId, operationId);
+    this.logger.log(`Operation '${operationId}' resumed`);
+    return { operationId, resumed: true };
+  }
+
 }
