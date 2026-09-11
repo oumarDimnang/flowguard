@@ -15,7 +15,7 @@ import { CONTRAST_SCENARIO_ID, DecisionStep, NetworkAction, Role, type Operation
 /** Compare recorded operation inputs without treating missing data as evidence. */
 export function Thesis() {
   const [params] = useSearchParams();
-  const { pair, loading, error, reload, congestionDiffers } = useContrastPair({
+  const { pair, loading, error, reload, selectionError, congestionDiffers } = useContrastPair({
     a: params.get('a') ?? undefined,
     b: params.get('b') ?? undefined,
   });
@@ -50,7 +50,12 @@ export function Thesis() {
         loading={loading}
         empty={pair === undefined}
         skeleton={<ContrastSkeleton />}
-        whenEmpty={error ? null : <NoPairYet />}
+        whenEmpty={error ? null : selectionError ? (
+          <div className="flex flex-col items-start gap-3 border-t py-4 text-sm">
+            <p role="alert">{selectionError}</p>
+            <Link to="/thesis" className="link-rule">Find an automatic comparison</Link>
+          </div>
+        ) : <NoPairYet />}
       >
       {pair ? (
         <>
