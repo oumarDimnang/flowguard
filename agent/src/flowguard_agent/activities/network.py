@@ -108,7 +108,20 @@ class NetworkActivities:
         if action is NetworkAction.QOD_AND_SLICE:
             slice_id = self._provider.slice_id
             if slice_id:
-                attachment = await self._provider.attach_device_to_slice(device, slice_id)
+                try:
+                    attachment = await self._provider.attach_device_to_slice(device, slice_id)
+                except Exception:
+                    # The workflow has not received this session ID yet, so its
+                    # finally block cannot release it if this activity fails.
+                    try:
+                        await self._provider.delete_qod_session(session.session_id)
+                    except Exception:  # noqa: BLE001 - cleanup must not hide the original failure
+                        logger.error(
+                            "QoD cleanup failed after slice attachment failure for session %s; "
+                            "the session TTL remains the fallback",
+                            session.session_id,
+                        )
+                    raise
                 result["sliceId"] = attachment.slice_id
                 result["attachmentId"] = attachment.attachment_id
             else:
