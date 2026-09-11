@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from ..network.models import SliceAttachment
 from ..network.provider import NetworkProvider
@@ -80,6 +81,11 @@ class NetworkActivities:
         """
         device = DeviceRef.from_wire(payload["device"])
         action = NetworkAction(payload["action"])
+        if action is NetworkAction.NONE:
+            raise ApplicationError(
+                "Cannot allocate connectivity for a NONE decision",
+                non_retryable=True,
+            )
         duration = int(payload["durationSeconds"])
         sink_url = payload.get("sinkUrl")
 
