@@ -114,14 +114,24 @@ global; routes opt *out* with `@Public()`, which is greppable. The organization
 id lives on the session and nowhere a client can set it — that is the whole
 tenant boundary.
 
-- **Registration creates a new organization** with the registrant as its
-  first `ADMIN` (`POST /auth/register`). It never joins an existing one:
-  there are no invites, so a sign-up form must have no way to name a tenant.
-  Only industries with a facility adapter are accepted (`GET /auth/industries`).
+- **Roles.** `ADMIN` is a system administrator: no organization of its own,
+  creates organizations (`POST /organizations`) and accounts (`POST /users`),
+  moves operators between organizations (`PATCH /users/:id/organization`),
+  and opens any organization for its session (`POST /auth/organization`) with
+  operator powers there. `OPERATOR` and `VIEWER` belong to exactly one
+  organization. `AccountsService` (server/src/admin/) enforces that rule —
+  the schema cannot, because it depends on the role.
+- **There is no sign-up.** Accounts are created by an admin. An open form that
+  minted admins would hand strangers the whole system.
+- **`session.user.organizationId` is the organization the session operates
+  in**, re-read from the account for operators on every `/auth/me` and kept
+  across refreshes for admins. `@OrgId()` answers 409 when an admin has none
+  open. Opening another organization reconnects the socket (rooms are joined
+  at handshake) and the client remounts the shell keyed on the organization.
 - **Repository `create()` is not idempotent.** It used to return the existing
-  row on a duplicate key, which was convenient for seeding and would have
-  handed a registrant somebody else's account (and tenant). Both now throw
-  (`EmailTakenError`, `SlugTakenError`); the seed does find-or-create itself.
+  row on a duplicate key, which would have handed a new account somebody
+  else's account (and tenant). Both now throw (`EmailTakenError`,
+  `SlugTakenError`); the seed does find-or-create itself.
 - **Login and registration are rate-limited** by an in-memory fixed window
   (`LoginRateLimiter`): 30 attempts per address, 5 per (address, email) pair,
   per 15 minutes. Keyed on the pair so a stranger cannot lock an operator out
@@ -131,7 +141,7 @@ tenant boundary.
   wait a week for the cookie to expire. The client treats a 401 from any
   non-auth route as a lost session and returns to the login form.
 - Password floors: 8 on login (the seeded demo accounts are exactly that),
-  12 on registration. Length is the only rule.
+  12 for accounts an admin creates. Length is the only rule.
 
 ### The agency boundary — the most important design decision
 
@@ -164,6 +174,7 @@ nowhere.
 | Task queue | `TEMPORAL_TASK_QUEUE` | `TEMPORAL_TASK_QUEUE` |
 | Enum values | `common/domain/enums.ts` | `shared/models.py` |
 | Decision payload | `RecordDecisionDto` | `activities/emit.py` |
+| Live reasoning event | `decision-log/dto/reasoning-trace.dto.ts` | `graph/trace_sink.py` |
 | Business event | `events/domain/business-event.ts` | `BusinessEvent.from_wire()` |
 
 `INTERNAL_API_TOKEN` must be byte-identical in both `.env` files, or the agent's
@@ -341,6 +352,21 @@ installed package.
 may be able to fail an activity that is holding paid network capacity. Both log
 and continue after retries are exhausted.
 
+**The live reasoning trace is ephemeral, and separate from the audit trail.**
+The assessment graph reports every node start/finish and every tool call to
+`POST /internal/reasoning` *as it happens* (`graph/trace_sink.py`, wired in
+`activities/reasoning.py`), and the server pushes each straight to the
+organization's socket room as `reasoning.trace` without storing it. That is
+what lets `/operations/:id/live` light the reasoning graph node by node while
+the model is still thinking, instead of receiving the whole path as one batch
+when `CRITICALITY_ASSESSED` lands. The record is still the only durable
+account — the live `detail` lines are the same text `graphTrace` later
+carries, so nothing is said twice with two wordings. The sink disables itself
+after its first failure, so a down server costs one 1.5 s timeout per
+assessment, never one per node, and the verdict is identical with or without
+a watcher (`tests/test_reasoning_trace.py`). A page refreshed mid-assessment
+loses the live events and renders from the record a few seconds later.
+
 **Deterministic workflow IDs** (`operation-{eventId}`). Temporal rejects a
 duplicate ID for a running execution, so a re-submitted business event cannot
 start a second workflow holding a second paid session.
@@ -363,6 +389,7 @@ network conditions — randomness would destroy the comparison.
 | `activities/policy_config.py` | reads `PolicyConfig`/fail-open once per run, recorded in history |
 | `graph/assessment_graph.py` | LangGraph: classify → gather evidence → escalate → validate |
 | `graph/evidence.py` | which tool to call; heuristic and LLM implementations |
+| `graph/trace_sink.py` | streams each graph node and tool call to the server live; ephemeral, non-fatal |
 | `tools/network_tools.py` | the read-only toolbox — the safety boundary |
 | `network/provider.py` | the mock ↔ Nokia swap point |
 | `network/schemas.py` | Pydantic CAMARA payloads |
@@ -377,6 +404,7 @@ network conditions — randomness would destroy the comparison.
 | `temporal/` | the only place `@temporalio/client` is imported |
 | `temporal/temporal.constants.ts` | the cross-language contract |
 | `decision-log/decision-log.service.ts` | dedupe → append → project → publish |
+| `decision-log/reasoning-trace.*` | `POST /internal/reasoning` → socket, no persistence; the live thinking channel |
 | `webhooks/` | the single public Nokia sink; correlation carried in the sink URL |
 | `simulator/scenarios/` | scripted scenario definitions |
 
@@ -452,9 +480,11 @@ through the assessment graph (§5, "LLM / LangGraph").
 
 ## 10. Known gaps
 
-1. **No invites or role changes.** Accounts arrive by registration (a new
-   organization each) or the seed script. Both alter what somebody can do to
-   a live facility and should not ship without an audit record.
+1. **Admin changes are audited by log line only.** Creating accounts and
+   organizations and reassigning operators is logged with the acting admin,
+   but there is no audit collection, no role changes and no password reset.
+   A reassigned operator's open session keeps its old organization until
+   their next page load.
 2. **Tenancy is data-level only.** Organizations isolate data, sockets and
    workflow ids, but there is still one config, one task queue and one
    credential set per deployment. The login rate limiter is per process.
