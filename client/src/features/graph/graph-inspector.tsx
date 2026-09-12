@@ -208,6 +208,8 @@ function statusText(node: GraphNode): string {
   switch (node.status) {
     case 'reached':
       return node.kind === 'deterministic' ? 'reached · workflow step' : 'reached · chosen';
+    case 'pending':
+      return node.kind === 'deterministic' ? 'running · workflow step' : 'running now';
     case 'skipped':
       return 'not taken on this run';
     default:

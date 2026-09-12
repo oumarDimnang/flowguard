@@ -12,4 +12,5 @@ export * from './facility';
 export * from './live';
 export * from './metrics';
 export * from './operation';
+export * from './reasoning';
 export * from './simulator';

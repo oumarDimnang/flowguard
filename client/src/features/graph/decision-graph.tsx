@@ -262,7 +262,7 @@ function Sphere({
       style={{ transform: `translate3d(${node.x}px,${node.y}px,${node.z}px)` }}
     >
       <div className="graph-facing">
-        {node.kind !== 'deterministic' && node.status === 'reached' ? (
+        {node.kind !== 'deterministic' && (node.status === 'reached' || node.status === 'pending') ? (
           <span
             aria-hidden="true"
             className="graph-animated pointer-events-none absolute rounded-full"
@@ -351,7 +351,10 @@ function Sphere({
  */
 function sphereStyle(node: GraphNode, emphasised: boolean, dimmed: boolean) {
   const far = node.z <= -520;
-  const lit = node.status === 'reached';
+  // A node that is running right now is lit like one that finished, and
+  // breathes noticeably faster — the one cue on the live page for "here".
+  const pending = node.status === 'pending';
+  const lit = node.status === 'reached' || pending;
 
   const base = {
     animated: false,
@@ -371,9 +374,11 @@ function sphereStyle(node: GraphNode, emphasised: boolean, dimmed: boolean) {
   if (node.kind === 'deterministic') {
     return {
       ...base,
+      animated: pending,
+      animation: pending ? 'graph-breathe 1.6s ease-in-out infinite' : 'none',
       size: 18,
       background: FILL.machine,
-      shadow: `0 0 ${emphasised ? 14 : 6}px ${emphasised ? 3 : 1}px var(--glow-machine), var(--sphere-inset)`,
+      shadow: `0 0 ${emphasised || pending ? 14 : 6}px ${emphasised || pending ? 3 : 1}px var(--glow-machine), var(--sphere-inset)`,
     };
   }
 
@@ -402,7 +407,7 @@ function sphereStyle(node: GraphNode, emphasised: boolean, dimmed: boolean) {
   return {
     ...base,
     animated: true,
-    animation: `graph-breathe ${agent ? '4.4s' : '5.2s'} ease-in-out infinite`,
+    animation: `graph-breathe ${pending ? '1.6s' : agent ? '4.4s' : '5.2s'} ease-in-out infinite`,
     size: agent ? 34 : 26,
     background: agent ? FILL.agent : FILL.agentFar,
     shadow: `0 0 ${emphasised ? (agent ? 56 : 40) : agent ? 40 : 28}px ${
@@ -413,7 +418,7 @@ function sphereStyle(node: GraphNode, emphasised: boolean, dimmed: boolean) {
 
 function labelColour(node: GraphNode, emphasised: boolean): string {
   if (emphasised || node.kind === 'write') return 'var(--ink)';
-  if (node.status !== 'reached') return 'var(--ink-dim)';
+  if (node.status === 'skipped' || node.status === 'unused') return 'var(--ink-dim)';
   return node.kind === 'deterministic' ? 'var(--machine)' : 'var(--agent)';
 }
 

@@ -10,7 +10,7 @@ import { useResource } from '@/hooks/use-resource';
 import { api } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
 import { duration } from '@/lib/format';
-import { isExecutionFound } from '@/types';
+import { isExecutionFound, isOperationInFlight } from '@/types';
 
 /**
  * One operation, in full.
@@ -89,6 +89,11 @@ export function OperationDetail() {
         meta={
           <span className="flex items-center gap-4">
             <span>{trail.records.length} records</span>
+            {operation && isOperationInFlight(operation.status) ? (
+              <Link to={`/operations/${operationId}/live`} className="link-rule text-primary">
+                watch live ↗
+              </Link>
+            ) : null}
             {/* The same trail as a volume. Linked from the heading rather than
                 buried, because the graph is what makes the agency legible —
                 the list says what happened, the graph says who decided it. */}

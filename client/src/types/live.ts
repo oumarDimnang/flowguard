@@ -2,6 +2,7 @@ import type { QosStatus, QosStatusInfo } from './common';
 import type { DecisionRecord } from './decision';
 import type { Operation } from './operation';
 import type { FacilityJob } from './facility';
+import type { ReasoningTraceEvent } from './reasoning';
 
 /**
  * Socket.IO push events, mirrored from server/src/realtime/realtime.events.ts.
@@ -16,6 +17,8 @@ export const LIVE_EVENTS = {
   QOD_STATUS_CHANGED: 'qod.status_changed',
   FACILITY_JOB_UPDATED: 'facility.job_updated',
   FACILITY_PLAN_RESET: 'facility.plan_reset',
+  /** The agent's reasoning, one node or tool call at a time, while it runs. */
+  REASONING_TRACE: 'reasoning.trace',
 } as const;
 
 export type LiveEventName = (typeof LIVE_EVENTS)[keyof typeof LIVE_EVENTS];
@@ -42,6 +45,7 @@ export interface LiveEventPayloads {
   };
   'facility.job_updated': FacilityJob;
   'facility.plan_reset': FacilityJob[];
+  'reasoning.trace': ReasoningTraceEvent;
 }
 
 export type LiveEventPayload<E extends LiveEventName> = LiveEventPayloads[E];

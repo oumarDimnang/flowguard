@@ -65,7 +65,19 @@ export function JobRow({
       <div className={cn(gridClassName, 'datum items-baseline text-[15px]')}>
         {children}
 
-        <span className="text-right">
+        <span className="flex items-baseline justify-end gap-3 text-right">
+          {/* Straight to the live page while the job is under way — for every
+              role, since watching a decision happen is exactly what a viewer
+              account is for. */}
+          {running && job.operationId ? (
+            <Link
+              to={`/operations/${job.operationId}/live`}
+              className="font-sans text-xs text-primary hover:underline"
+              title="Watch this job's decision as it happens"
+            >
+              live ↗
+            </Link>
+          ) : null}
           <JobAction
             job={job}
             queued={queued}
