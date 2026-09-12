@@ -26,13 +26,12 @@ export function Policy() {
     <>
       <PageHeader
         trail={[{ label: 'FlowGuard', to: '/' }, { label: 'Policy' }]}
-        title="The Policy"
-        description="Every decision this system can make. The model classifies criticality; these rules map that classification to a network action. Evaluated in order — the first match wins."
+        title="Policy"
+        description="Evaluated in order. The first match wins."
         meta={
           <>
-            8 rules · 1 disabled
-            <br />
-            pure function · no I/O
+            {POLICY_RULES.length} rules · {POLICY_RULES.filter((rule) => rule.disabled).length}{' '}
+            disabled
           </>
         }
       />

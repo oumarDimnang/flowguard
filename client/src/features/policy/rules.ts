@@ -32,6 +32,12 @@ export const POLICY_RULES: readonly PolicyRule[] = [
     note: 'Cheapest check, runs first. Never allocate to a device that is not there.',
   },
   {
+    id: 'SUSPENDED_LOAD_PROTECT',
+    when: 'the operation has stopped with its load committed',
+    action: 'QOD_AND_SLICE / QOD',
+    note: 'Held until the load is reported safe. Congestion is not consulted.',
+  },
+  {
     id: 'ROUTINE_NO_ACTION',
     when: 'criticality is LOW — at any congestion level',
     action: NetworkAction.NONE,
