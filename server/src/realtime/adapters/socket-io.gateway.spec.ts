@@ -10,7 +10,7 @@ type Middleware = (socket: Socket, next: (error?: Error) => void) => void;
 
 // The real gateway installs its middleware into this fake transport. No HTTP
 // server, session store, database, or WebSocket connection is opened.
-function harness(organizationId?: string, sessionError?: Error) {
+function harness(organizationId?: string, sessionError?: Error, signedInWithoutOrg = false) {
   const middleware: Middleware[] = [];
   const roomEmit = vi.fn();
   const namespace = {
@@ -25,6 +25,8 @@ function harness(organizationId?: string, sessionError?: Error) {
     // Mimic an already-authenticated session, without credentials or cookies.
     if (organizationId) {
       Object.assign(request, { session: { user: { organizationId } } });
+    } else if (signedInWithoutOrg) {
+      Object.assign(request, { session: { user: { role: 'ADMIN' } } });
     }
     next();
   };
@@ -70,6 +72,14 @@ describe('SocketIoRealtimeGateway organization isolation', () => {
     await connect();
 
     expect(socket.join).toHaveBeenCalledExactlyOnceWith('org:org-a');
+  });
+
+  it('connects an admin with no organization open to no room at all', async () => {
+    const { connect, socket } = harness(undefined, undefined, true);
+
+    await connect();
+
+    expect(socket.join).not.toHaveBeenCalled();
   });
 
   it.each(Object.values(LIVE_EVENTS))('scopes %s to its organization without broadcasting', (event) => {

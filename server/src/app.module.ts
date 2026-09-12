@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { SessionAuthGuard } from './auth/guards/session-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -47,6 +48,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     OrganizationsModule,
     UsersModule,
     AuthModule,
+    AdminModule,
 
     // ── Features ──────────────────────────────────────────────────────
     OperationsModule,

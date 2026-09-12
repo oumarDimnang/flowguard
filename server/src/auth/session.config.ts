@@ -10,14 +10,18 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 /**
  * What a session carries.
  *
- * The organization id is stored on the session at login and read from it on
- * every request — never taken from a header, a query parameter or a request
- * body. That is the whole tenant boundary: a client cannot ask for another
- * organization's data because it has no way to name one.
+ * The organization id is the organization this session is operating in, and it
+ * is read from the session on every request — never taken from a header, a
+ * query parameter or a request body. That is the whole tenant boundary.
+ *
+ * For an operator or viewer it is always their own organization, re-read from
+ * the account on refresh. For an admin it is the organization they chose to
+ * open, and changes only through the admin-only switch route. Absent when an
+ * admin has no organization to open.
  */
 export interface SessionUser {
   id: string;
-  organizationId: string;
+  organizationId?: string;
   email: string;
   name: string;
   role: Role;

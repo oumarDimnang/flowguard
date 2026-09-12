@@ -62,14 +62,16 @@ export class SocketIoRealtimeGateway
     });
 
     // Reject anonymous sockets outright rather than connecting them to a room
-    // they can never be given.
+    // they can never be given. An admin with no organization open connects to
+    // no room at all: nothing reaches them until they open one, which
+    // reconnects the socket.
     server.use((socket, next) => {
       const user = (socket.request as Request).session?.user;
       if (!user) {
         next(new Error('unauthorized'));
         return;
       }
-      void socket.join(room(user.organizationId));
+      if (user.organizationId) void socket.join(room(user.organizationId));
       next();
     });
   }

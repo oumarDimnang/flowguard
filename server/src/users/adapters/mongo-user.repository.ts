@@ -56,6 +56,21 @@ export class MongoUserRepository extends UserRepository {
     return docs.map((doc) => this.toDomain(doc));
   }
 
+  async findAll(): Promise<User[]> {
+    const docs = await this.model.find().sort({ name: 1 }).lean().exec();
+    return docs.map((doc) => this.toDomain(doc));
+  }
+
+  async assignOrganization(id: string, organizationId: string): Promise<User | null> {
+    if (!this.model.base.isValidObjectId(id)) return null;
+
+    const doc = await this.model
+      .findByIdAndUpdate(id, { $set: { organizationId } }, { returnDocument: 'after' })
+      .lean()
+      .exec();
+    return doc ? this.toDomain(doc) : null;
+  }
+
   async create(user: UserCreate): Promise<User> {
     try {
       const created = await this.model.create(user);

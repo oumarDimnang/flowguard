@@ -1,23 +1,11 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
+import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 
-import { Industry, Role } from '../common/domain/tenancy';
-import { FacilityRegistry } from '../facility/facility.registry';
-import { SlugTakenError } from '../organizations/domain/organization.errors';
+import { belongsToOrganization } from '../common/domain/tenancy';
 import { OrganizationsService } from '../organizations/organizations.service';
 import type { User } from '../users/domain/user';
-import { EmailTakenError } from '../users/domain/user.errors';
 import { UserRepository } from '../users/ports/user.repository';
-import type { RegisterDto } from './dto/register.dto';
 import type { SessionUser } from './session.config';
-import { hashPassword, verifyPassword } from './password';
-import { slugify } from './slug';
+import { verifyPassword } from './password';
 
 /**
  * A dummy argon2 hash, verified against when no user matches.
@@ -30,9 +18,13 @@ import { slugify } from './slug';
 const TIMING_DECOY =
   '$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHR2YWx1ZQ$D5nqxLLuqEHrfN1yFA5aQnHFbXcSDbXvNSMBK2Yqz1w';
 
-/** How many slug collisions to tolerate before giving up on a name. */
-const SLUG_ATTEMPTS = 5;
-
+/**
+ * Signing in, and which organization a session operates in.
+ *
+ * There is no sign-up. Accounts are created by an admin (AccountsService): an
+ * open form that made admins would hand strangers the whole system, and one
+ * that made operators would leave them in no organization.
+ */
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -40,7 +32,6 @@ export class AuthService {
   constructor(
     private readonly users: UserRepository,
     private readonly organizations: OrganizationsService,
-    private readonly facilities: FacilityRegistry,
   ) {}
 
   /**
@@ -64,103 +55,56 @@ export class AuthService {
       .recordLogin(found.id, new Date())
       .catch((err: Error) => this.logger.warn(`Could not record login: ${err.message}`));
 
-    return toSessionUser(found);
-  }
-
-  /**
-   * Create an organization and its first administrator, in that order.
-   *
-   * The two writes are not one transaction, so the failure between them is
-   * handled by hand: an organization whose admin could not be created is
-   * deleted again, because a tenant nobody can sign in to is not recoverable
-   * from the outside.
-   *
-   * Registration never joins an existing organization. See RegisterDto.
-   */
-  async register(dto: RegisterDto): Promise<SessionUser> {
-    if (!this.facilities.supports(dto.industry)) {
-      const supported = this.facilities.supported().join(', ');
-      throw new BadRequestException(
-        `FlowGuard does not model '${dto.industry}' yet (${supported})`,
-      );
-    }
-
-    // A courtesy check so the common case is a clean 409 without an orphaned
-    // organization to clean up. The unique index is what actually guarantees it.
-    if (await this.users.findByEmail(dto.email)) {
-      throw new ConflictException('An account already exists for that email');
-    }
-
-    const organization = await this.createOrganization(dto.organizationName, dto.industry);
-
-    let user: User;
-    try {
-      user = await this.users.create({
-        organizationId: organization.id,
-        email: dto.email.toLowerCase().trim(),
-        name: dto.name.trim(),
-        role: Role.ADMIN,
-        passwordHash: await hashPassword(dto.password),
-      });
-    } catch (err) {
-      await this.organizations
-        .delete(organization.id)
-        .catch((cleanup: Error) =>
-          this.logger.error(`Orphaned organization ${organization.id}: ${cleanup.message}`),
-        );
-
-      if (err instanceof EmailTakenError) {
-        throw new ConflictException('An account already exists for that email');
-      }
-      throw err;
-    }
-
-    this.logger.log(`Registered ${user.email} as admin of '${organization.slug}'`);
-    return toSessionUser(user);
+    return this.sessionFor(found);
   }
 
   /**
    * The current state of a signed-in account, for refreshing a session.
    *
    * A session is a snapshot taken at login and lives for a week. Re-reading
-   * the account when the dashboard loads means a role change or a deleted
-   * account takes effect on the next visit rather than the next Tuesday.
-   * Returns null when the account no longer exists.
+   * the account when the dashboard loads means a role change, an organization
+   * reassignment or a deleted account takes effect on the next visit. An
+   * admin keeps the organization they had open, if it still exists. Returns
+   * null when the account no longer exists.
    */
-  async resolve(userId: string): Promise<SessionUser | null> {
+  async resolve(userId: string, opened?: string): Promise<SessionUser | null> {
     const user = await this.users.findById(userId);
-    return user ? toSessionUser(user) : null;
+    return user ? this.sessionFor(user, opened) : null;
+  }
+
+  /** An admin opening another organization. The route is admin-only; this checks it exists. */
+  async open(session: SessionUser, organizationId: string): Promise<SessionUser> {
+    if (!(await this.organizations.findById(organizationId))) {
+      throw new BadRequestException('Unknown organization');
+    }
+    return { ...session, organizationId };
+  }
+
+  private async sessionFor(user: User, opened?: string): Promise<SessionUser> {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      organizationId: await this.organizationToOpen(user, opened),
+    };
   }
 
   /**
-   * Try the natural slug first, then a handful of suffixed ones.
+   * Operators and viewers: their own organization, always.
    *
-   * Two ports can both be called "North Terminal"; the second gets
-   * 'north-terminal-a1f3'. Random rather than sequential so the suffix does
-   * not count how many tenants share a name.
+   * Admins: the one they had open, else the one their account names (accounts
+   * created before admins became system-wide still carry one), else the first
+   * organization — so an admin lands on a dashboard with something in it.
    */
-  private async createOrganization(name: string, industry: Industry) {
-    const base = slugify(name);
+  private async organizationToOpen(user: User, opened?: string): Promise<string | undefined> {
+    if (belongsToOrganization(user.role)) return user.organizationId;
 
-    for (let attempt = 0; attempt < SLUG_ATTEMPTS; attempt += 1) {
-      const slug = attempt === 0 ? base : `${base}-${randomBytes(2).toString('hex')}`;
-      try {
-        return await this.organizations.create({ slug, name: name.trim(), industry });
-      } catch (err) {
-        if (!(err instanceof SlugTakenError)) throw err;
-      }
+    for (const candidate of [opened, user.organizationId]) {
+      if (candidate && (await this.organizations.findById(candidate))) return candidate;
     }
 
-    throw new ConflictException('Could not find a free short name for that organization');
+    const [first] = await this.organizations.findAll();
+    return first?.id;
   }
-}
-
-function toSessionUser(user: User): SessionUser {
-  return {
-    id: user.id,
-    organizationId: user.organizationId,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-  };
 }

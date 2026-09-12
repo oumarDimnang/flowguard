@@ -1,10 +1,8 @@
-import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { Industry, Role } from '../common/domain/tenancy';
-import { FacilityRegistry } from '../facility/facility.registry';
-import type { Organization, OrganizationCreate } from '../organizations/domain/organization';
-import { SlugTakenError } from '../organizations/domain/organization.errors';
+import type { Organization } from '../organizations/domain/organization';
 import { OrganizationsService } from '../organizations/organizations.service';
 import type { User, UserCreate, UserWithSecret } from '../users/domain/user';
 import { EmailTakenError } from '../users/domain/user.errors';
@@ -13,9 +11,8 @@ import { AuthService } from './auth.service';
 import { hashPassword } from './password';
 
 /**
- * No MongoDB. The repositories are in-memory fakes that enforce the same two
- * invariants the real ones do — unique email, unique slug — because those
- * invariants are exactly what registration is tested against.
+ * No MongoDB. The repositories are in-memory fakes that keep the invariants the
+ * real ones do — unique email, organizations listed by name.
  */
 
 class FakeUsers extends UserRepository {
@@ -41,10 +38,21 @@ class FakeUsers extends UserRepository {
     return this.rows.filter((u) => u.organizationId === organizationId).map(strip);
   }
 
+  async findAll() {
+    return this.rows.map(strip);
+  }
+
   async create(user: UserCreate): Promise<User> {
     if (this.rows.some((u) => u.email === user.email)) throw new EmailTakenError(user.email);
     const row: UserWithSecret = { ...user, id: `u${++this.seq}`, createdAt: new Date() };
     this.rows.push(row);
+    return strip(row);
+  }
+
+  async assignOrganization(id: string, organizationId: string) {
+    const row = this.rows.find((u) => u.id === id);
+    if (!row) return null;
+    row.organizationId = organizationId;
     return strip(row);
   }
 
@@ -60,62 +68,47 @@ function strip(user: UserWithSecret): User {
 
 class FakeOrganizations {
   rows: Organization[] = [];
-  deleted: string[] = [];
-  private seq = 0;
 
-  async findOne(id: string) {
-    const found = this.rows.find((o) => o.id === id);
-    if (!found) throw new Error('unknown organization');
-    return found;
-  }
-
-  async findBySlug(slug: string) {
-    return this.rows.find((o) => o.slug === slug) ?? null;
-  }
-
-  async create(organization: OrganizationCreate): Promise<Organization> {
-    if (this.rows.some((o) => o.slug === organization.slug)) {
-      throw new SlugTakenError(organization.slug);
-    }
-    const row = { ...organization, id: `o${++this.seq}`, createdAt: new Date() };
+  add(id: string, name: string, industry = Industry.CONTAINER_TERMINAL): Organization {
+    const row = { id, slug: id, name, industry, createdAt: new Date() };
     this.rows.push(row);
     return row;
   }
 
-  async delete(id: string) {
-    this.deleted.push(id);
-    this.rows = this.rows.filter((o) => o.id !== id);
+  async findById(id: string) {
+    return this.rows.find((o) => o.id === id) ?? null;
+  }
+
+  async findAll() {
+    return [...this.rows].sort((a, b) => a.name.localeCompare(b.name));
   }
 }
-
-const registry = {
-  supported: () => [Industry.CONTAINER_TERMINAL, Industry.DRONE_OPERATIONS],
-  supports: (industry: Industry) => industry !== Industry.EMERGENCY_DISPATCH,
-};
-
-const signUp = {
-  name: 'Noor Haddad',
-  email: 'Noor@Example.test',
-  password: 'correct horse battery',
-  organizationName: 'North Terminal',
-  industry: Industry.CONTAINER_TERMINAL,
-};
 
 describe('AuthService', () => {
   let service: AuthService;
   let users: FakeUsers;
   let organizations: FakeOrganizations;
 
+  const account = async (email: string, role: Role, organizationId?: string) =>
+    users.create({
+      email,
+      name: email,
+      role,
+      ...(organizationId ? { organizationId } : {}),
+      passwordHash: await hashPassword('flowguard'),
+    });
+
   beforeEach(async () => {
     users = new FakeUsers();
     organizations = new FakeOrganizations();
+    organizations.add('o-port', 'Khalifa Port');
+    organizations.add('o-aerial', 'Gulf Aerial');
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UserRepository, useValue: users },
         { provide: OrganizationsService, useValue: organizations },
-        { provide: FacilityRegistry, useValue: registry },
       ],
     }).compile();
 
@@ -124,13 +117,7 @@ describe('AuthService', () => {
 
   describe('authenticate', () => {
     beforeEach(async () => {
-      await users.create({
-        organizationId: 'o-port',
-        email: 'ops@port.test',
-        name: 'Layla',
-        role: Role.OPERATOR,
-        passwordHash: await hashPassword('flowguard'),
-      });
+      await account('ops@port.test', Role.OPERATOR, 'o-port');
     });
 
     it('returns the session user for a correct password, without the hash', async () => {
@@ -140,7 +127,7 @@ describe('AuthService', () => {
         id: 'u1',
         organizationId: 'o-port',
         email: 'ops@port.test',
-        name: 'Layla',
+        name: 'ops@port.test',
         role: Role.OPERATOR,
       });
       expect(session).not.toHaveProperty('passwordHash');
@@ -172,92 +159,82 @@ describe('AuthService', () => {
     });
   });
 
-  describe('register', () => {
-    it('creates an organization and signs the registrant in as its ADMIN', async () => {
-      const session = await service.register(signUp);
+  describe('which organization a session opens', () => {
+    it('opens the first organization by name for an admin with none of their own', async () => {
+      await account('admin@flowguard.test', Role.ADMIN);
 
-      expect(organizations.rows).toHaveLength(1);
-      expect(organizations.rows[0]).toMatchObject({
-        slug: 'north-terminal',
-        name: 'North Terminal',
-        industry: Industry.CONTAINER_TERMINAL,
-      });
-      expect(session).toMatchObject({
-        organizationId: organizations.rows[0].id,
-        email: 'noor@example.test',
-        name: 'Noor Haddad',
-        role: Role.ADMIN,
+      const session = await service.authenticate('admin@flowguard.test', 'flowguard');
+
+      expect(session.organizationId).toBe('o-aerial');
+    });
+
+    it('opens nothing for an admin when no organization exists yet', async () => {
+      organizations.rows = [];
+      await account('admin@flowguard.test', Role.ADMIN);
+
+      const session = await service.authenticate('admin@flowguard.test', 'flowguard');
+
+      expect(session.organizationId).toBeUndefined();
+    });
+
+    it('keeps the organization an admin had open across a refresh', async () => {
+      const admin = await account('admin@flowguard.test', Role.ADMIN);
+
+      await expect(service.resolve(admin.id, 'o-port')).resolves.toMatchObject({
+        organizationId: 'o-port',
       });
     });
 
-    it('stores an argon2 hash, never the password', async () => {
-      await service.register(signUp);
+    it('falls back when the organization an admin had open no longer exists', async () => {
+      const admin = await account('admin@flowguard.test', Role.ADMIN);
 
-      const stored = users.rows[0].passwordHash;
-      expect(stored).toMatch(/^\$argon2id\$/);
-      expect(stored).not.toContain(signUp.password);
-      await expect(service.authenticate(signUp.email, signUp.password)).resolves.toBeDefined();
+      await expect(service.resolve(admin.id, 'o-gone')).resolves.toMatchObject({
+        organizationId: 'o-aerial',
+      });
     });
 
     /**
-     * The one property that matters most: a taken email is a refusal, never
-     * a way into the account that owns it — and never a way into its tenant.
+     * The tenant boundary, from the refresh side: whatever a stale or tampered
+     * session says, an operator comes back in their own organization.
      */
-    it('refuses a taken email with 409 and creates nothing', async () => {
-      await service.register(signUp);
+    it('always re-reads an operator’s organization from the account', async () => {
+      const operator = await account('ops@port.test', Role.OPERATOR, 'o-port');
 
-      await expect(
-        service.register({ ...signUp, name: 'Impostor', organizationName: 'Other' }),
-      ).rejects.toBeInstanceOf(ConflictException);
-
-      expect(users.rows).toHaveLength(1);
-      expect(organizations.rows).toHaveLength(1);
+      await expect(service.resolve(operator.id, 'o-aerial')).resolves.toMatchObject({
+        organizationId: 'o-port',
+      });
     });
 
-    /**
-     * Two sign-ups racing past the courtesy check both reach the insert; the
-     * loser must not leave an organization behind with nobody in it.
-     */
-    it('deletes the organization again when the user insert loses a race', async () => {
-      const pristine = users.findByEmail.bind(users);
-      users.findByEmail = async () => null;
-      await service.register(signUp);
-      users.findByEmail = pristine;
-      users.findByEmail = async () => null;
+    it('picks up an operator’s reassignment on the next refresh', async () => {
+      const operator = await account('ops@port.test', Role.OPERATOR, 'o-port');
+      await users.assignOrganization(operator.id, 'o-aerial');
 
-      await expect(service.register(signUp)).rejects.toBeInstanceOf(ConflictException);
-
-      expect(organizations.deleted).toHaveLength(1);
-      expect(organizations.rows).toHaveLength(1);
+      await expect(service.resolve(operator.id, 'o-port')).resolves.toMatchObject({
+        organizationId: 'o-aerial',
+      });
     });
 
-    it('gives a second organization with the same name a different slug', async () => {
-      await service.register(signUp);
-      await service.register({ ...signUp, email: 'other@example.test' });
+    it('returns null once the account is gone', async () => {
+      const operator = await account('ops@port.test', Role.OPERATOR, 'o-port');
+      users.rows = [];
 
-      const slugs = organizations.rows.map((o) => o.slug);
-      expect(slugs[0]).toBe('north-terminal');
-      expect(slugs[1]).toMatch(/^north-terminal-[0-9a-f]{4}$/);
-      expect(new Set(slugs).size).toBe(2);
-    });
-
-    it('refuses an industry no facility adapter models', async () => {
-      await expect(
-        service.register({ ...signUp, industry: Industry.EMERGENCY_DISPATCH }),
-      ).rejects.toBeInstanceOf(BadRequestException);
-
-      expect(organizations.rows).toHaveLength(0);
+      await expect(service.resolve(operator.id)).resolves.toBeNull();
     });
   });
 
-  describe('resolve', () => {
-    it('returns the current account state, or null once it is gone', async () => {
-      const session = await service.register(signUp);
+  describe('open', () => {
+    it('switches an admin session to an existing organization', async () => {
+      const session = { id: 'u1', email: 'a@x', name: 'A', role: Role.ADMIN, organizationId: 'o-port' };
 
-      await expect(service.resolve(session.id)).resolves.toMatchObject({ role: Role.ADMIN });
+      await expect(service.open(session, 'o-aerial')).resolves.toMatchObject({
+        organizationId: 'o-aerial',
+      });
+    });
 
-      users.rows = [];
-      await expect(service.resolve(session.id)).resolves.toBeNull();
+    it('refuses an organization that does not exist', async () => {
+      const session = { id: 'u1', email: 'a@x', name: 'A', role: Role.ADMIN };
+
+      await expect(service.open(session, 'o-gone')).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

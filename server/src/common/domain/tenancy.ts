@@ -22,17 +22,25 @@ export enum Industry {
 }
 
 /**
- * What a user may do inside their organization.
+ * What a user may do.
  *
- * Three, and the boundary that matters is between VIEWER and OPERATOR:
- * dispatching starts a workflow that can allocate paid network capacity, so it
- * is the one action worth gating. ADMIN adds administration of the
- * organization itself, not deeper access to its operations.
+ * OPERATOR and VIEWER belong to exactly one organization, assigned by an
+ * admin, and see only its operations. The boundary between them is
+ * dispatching: it starts a workflow that can allocate paid network capacity.
+ *
+ * ADMIN is a system administrator, not a member of any organization. Admins
+ * create organizations and accounts, and can open any organization's
+ * operations by choosing it — with operator powers there.
  */
 export enum Role {
   VIEWER = 'VIEWER',
   OPERATOR = 'OPERATOR',
   ADMIN = 'ADMIN',
+}
+
+/** Whether an account of this role must be assigned to an organization. */
+export function belongsToOrganization(role: Role): boolean {
+  return role !== Role.ADMIN;
 }
 
 /**

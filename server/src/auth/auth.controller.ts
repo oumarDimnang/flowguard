@@ -12,14 +12,14 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
-import { Industry } from '../common/domain/tenancy';
-import { FacilityRegistry } from '../facility/facility.registry';
+import { Role } from '../common/domain/tenancy';
 import { OrganizationsService } from '../organizations/organizations.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { RequireRole } from './decorators/roles.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { OpenOrganizationDto } from './dto/open-organization.dto';
 import { LoginThrottleGuard, pairKey } from './guards/login-throttle.guard';
 import { LoginRateLimiter } from './login-rate-limiter';
 import { SESSION_COOKIE, type SessionUser } from './session.config';
@@ -27,7 +27,11 @@ import { SESSION_COOKIE, type SessionUser } from './session.config';
 /** What the dashboard needs to render its shell. */
 export interface Identity {
   user: Omit<SessionUser, 'organizationId'>;
-  organization: { id: string; slug: string; name: string; industry: string };
+  /**
+   * The organization this session operates in. Absent only for an admin when
+   * no organization exists yet.
+   */
+  organization?: { id: string; slug: string; name: string; industry: string };
 }
 
 @Controller('auth')
@@ -35,7 +39,6 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly organizations: OrganizationsService,
-    private readonly facilities: FacilityRegistry,
     private readonly limiter: LoginRateLimiter,
   ) {}
 
@@ -57,31 +60,8 @@ export class AuthController {
     const key = pairKey(request);
     if (key) this.limiter.clear(key);
 
-    await establishSession(request, user);
+    await regenerate(request, user);
     return this.identity(user);
-  }
-
-  /**
-   * Sign up: a new organization, with the caller as its first admin.
-   *
-   * Signed in on success, so the first thing a new admin sees is their own
-   * empty control room rather than a login form asking for what they just typed.
-   */
-  @Public()
-  @UseGuards(LoginThrottleGuard)
-  @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  async register(@Body() dto: RegisterDto, @Req() request: Request): Promise<Identity> {
-    const user = await this.auth.register(dto);
-    await establishSession(request, user);
-    return this.identity(user);
-  }
-
-  /** Which industries the sign-up form may offer. Public: the form is shown before login. */
-  @Public()
-  @Get('industries')
-  industries(): { industries: Industry[] } {
-    return { industries: this.facilities.supported() };
   }
 
   /**
@@ -105,8 +85,8 @@ export class AuthController {
    * Who am I, and which organization am I in. Drives the shell on first paint.
    *
    * Re-reads the account rather than echoing the session, so a deleted account
-   * is signed out on its next visit and a changed role is picked up without
-   * waiting for the cookie to expire.
+   * is signed out on its next visit and a changed role or organization is
+   * picked up without waiting for the cookie to expire.
    */
   @Get('me')
   async me(
@@ -115,7 +95,7 @@ export class AuthController {
   ): Promise<Identity> {
     if (!session) throw new UnauthorizedException('Sign in to continue');
 
-    const user = await this.auth.resolve(session.id);
+    const user = await this.auth.resolve(session.id, session.organizationId);
     if (!user) {
       await new Promise<void>((resolve) => {
         request.session.destroy(() => resolve());
@@ -127,20 +107,49 @@ export class AuthController {
     return this.identity(user);
   }
 
+  /**
+   * An admin opening a different organization.
+   *
+   * Saved before responding: the client reconnects its socket straight after,
+   * and the handshake must read the new organization, or it joins the old
+   * organization's room.
+   */
+  @Post('organization')
+  @RequireRole(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async open(
+    @Body() dto: OpenOrganizationDto,
+    @CurrentUser() session: SessionUser,
+    @Req() request: Request,
+  ): Promise<Identity> {
+    const user = await this.auth.open(session, dto.organizationId);
+
+    request.session.user = user;
+    await new Promise<void>((resolve, reject) => {
+      request.session.save((err) => (err ? reject(err) : resolve()));
+    });
+
+    return this.identity(user);
+  }
+
   private async identity(user: SessionUser): Promise<Identity> {
-    const organization = await this.organizations.findOne(user.organizationId);
+    const organization = user.organizationId
+      ? await this.organizations.findById(user.organizationId)
+      : null;
 
     return {
       // organizationId is omitted deliberately: it is a server-side scoping
       // key, and the client has no use for it that is not better served by the
       // organization object below.
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
-      organization: {
-        id: organization.id,
-        slug: organization.slug,
-        name: organization.name,
-        industry: organization.industry,
-      },
+      organization: organization
+        ? {
+            id: organization.id,
+            slug: organization.slug,
+            name: organization.name,
+            industry: organization.industry,
+          }
+        : undefined,
     };
   }
 }
@@ -148,11 +157,10 @@ export class AuthController {
 /**
  * Regenerate the session id, attach the user, and persist before responding.
  *
- * Shared by login and registration so neither can forget the regeneration —
- * a sign-up that kept a pre-existing session id would be the same fixation
- * hole login closes.
+ * A session that kept a pre-existing id across sign-in would be a session
+ * fixation hole.
  */
-async function establishSession(request: Request, user: SessionUser): Promise<void> {
+async function regenerate(request: Request, user: SessionUser): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     request.session.regenerate((err) => (err ? reject(err) : resolve()));
   });

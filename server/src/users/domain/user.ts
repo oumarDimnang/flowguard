@@ -1,16 +1,20 @@
 import type { Role } from '../../common/domain/tenancy';
 
 /**
- * A person, always belonging to exactly one organization.
+ * A person with an account.
  *
- * Membership is single, not many-to-many. That is a deliberate simplification:
- * a user who genuinely works for two operators gets two accounts, and the
- * scoping code stays free of "which organization am I acting as right now",
- * which is where multi-tenant systems usually leak.
+ * Operators and viewers belong to exactly one organization, assigned by an
+ * admin. Admins belong to none: they administer the system and choose which
+ * organization to open per session (see SessionUser.organizationId).
+ *
+ * Membership is single, not many-to-many. A person who genuinely works for two
+ * operators gets two accounts, and the scoping code stays free of "which
+ * organization is this operator acting as right now".
  */
 export interface User {
   id: string;
-  organizationId: string;
+  /** Set for OPERATOR and VIEWER. Absent for ADMIN. */
+  organizationId?: string;
   /** Lower-cased on write so lookups are stable. */
   email: string;
   name: string;

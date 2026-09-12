@@ -23,13 +23,25 @@ export class UsersService {
     return this.repository.findByEmail(email);
   }
 
-  /** Scoped by construction — there is no unscoped list of users. */
   findByOrganization(organizationId: string): Promise<User[]> {
     return this.repository.findByOrganization(organizationId);
+  }
+
+  /** Every account. For the admin surface only. */
+  findAll(): Promise<User[]> {
+    return this.repository.findAll();
   }
 
   /** Throws EmailTakenError on a duplicate address. See UserRepository.create. */
   create(user: UserCreate): Promise<User> {
     return this.repository.create(user);
+  }
+
+  async assignOrganization(id: string, organizationId: string): Promise<User> {
+    const user = await this.repository.assignOrganization(id, organizationId);
+    if (!user) {
+      throw new NotFoundException('Unknown user');
+    }
+    return user;
   }
 }

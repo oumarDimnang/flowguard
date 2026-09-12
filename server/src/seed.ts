@@ -25,17 +25,16 @@ import type { UserCreate } from './users/domain/user';
 class SeedModule {}
 
 /**
- * Seeds two organizations and five users.
+ * Seeds two organizations, a system admin, and three organization accounts.
  *
  * Idempotent: each record is looked up before it is created, so this can be
  * run against a database that has already been seeded without producing
- * errors or duplicates. (The repositories themselves refuse duplicates — the
- * registration path depends on that — so find-or-create lives here.)
+ * errors or duplicates. (The repositories themselves refuse duplicates, so
+ * find-or-create lives here.) Accounts seeded by earlier versions are left as
+ * they are.
  *
- * Two organizations rather than one, deliberately. A single-tenant seed cannot
- * demonstrate the thing that matters most about this change — that one
- * organization genuinely cannot see another's operations — and a tenant
- * boundary nobody has looked at is a tenant boundary nobody has tested.
+ * Two organizations rather than one, deliberately: a tenant boundary nobody has
+ * looked at is a tenant boundary nobody has tested.
  *
  *   npm run seed
  */
@@ -71,32 +70,29 @@ async function seed(): Promise<void> {
   // requires 12; the seed bypasses the form.)
   const password = await hashPassword('flowguard');
 
+  // Admins belong to no organization; operators and viewers to exactly one.
   const accounts = [
+    { org: undefined, email: 'admin@flowguard.test', name: 'Noor Haddad', role: Role.ADMIN },
     { org: port, email: 'ops@khalifa-port.test', name: 'Layla Al Mansoori', role: Role.OPERATOR },
     { org: port, email: 'auditor@khalifa-port.test', name: 'Tom Reyes', role: Role.VIEWER },
-    { org: port, email: 'admin@khalifa-port.test', name: 'Noor Haddad', role: Role.ADMIN },
     { org: survey, email: 'ops@gulf-aerial.test', name: 'Priya Raman', role: Role.OPERATOR },
-    { org: survey, email: 'admin@gulf-aerial.test', name: 'Sam Okafor', role: Role.ADMIN },
   ];
 
   for (const account of accounts) {
     await ensureUser({
-      organizationId: account.org.id,
+      ...(account.org ? { organizationId: account.org.id } : {}),
       email: account.email,
       name: account.name,
       role: account.role,
       passwordHash: password,
     });
-    logger.log(`${account.email.padEnd(28)} ${account.role.padEnd(9)} ${account.org.name}`);
+    logger.log(
+      `${account.email.padEnd(28)} ${account.role.padEnd(9)} ${account.org?.name ?? 'all organizations'}`,
+    );
   }
 
   logger.log('');
   logger.log('All seeded accounts use the password: flowguard');
-  logger.log('');
-  logger.log('The pair worth demonstrating:');
-  logger.log('  ops@khalifa-port.test      can dispatch');
-  logger.log('  auditor@khalifa-port.test  same data, read only');
-  logger.log('  ops@gulf-aerial.test       a different organization — sees none of it');
 
   await app.close();
 }

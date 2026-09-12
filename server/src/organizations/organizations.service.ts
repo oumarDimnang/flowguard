@@ -31,8 +31,4 @@ export class OrganizationsService {
   create(organization: OrganizationCreate): Promise<Organization> {
     return this.repository.create(organization);
   }
-
-  delete(id: string): Promise<void> {
-    return this.repository.delete(id);
-  }
 }

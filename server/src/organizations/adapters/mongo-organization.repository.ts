@@ -50,11 +50,6 @@ export class MongoOrganizationRepository extends OrganizationRepository {
     }
   }
 
-  async delete(id: string): Promise<void> {
-    if (!this.model.base.isValidObjectId(id)) return;
-    await this.model.deleteOne({ _id: id }).exec();
-  }
-
   private toDomain(doc: OrganizationEntity & { _id?: unknown; createdAt?: Date }): Organization {
     return {
       id: String(doc._id),

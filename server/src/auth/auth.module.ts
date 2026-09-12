@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 
-import { FacilityModule } from '../facility/facility.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
@@ -9,9 +8,7 @@ import { LoginThrottleGuard } from './guards/login-throttle.guard';
 import { LoginRateLimiter } from './login-rate-limiter';
 
 @Module({
-  // FacilityModule for the registry only: registration refuses an industry no
-  // adapter models, and the sign-up form asks which ones exist.
-  imports: [UsersModule, OrganizationsModule, FacilityModule],
+  imports: [UsersModule, OrganizationsModule],
   controllers: [AuthController],
   providers: [
     AuthService,

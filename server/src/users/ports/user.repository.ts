@@ -15,15 +15,21 @@ export abstract class UserRepository {
   /** Every user in one organization. Scoped by construction. */
   abstract findByOrganization(organizationId: string): Promise<User[]>;
 
+  /** Every account in the system. Admin-only callers; there is no tenant filter here. */
+  abstract findAll(): Promise<User[]>;
+
   /**
    * Throws EmailTakenError when the address is already registered.
    *
    * Deliberately *not* idempotent. It used to return the existing account on
-   * a duplicate, which was convenient for seeding and catastrophic for
-   * registration: a sign-up with somebody else's email would have handed the
+   * a duplicate, which was convenient for seeding and catastrophic for account
+   * creation: a new account with somebody else's email would have handed the
    * caller that person's account. Callers that want find-or-create say so.
    */
   abstract create(user: UserCreate): Promise<User>;
+
+  /** Moves an account to an organization. Null when the account does not exist. */
+  abstract assignOrganization(id: string, organizationId: string): Promise<User | null>;
 
   abstract recordLogin(id: string, at: Date): Promise<void>;
 }

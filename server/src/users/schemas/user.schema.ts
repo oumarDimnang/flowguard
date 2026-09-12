@@ -7,8 +7,9 @@ export type UserDocument = HydratedDocument<UserEntity>;
 
 @Schema({ collection: 'users', timestamps: { createdAt: true, updatedAt: false } })
 export class UserEntity {
-  @Prop({ required: true, index: true })
-  organizationId!: string;
+  /** Required for operators and viewers, absent for admins. AccountsService enforces which. */
+  @Prop({ index: true })
+  organizationId?: string;
 
   /**
    * Unique globally, not per organization.
