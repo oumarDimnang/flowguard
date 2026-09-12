@@ -4,7 +4,7 @@ import { NetworkAction } from '../common/domain/enums';
 import { DecisionLogService } from '../decision-log/decision-log.service';
 
 export interface ImpactMetrics {
-  /** Decisions considered (workflow steps of type DECIDED). */
+  /** Operations decided — one each, by its first DECIDED record. */
   totalDecisions: number;
   /** Operations that received QoD or QoD + Slice. */
   premiumGranted: number;
@@ -27,6 +27,9 @@ export interface ImpactMetrics {
    * including it would score correct restraint as a protection failure.
    */
   criticalOperationsProtectedPct: number;
+
+  /** At-risk HIGH-criticality operations that received enhanced connectivity. */
+  criticalProtected: number;
 
   /** At-risk HIGH-criticality operations that received nothing — the real miss. */
   criticalUnprotected: number;
@@ -70,6 +73,7 @@ export class MetricsService {
       premiumGranted,
       premiumReductionPct: percent(totalDecisions - premiumGranted, totalDecisions),
       criticalOperationsProtectedPct: percent(counts.criticalProtected, criticalAtRisk),
+      criticalProtected: counts.criticalProtected,
       criticalUnprotected: counts.criticalUnprotected,
       criticalNotAtRisk: counts.criticalNotAtRisk,
       unnecessaryQodAvoided: counts.unnecessaryQodAvoided,

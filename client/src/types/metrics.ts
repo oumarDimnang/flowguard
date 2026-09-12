@@ -1,7 +1,7 @@
 /** Mirrored from server/src/metrics/metrics.service.ts. */
 
 export interface ImpactMetrics {
-  /** Decisions considered — workflow steps of type DECIDED. */
+  /** Operations decided — one each, by its first DECIDED record. */
   totalDecisions: number;
   /** Operations that received QoD or QoD + Slice. */
   premiumGranted: number;
@@ -25,6 +25,9 @@ export interface ImpactMetrics {
    * counting it would score correct restraint as a failure.
    */
   criticalOperationsProtectedPct: number;
+
+  /** At-risk HIGH-criticality operations that received enhanced connectivity. */
+  criticalProtected: number;
 
   /** At-risk HIGH-criticality operations that received nothing — the real miss. */
   criticalUnprotected: number;

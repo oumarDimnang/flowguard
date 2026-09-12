@@ -123,6 +123,67 @@ describe('MongoDecisionLogRepository evidence mapping', () => {
       .toEqual([{ ...input, recordedAt: occurredAt }]);
   });
 
+  /**
+   * An operation that halts with its load committed records a second DECIDED.
+   * Counting records made it two decisions and two protections; the pipeline
+   * must collapse to one per operation, from its first decision.
+   */
+  it('counts each operation once, by its first decision', async () => {
+    const { repository, model } = harness({});
+    const aggregate = vi.fn().mockReturnValue({
+      exec: vi.fn().mockResolvedValue([
+        {
+          byAction: [
+            { _id: 'QOD_AND_SLICE', count: 2 },
+            { _id: 'NONE', count: 3 },
+          ],
+          byCriticality: [
+            { _id: 'HIGH', count: 3 },
+            { _id: null, count: 2 },
+          ],
+          criticalProtected: [{ n: 2 }],
+          criticalUnprotected: [],
+          avoided: [{ n: 1 }],
+          criticalNotAtRisk: [{ n: 1 }],
+        },
+      ]),
+    });
+    Object.assign(model, { aggregate });
+
+    const counts = await repository.counts('org-demo');
+
+    const [pipeline] = aggregate.mock.calls[0] as [Record<string, unknown>[]];
+    expect(pipeline[0]).toEqual({ $match: { organizationId: 'org-demo', step: DecisionStep.DECIDED } });
+    expect(pipeline[1]).toEqual({ $sort: { occurredAt: 1 } });
+    expect(pipeline[2]).toMatchObject({
+      $group: { _id: '$operationId', action: { $first: '$action' } },
+    });
+    expect(counts).toEqual({
+      byAction: { QOD_AND_SLICE: 2, NONE: 3 },
+      byCriticality: { HIGH: 3, UNKNOWN: 2 },
+      criticalProtected: 2,
+      criticalUnprotected: 0,
+      unnecessaryQodAvoided: 1,
+      criticalNotAtRisk: 1,
+    });
+  });
+
+  it('reads an empty log as zeros rather than failing', async () => {
+    const { repository, model } = harness({});
+    Object.assign(model, {
+      aggregate: vi.fn().mockReturnValue({ exec: vi.fn().mockResolvedValue([]) }),
+    });
+
+    await expect(repository.counts('org-demo')).resolves.toEqual({
+      byAction: {},
+      byCriticality: {},
+      criticalProtected: 0,
+      criticalUnprotected: 0,
+      unnecessaryQodAvoided: 0,
+      criticalNotAtRisk: 0,
+    });
+  });
+
   it('propagates database failures rather than reporting them as duplicate decisions', async () => {
     const { repository, model } = harness({ ...decision(), recordedAt });
     const failure = new Error('Simulated database failure');

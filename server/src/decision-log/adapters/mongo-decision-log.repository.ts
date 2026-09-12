@@ -15,6 +15,18 @@ import { DecisionRecordDocument, DecisionRecordEntity } from '../schemas/decisio
 /** Mongo duplicate-key error. */
 const DUPLICATE_KEY = 11000;
 
+type GroupRow = { _id: string | null; count: number };
+
+/** The one document `counts()`'s $facet stage returns. */
+interface CountFacets {
+  byAction: GroupRow[];
+  byCriticality: GroupRow[];
+  criticalProtected: { n: number }[];
+  criticalUnprotected: { n: number }[];
+  avoided: { n: number }[];
+  criticalNotAtRisk: { n: number }[];
+}
+
 @Injectable()
 export class MongoDecisionLogRepository extends DecisionLogRepository {
   constructor(
@@ -86,78 +98,85 @@ export class MongoDecisionLogRepository extends DecisionLogRepository {
     };
   }
 
+  /**
+   * One count per operation, from its first DECIDED record.
+   *
+   * Counting DECIDED records directly overcounted: an operation that halts
+   * with its load committed records a second DECIDED (the suspended-load rule),
+   * which added a second decision and a second protection to the same lift.
+   * The first DECIDED is what the operation was decided as; later ones revise
+   * what the network is doing for it, not what it was.
+   */
   async counts(organizationId: string): Promise<DecisionCounts> {
-    // Only DECIDED records count — earlier steps would double-count an
-    // operation that passed through several stages.
-    const decided = { organizationId, step: DecisionStep.DECIDED };
-
     // Congestion at or above the allocation threshold. A HIGH-criticality
     // operation below this was never at risk, so it belongs in neither side of
     // the protection ratio.
-    const atRisk = { congestion: { $in: [CongestionLevel.MEDIUM, CongestionLevel.HIGH] } };
+    const atRisk = { $in: [CongestionLevel.MEDIUM, CongestionLevel.HIGH] };
+    const granted = { $in: [NetworkAction.QOD, NetworkAction.QOD_AND_SLICE] };
 
-    const [
-      byActionRows,
-      byCriticalityRows,
-      criticalProtected,
-      criticalUnprotected,
-      avoided,
-      criticalNotAtRisk,
-    ] = await Promise.all([
-        this.model
-          .aggregate<{ _id: string | null; count: number }>([
-            { $match: decided },
-            { $group: { _id: '$action', count: { $sum: 1 } } },
-          ])
-          .exec(),
-        this.model
-          .aggregate<{ _id: string | null; count: number }>([
-            { $match: decided },
-            { $group: { _id: '$criticality', count: { $sum: 1 } } },
-          ])
-          .exec(),
-        this.model
-          .countDocuments({
-            ...decided,
-            ...atRisk,
-            criticality: Criticality.HIGH,
-            action: { $in: [NetworkAction.QOD, NetworkAction.QOD_AND_SLICE] },
-          })
-          .exec(),
-        this.model
-          .countDocuments({
-            ...decided,
-            ...atRisk,
-            criticality: Criticality.HIGH,
-            action: NetworkAction.NONE,
-          })
-          .exec(),
-        this.model
-          .countDocuments({ ...decided, criticality: Criticality.LOW, action: NetworkAction.NONE })
-          .exec(),
-        this.model
-          .countDocuments({
-            ...decided,
-            criticality: Criticality.HIGH,
-            action: NetworkAction.NONE,
-            congestion: CongestionLevel.LOW,
-          })
-          .exec(),
-      ]);
+    const [facets] = await this.model
+      .aggregate<CountFacets>([
+        { $match: { organizationId, step: DecisionStep.DECIDED } },
+        { $sort: { occurredAt: 1 } },
+        {
+          $group: {
+            _id: '$operationId',
+            action: { $first: '$action' },
+            criticality: { $first: '$criticality' },
+            congestion: { $first: '$congestion' },
+          },
+        },
+        {
+          $facet: {
+            byAction: [{ $group: { _id: '$action', count: { $sum: 1 } } }],
+            byCriticality: [{ $group: { _id: '$criticality', count: { $sum: 1 } } }],
+            criticalProtected: [
+              { $match: { criticality: Criticality.HIGH, congestion: atRisk, action: granted } },
+              { $count: 'n' },
+            ],
+            criticalUnprotected: [
+              {
+                $match: {
+                  criticality: Criticality.HIGH,
+                  congestion: atRisk,
+                  action: NetworkAction.NONE,
+                },
+              },
+              { $count: 'n' },
+            ],
+            avoided: [
+              { $match: { criticality: Criticality.LOW, action: NetworkAction.NONE } },
+              { $count: 'n' },
+            ],
+            criticalNotAtRisk: [
+              {
+                $match: {
+                  criticality: Criticality.HIGH,
+                  congestion: CongestionLevel.LOW,
+                  action: NetworkAction.NONE,
+                },
+              },
+              { $count: 'n' },
+            ],
+          },
+        },
+      ])
+      .exec();
 
-    const toMap = (rows: { _id: string | null; count: number }[]): Record<string, number> =>
+    const toMap = (rows: GroupRow[] = []): Record<string, number> =>
       rows.reduce<Record<string, number>>((acc, row) => {
         acc[row._id ?? 'UNKNOWN'] = row.count;
         return acc;
       }, {});
+    const count = (rows: { n: number }[] = []) => rows[0]?.n ?? 0;
 
     return {
-      byAction: toMap(byActionRows),
-      byCriticality: toMap(byCriticalityRows),
-      criticalProtected,
-      criticalUnprotected,
-      unnecessaryQodAvoided: avoided,
-      criticalNotAtRisk,
+      byAction: toMap(facets?.byAction),
+      byCriticality: toMap(facets?.byCriticality),
+      criticalProtected: count(facets?.criticalProtected),
+      criticalUnprotected: count(facets?.criticalUnprotected),
+      unnecessaryQodAvoided: count(facets?.avoided),
+      criticalNotAtRisk: count(facets?.criticalNotAtRisk),
     };
   }
 
