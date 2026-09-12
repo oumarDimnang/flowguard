@@ -111,4 +111,15 @@
   ::-webkit-scrollbar-corner {
     background: transparent;
   }
+
+  /**
+   * A theme switch animates its own reveal (ThemeToggler). The browser's
+   * default cross-fade would run underneath it and smear the edge of the
+   * circle, so both snapshots are held still and only the clip-path moves.
+   */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
 }

@@ -12,7 +12,7 @@ export function NotFound() {
           No page at <span className="datum text-[17px]">{pathname}</span>.
         </p>
         <Link to="/" className="link-rule text-[15px] font-medium">
-          ← Control Room
+          ← Dashboard
         </Link>
       </div>
     </section>

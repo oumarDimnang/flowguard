@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
  * The FlowGuard lockup and its mark, theme-aware.
  *
  * Two renderings of each, swapped by the `.dark` class on <html> rather than
- * by a hook: `useTheme` is deliberately mounted once (see the sidebar), and a
- * second reader would drift from it. Both files are lifted off their
+ * by reading the theme in JavaScript, so the right one is there on the first
+ * paint, before React has run. Both files are lifted off their
  * original backgrounds so they sit on the paper or the dark surface without
  * a rectangle around them — see scripts in the session notes if they ever
  * need regenerating from the source PNGs in assets/.

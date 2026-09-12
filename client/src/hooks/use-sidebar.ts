@@ -16,9 +16,9 @@ function isMobileViewport() {
 /**
  * Whether the sidebar is folded to its rail, remembered per browser.
  *
- * Mirrors `useTheme`: state lives here, the class of consumer is one component,
- * and every storage access is guarded because `localStorage` throws outright
- * in a private window — a folded sidebar is not worth a blank screen.
+ * State lives here and its one consumer is the sidebar. Every storage access
+ * is guarded because `localStorage` throws outright in a private window — a
+ * folded sidebar is not worth a blank screen.
  */
 export function useSidebarCollapsed(): {
   collapsed: boolean;
