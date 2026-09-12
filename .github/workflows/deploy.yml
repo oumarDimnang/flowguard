@@ -254,12 +254,30 @@ jobs:
       # switching NETWORK_PROVIDER or LLM_PROVIDER is a variable change and a
       # restart rather than a redeploy. `dev` is deliberately left off — pytest
       # and ruff have no business on the demo host.
+      #
+      # UV_PYTHON_INSTALL_DIR is load-bearing. The box ships Python 3.14 and the
+      # agent requires <3.14, so uv fetches its own CPython — by default into
+      # ~/.local/share/uv, which is inside the deploy user home directory. The
+      # flowguard service account cannot traverse that (mode 750), and the unit
+      # sets ProtectHome=true besides, so the venv interpreter becomes
+      # unexecutable and the worker dies at exec with status 203. Keep the
+      # interpreter in /opt, where the service account can reach it.
       - name: Install dependencies on the host
         run: |
           ssh "$TARGET" '
             set -e
             cd /opt/flowguard/server && npm ci --omit=dev
-            cd /opt/flowguard/agent  && uv sync --frozen --extra openrouter --extra nokia --extra langfuse
+
+            export UV_PYTHON_INSTALL_DIR=/opt/flowguard/python
+            sudo install -d -o ubuntu -g ubuntu -m 755 "$UV_PYTHON_INSTALL_DIR"
+
+            cd /opt/flowguard/agent
+            # A venv built before this fix points at an interpreter under /home.
+            # Rebuild it rather than leaving a worker that cannot start.
+            if [ -e .venv/bin/python ] && ! readlink -f .venv/bin/python | grep -q "^/opt/"; then
+              rm -rf .venv
+            fi
+            uv sync --frozen --extra openrouter --extra nokia --extra langfuse
           '
 
       - name: Restart services
@@ -304,13 +322,30 @@ jobs:
           echo "--- dashboard serves the SPA"
           curl -fsS "https://${APP_DOMAIN}/" >/dev/null
 
-      # Informational: the worker can be `active` while stuck in bootstrap() and
-      # never polling. A poller listed here is the proof it is actually working.
-      - name: Worker poller status
-        continue-on-error: true
+      # The only trustworthy liveness signal for the worker.
+      #
+      # `systemctl is-active` is not one: with Type=simple systemd marks the unit
+      # active the instant it forks, before exec has even succeeded, so a worker
+      # that dies at exec still reports active for a moment. The agent can also
+      # be genuinely active yet stuck in provider.bootstrap() and never polling.
+      # A registered poller means it is consuming work; nothing else does.
+      - name: Worker is polling
         run: |
-          ssh "$TARGET" 'temporal task-queue describe --task-queue flowguard --address 127.0.0.1:7233' || true
-          ssh "$TARGET" 'sudo journalctl -u flowguard-agent -n 30 --no-pager'
+          ssh "$TARGET" '
+            for i in $(seq 1 20); do
+              if temporal task-queue describe --task-queue flowguard \
+                   --address 127.0.0.1:7233 2>/dev/null \
+                   | sed -n "/Pollers:/,\$p" | grep -q "@"; then
+                echo "poller registered"
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "no poller registered after 60s — the worker is not consuming work"
+            sudo systemctl status flowguard-agent --no-pager || true
+            sudo journalctl -u flowguard-agent -n 40 --no-pager
+            exit 1
+          '
 
       - name: Deployed
         run: |

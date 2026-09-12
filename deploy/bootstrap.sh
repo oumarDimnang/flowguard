@@ -120,8 +120,12 @@ else
   echo "created user $SERVICE_USER"
 fi
 
+# $APP_ROOT/python holds the CPython uv fetches for the agent. It lives here
+# rather than in uv's default ~/.local/share/uv because the service account
+# cannot traverse a home directory — see UV_PYTHON_INSTALL_DIR in deploy.yml.
 install -d -o ubuntu -g ubuntu -m 755 \
-  "$APP_ROOT" "$APP_ROOT/server" "$APP_ROOT/agent" "$APP_ROOT/client" "$APP_ROOT/deploy"
+  "$APP_ROOT" "$APP_ROOT/server" "$APP_ROOT/agent" "$APP_ROOT/client" \
+  "$APP_ROOT/deploy" "$APP_ROOT/python"
 install -d -o "$SERVICE_USER" -g "$SERVICE_USER" -m 750 "$STATE_DIR"
 echo "layout ready under $APP_ROOT"
 
