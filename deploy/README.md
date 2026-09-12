@@ -10,15 +10,20 @@ step 12 to seed the database. After that every change ships by pushing to
 Budget about 45 minutes for the first run, most of it waiting for DNS.
 
 ```
-                   ┌─────────────────────── EC2 t3.small, eu-central-1 ───┐
-  app.<domain> ──► │ Caddy :443 ──► /opt/flowguard/client   (static SPA)  │
-  api.<domain> ──► │        └────► :3000  NestJS ──┐                      │
-                   │                               ├──► :7233 Temporal    │
-                   │               Python worker ──┘        (loopback)    │
-                   └──────────────────────────────────────────────────────┘
-                                      │
-                        MongoDB Atlas ─┘  (allowlisted to the Elastic IP)
+                    ┌────────────────────────── EC2 t3.small, eu-west-1 ───┐
+       <domain> ──► │ Caddy :443 ──► /opt/flowguard/client   (static SPA)  │
+   api.<domain> ──► │        ├────► :3000  NestJS ──┐                      │
+                    │        │                      ├──► :7233 Temporal    │
+                    │        │      Python worker ──┘        (loopback)    │
+  temporal.<domain> │        └────► :8233  Temporal Web UI  (basic auth)   │
+              ────► └──────────────────────────────────────────────────────┘
+                                       │
+                         MongoDB Atlas ─┘  (allowlisted to the Elastic IP)
 ```
+
+Only Caddy is exposed. Temporal's gRPC frontend on :7233 has **no authentication of
+any kind** and stays bound to loopback; only its Web UI is published, behind a
+password.
 
 ---
 
@@ -114,19 +119,20 @@ be open; Temporal stays on loopback.
 
 ## 6. Point the domain at it (GoDaddy)
 
-GoDaddy → **My Products** → your domain → **DNS** → **Manage DNS**. Add two
+GoDaddy → **My Products** → your domain → **DNS** → **Manage DNS**. Add three
 **A** records:
 
 | Type | Name | Value | TTL |
 |---|---|---|---|
-| A | `app` | `<EIP>` | 600 |
+| A | `@` | `<EIP>` | 600 |
 | A | `api` | `<EIP>` | 600 |
+| A | `temporal` | `<EIP>` | 600 |
 
-That gives you `app.<domain>` and `api.<domain>`. A low TTL means you can
-repoint quickly if you rebuild the box.
+`@` is the apex — the bare domain. A low TTL means you can repoint quickly if you
+rebuild the box.
 
 **Both names must be on the same domain.** The session cookie is `sameSite:
-'lax'`, which is scoped to the registrable domain — `app.<domain>` and
+'lax'`, which is scoped to the registrable domain — `<domain>` and
 `api.<domain>` are the same site, so the cookie is sent. Put the dashboard on a
 different domain (a `*.vercel.app` or CloudFront URL) and the browser silently
 stops sending it: login appears to succeed, then every request 401s.
@@ -134,7 +140,7 @@ stops sending it: login appears to succeed, then every request 401s.
 Wait for propagation before step 11:
 
 ```bash
-nslookup app.<domain>
+nslookup <domain>
 ```
 
 ## 7. Let Atlas accept the box
@@ -193,8 +199,9 @@ Repository → **Settings** → **Secrets and variables** → **Actions**.
 | Name | Value |
 |---|---|
 | `SSH_HOST` | `<EIP>` |
-| `APP_DOMAIN` | `app.<domain>` |
+| `APP_DOMAIN` | `<domain>` (the apex, no subdomain) |
 | `API_DOMAIN` | `api.<domain>` |
+| `TEMPORAL_DOMAIN` | `temporal.<domain>` |
 
 Optional variables, each with a working default if you leave it unset:
 `SSH_USER` (`ubuntu`), `MONGODB_DB_NAME` (`flowguard`), `NETWORK_PROVIDER`
@@ -209,6 +216,7 @@ Optional variables, each with a working default if you leave it unset:
 |---|---|
 | `SSH_PRIVATE_KEY` | contents of `~/.ssh/flowguard-deploy` (the whole file, including the BEGIN/END lines) |
 | `SSH_KNOWN_HOSTS` | the output of the `ssh-keyscan` above |
+| `TEMPORAL_UI_PASSWORD_HASH` | `ssh -t … "caddy hash-password"` on the box — it prompts, so the password itself never reaches your shell history |
 | `MONGODB_URI` | Atlas |
 | `SESSION_SECRET` | step 1 |
 | `INTERNAL_API_TOKEN` | step 1 |
@@ -256,7 +264,7 @@ deployed `dist/`.
 
 The workflow checks most of this, but these two need a browser:
 
-1. `https://app.<domain>/demo` — loads signed out. It makes no API calls, so it
+1. `https://<domain>/demo` — loads signed out. It makes no API calls, so it
    isolates Caddy and the SPA build.
 2. Sign in, then hard-refresh. If the session survives, `NODE_ENV=production`,
    `trust proxy` and TLS all line up. If login "succeeds" and then bounces you,
@@ -281,10 +289,16 @@ ssh -i ~/Downloads/flowguard-admin.pem ubuntu@<EIP> 'sudo journalctl -u flowguar
 
 Swap in `flowguard-agent`, `flowguard-temporal` or `caddy`.
 
-**Temporal Web UI** — not exposed; tunnel to it, then open <http://localhost:8233>:
+**Temporal Web UI** — `https://temporal.<domain>`, username `admin` and the
+password you hashed at step 10. Anyone past that prompt can terminate running
+workflows, so treat it as an admin console, not a dashboard.
+
+If you would rather not publish it at all, delete the `temporal` A record and
+the `${TEMPORAL_DOMAIN}` block from `Caddyfile.template`, and tunnel instead —
+the UI stays bound to loopback either way:
 
 ```bash
-ssh -i ~/Downloads/flowguard-admin.pem -L 8233:localhost:8233 ubuntu@<EIP>
+ssh -i ~/Downloads/flowguard-admin.pem -N -L 8233:localhost:8233 ubuntu@<EIP>
 ```
 
 **Cut the bill by ~6×.** A stopped instance bills no compute. **EC2 → Instances

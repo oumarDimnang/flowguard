@@ -66,6 +66,7 @@ jobs:
       TARGET: ${{ vars.SSH_USER || 'ubuntu' }}@${{ vars.SSH_HOST }}
       APP_DOMAIN: ${{ vars.APP_DOMAIN }}
       API_DOMAIN: ${{ vars.API_DOMAIN }}
+      TEMPORAL_DOMAIN: ${{ vars.TEMPORAL_DOMAIN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -77,13 +78,15 @@ jobs:
           SSH_HOST: ${{ vars.SSH_HOST }}
           SSH_PRIVATE_KEY_SET: ${{ secrets.SSH_PRIVATE_KEY != '' }}
           SSH_KNOWN_HOSTS_SET: ${{ secrets.SSH_KNOWN_HOSTS != '' }}
+          TEMPORAL_HASH_SET: ${{ secrets.TEMPORAL_UI_PASSWORD_HASH != '' }}
         run: |
           missing=
-          for v in APP_DOMAIN API_DOMAIN SSH_HOST; do
+          for v in APP_DOMAIN API_DOMAIN TEMPORAL_DOMAIN SSH_HOST; do
             [ -n "${!v}" ] || missing="$missing $v(var)"
           done
           [ "$SSH_PRIVATE_KEY_SET" = true ] || missing="$missing SSH_PRIVATE_KEY(secret)"
           [ "$SSH_KNOWN_HOSTS_SET" = true ] || missing="$missing SSH_KNOWN_HOSTS(secret)"
+          [ "$TEMPORAL_HASH_SET" = true ] || missing="$missing TEMPORAL_UI_PASSWORD_HASH(secret)"
           if [ -n "$missing" ]; then
             echo "::error::Not configured:$missing — set these under Settings > Secrets and variables > Actions"
             exit 1
@@ -237,14 +240,22 @@ jobs:
       # `caddy validate` runs before the reload, so a broken config fails the
       # deploy rather than taking the site down.
       - name: Configure Caddy
+        env:
+          TEMPORAL_UI_PASSWORD_HASH: ${{ secrets.TEMPORAL_UI_PASSWORD_HASH }}
         run: |
+          # The rendered file carries the UI password hash, so it is never
+          # world-readable: 077 here, and 640 root:caddy once installed.
+          umask 077
           sed -e "s|\${APP_DOMAIN}|${APP_DOMAIN}|g" \
               -e "s|\${API_DOMAIN}|${API_DOMAIN}|g" \
+              -e "s|\${TEMPORAL_DOMAIN}|${TEMPORAL_DOMAIN}|g" \
+              -e "s|\${TEMPORAL_UI_PASSWORD_HASH}|${TEMPORAL_UI_PASSWORD_HASH}|g" \
               deploy/Caddyfile.template > Caddyfile.rendered
           scp -q Caddyfile.rendered "$TARGET:Caddyfile.rendered"
+          rm -f Caddyfile.rendered
           ssh "$TARGET" '
             set -e
-            sudo install -m 644 ~/Caddyfile.rendered /etc/caddy/Caddyfile
+            sudo install -m 640 -o root -g caddy ~/Caddyfile.rendered /etc/caddy/Caddyfile
             rm -f ~/Caddyfile.rendered
             sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
             sudo systemctl reload caddy || sudo systemctl restart caddy
@@ -321,6 +332,13 @@ jobs:
 
           echo "--- dashboard serves the SPA"
           curl -fsS "https://${APP_DOMAIN}/" >/dev/null
+
+          # A 200 here would mean the UI is published to the internet with no
+          # password at all, and anyone who found it could terminate workflows.
+          # Fail the deploy rather than leave that standing.
+          echo "--- Temporal UI demands credentials (expect 401)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://${TEMPORAL_DOMAIN}/")
+          [ "$code" = "401" ] || { echo "expected 401, got $code — the UI may be UNPROTECTED"; exit 1; }
 
       # The only trustworthy liveness signal for the worker.
       #

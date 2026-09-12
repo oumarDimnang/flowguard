@@ -1,8 +1,8 @@
 # FlowGuard reverse proxy and static host.
 #
-# Rendered to /etc/caddy/Caddyfile at deploy time with envsubst, substituting
-# ${APP_DOMAIN} and ${API_DOMAIN} only. Caddy's own {placeholders} have no
-# leading $ and pass through untouched.
+# Rendered to /etc/caddy/Caddyfile at deploy time, substituting ${APP_DOMAIN},
+# ${API_DOMAIN}, ${TEMPORAL_DOMAIN} and ${TEMPORAL_UI_PASSWORD_HASH} only.
+# Caddy's own {placeholders} have no leading $ and pass through untouched.
 #
 # Caddy obtains and renews Let's Encrypt certificates by itself over the HTTP-01
 # challenge, which needs nothing but an A record and port 80 — no DNS API, so
@@ -42,4 +42,26 @@ ${API_DOMAIN} {
 	# the /live Socket.IO namespace. The client disables polling entirely, so
 	# the upgrade has to survive the proxy — Caddy passes it through by default.
 	reverse_proxy 127.0.0.1:3000
+}
+
+# ── Temporal Web UI ───────────────────────────────────────────────────
+#
+# The UI only. Temporal's gRPC frontend on :7233 stays bound to loopback and is
+# never proxied — that port has no authentication of any kind, and publishing it
+# would hand anyone who found it the ability to read every decision history and
+# terminate running workflows.
+#
+# What is published here is a web app behind a password. That is still real
+# authority: anyone past the prompt can terminate a running operation. The
+# password is a bcrypt hash held in GitHub Secrets and rendered at deploy time;
+# it is never in the repository.
+${TEMPORAL_DOMAIN} {
+	basic_auth {
+		admin ${TEMPORAL_UI_PASSWORD_HASH}
+	}
+
+	# The UI is a SPA that calls its own API on the same origin, so everything
+	# goes to one upstream. The browser replays the credentials automatically
+	# after the first prompt.
+	reverse_proxy 127.0.0.1:8233
 }
