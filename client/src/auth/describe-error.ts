@@ -19,17 +19,6 @@ export function describeAuthError(err: unknown, fallback: string): string {
   return 'Could not reach the server. Check that it is running.';
 }
 
-/** Which field a validation message from the server belongs to, if any. */
-export function fieldFor(message: string): string | undefined {
-  const lower = message.toLowerCase();
-  if (lower.includes('organization')) return 'organizationName';
-  if (lower.includes('industry')) return 'industry';
-  if (lower.includes('password')) return 'password';
-  if (lower.includes('email')) return 'email';
-  if (lower.includes('name')) return 'name';
-  return undefined;
-}
-
 /** Loose on purpose: the server validates properly; this only catches a typo before a round trip. */
 export function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());

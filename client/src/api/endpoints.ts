@@ -1,7 +1,9 @@
 import type {
+  CreateOrganizationRequest,
+  CreateUserRequest,
   Identity,
   Industry,
-  RegisterRequest,
+  Organization,
   User,
   FacilityDescriptor,
   FacilityJob,
@@ -33,18 +35,28 @@ export const auth = {
   login: (email: string, password: string) =>
     http.post<Identity>('/auth/login', { body: { email, password } }),
 
-  /** Creates an organization and its first admin, and signs them in. 409 when the email is taken. */
-  register: (request: RegisterRequest) => http.post<Identity>('/auth/register', { body: request }),
-
-  /** Which industries the server has a facility adapter for — the sign-up form's only choices. */
-  industries: (signal?: AbortSignal) =>
-    http.get<{ industries: Industry[] }>('/auth/industries', { signal }),
-
   /** Destroys the session server-side, so it is revoked rather than forgotten. */
   logout: () => http.post<void>('/auth/logout'),
 
   /** Throws ApiError(401) when not signed in — that is the signal, not an error. */
   me: (signal?: AbortSignal) => http.get<Identity>('/auth/me', { signal }),
+
+  /** Admin only: which organization this session operates in. */
+  open: (organizationId: string) =>
+    http.post<Identity>('/auth/organization', { body: { organizationId } }),
+};
+
+// ── Organizations (admin only) ───────────────────────────────────────
+
+export const organizations = {
+  list: (signal?: AbortSignal) => http.get<Organization[]>('/organizations', { signal }),
+
+  /** Industries with a facility adapter — the only ones an organization can be created in. */
+  industries: (signal?: AbortSignal) =>
+    http.get<{ industries: Industry[] }>('/organizations/industries', { signal }),
+
+  create: (request: CreateOrganizationRequest) =>
+    http.post<Organization>('/organizations', { body: request }),
 };
 
 // ── Facility (the stand-in customer system) ──────────────────────────
@@ -145,11 +157,15 @@ export const simulator = {
 // ── Users (admin only) ───────────────────────────────────────────────
 
 export const users = {
-  /**
-   * Everyone in the caller's organization. Scoped server-side from the session,
-   * so there is no parameter here that could ask about another tenant.
-   */
+  /** Every account in the system. */
   list: (signal?: AbortSignal) => http.get<User[]>('/users', { signal }),
+
+  /** 409 when the email is taken; 400 when the role and organization do not fit. */
+  create: (request: CreateUserRequest) => http.post<User>('/users', { body: request }),
+
+  /** Operators and viewers only. */
+  assignOrganization: (userId: string, organizationId: string) =>
+    http.patch<User>(`/users/${userId}/organization`, { body: { organizationId } }),
 };
 
 // ── Metrics and health ───────────────────────────────────────────────
@@ -170,6 +186,7 @@ export const health = {
 
 export const api = {
   auth,
+  organizations,
   users,
   facility,
   operations,

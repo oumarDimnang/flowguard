@@ -3,16 +3,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { ApiError, onUnauthenticated } from '@/api/client';
 import { api } from '@/api/endpoints';
 import { closeSocket } from '@/api/socket';
-import { Role, roleAtLeast, type Identity, type RegisterRequest } from '@/types';
+import { Role, roleAtLeast, type Identity } from '@/types';
 
 export interface AuthState {
   identity: Identity | undefined;
   /** True until the first /auth/me has resolved one way or the other. */
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  /** Creates an organization with this account as its first admin, then signs in. */
-  register: (request: RegisterRequest) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Admin only: operate in another organization. */
+  openOrganization: (organizationId: string) => Promise<void>;
   /** Role check for hiding controls. The server guard is the real enforcement. */
   can: (required: Role) => boolean;
 }
@@ -81,8 +81,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIdentity(found);
   }, []);
 
-  const register = useCallback(async (request: RegisterRequest) => {
-    const found = await api.auth.register(request);
+  // The socket joined the old organization's room at handshake, so it is
+  // dropped; the shell remounts on the new organization and every panel
+  // subscribes again on a fresh connection.
+  const openOrganization = useCallback(async (organizationId: string) => {
+    const found = await api.auth.open(organizationId);
     closeSocket();
     setIdentity(found);
   }, []);
@@ -105,8 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<AuthState>(
-    () => ({ identity, loading, signIn, register, signOut, can }),
-    [identity, loading, signIn, register, signOut, can],
+    () => ({ identity, loading, signIn, signOut, openOrganization, can }),
+    [identity, loading, signIn, signOut, openOrganization, can],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

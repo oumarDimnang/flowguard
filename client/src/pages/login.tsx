@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation } from 'react-router';
 
 import { AuthFrame } from '@/auth/auth-frame';
 import { useAuth } from '@/auth/auth-context';
@@ -55,7 +55,14 @@ export function Login() {
   return (
     <AuthFrame
       heading="Sign in"
-      footer={{ prompt: 'New here?', label: 'Create an organization', to: '/register' }}
+      footer={
+        <>
+          <span>Accounts are created by an administrator.</span>
+          <Link to="/demo" className="link-rule ml-auto text-foreground">
+            Demo
+          </Link>
+        </>
+      }
       aside={<DemoAccounts onPick={fill} />}
     >
       <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-6">
@@ -91,30 +98,29 @@ export function Login() {
 const DEMO_PASSWORD = 'flowguard';
 
 /**
- * Listed on screen because this is a seeded sandbox and the whole point of the
- * second organization is that a viewer can check it sees nothing.
- * Remove this panel before anything real.
+ * Listed on screen because this is a seeded sandbox. Remove this panel before
+ * anything real.
  */
 const DEMO_ACCOUNTS = [
   {
+    email: 'admin@flowguard.test',
+    role: 'ADMIN',
+    note: 'all organizations and accounts',
+  },
+  {
     email: 'ops@khalifa-port.test',
     role: 'OPERATOR',
-    note: 'Khalifa Bin Salman Port — can dispatch',
+    note: 'Khalifa Bin Salman Port',
   },
   {
     email: 'auditor@khalifa-port.test',
     role: 'VIEWER',
-    note: 'the same data, read only',
-  },
-  {
-    email: 'admin@khalifa-port.test',
-    role: 'ADMIN',
-    note: 'the same data, plus the people in it',
+    note: 'Khalifa Bin Salman Port · read only',
   },
   {
     email: 'ops@gulf-aerial.test',
     role: 'OPERATOR',
-    note: 'a different organization — sees none of it',
+    note: 'Gulf Aerial Survey',
   },
 ];
 

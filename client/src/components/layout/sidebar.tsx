@@ -1,17 +1,21 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router';
+import { PlayCircleIcon } from '@phosphor-icons/react/PlayCircle';
+import { SignOutIcon } from '@phosphor-icons/react/SignOut';
+import { useEffect, useState } from 'react';
+import { Link, NavLink } from 'react-router';
 
-import { API_URL } from '@/api/client';
+import { api } from '@/api/endpoints';
 import { useAuth } from '@/auth/auth-context';
 import { Mark, Wordmark } from '@/components/brand/logo';
-import { Eyebrow, Glyph, Status } from '@/components/primitives';
-import { useHealth, type HealthState } from '@/hooks/use-health';
-import { useSocketStatus } from '@/hooks/use-live-event';
+import { Eyebrow, Select, ThemeToggler } from '@/components/primitives';
+import { useResource } from '@/hooks/use-resource';
 import { useSidebarCollapsed } from '@/hooks/use-sidebar';
-import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
-import { NAV_GROUPS } from './routes';
+import { Role } from '@/types';
+import { NAV_GROUPS, ORGANIZATIONS_CHANGED } from './routes';
 import { ScenarioRunner } from './scenario-runner';
+
+/** One size for every icon in the rail, so they sit on the same line as the type. */
+const ICON_SIZE = 16;
 
 /** Open and folded widths. The fold is wide enough for the mark and nothing else. */
 const OPEN_WIDTH = '15rem';
@@ -36,10 +40,6 @@ const RAIL_WIDTH = '3.25rem';
 export function Sidebar() {
   const { identity, can } = useAuth();
   const { collapsed, toggle, closeMobile } = useSidebarCollapsed();
-  // Read once here and handed to both layers: useHealth polls per mount, and
-  // the folded rail must not cost a second poller on top of the footer's.
-  const connected = useSocketStatus();
-  const health = useHealth();
 
   return (
     <aside
@@ -61,11 +61,18 @@ export function Sidebar() {
         aria-hidden={collapsed}
       >
         <header className="flex items-start justify-between gap-3 border-b px-5 py-4">
-          <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <Wordmark height={18} />
-            <span className="truncate text-xs text-muted-foreground" title={identity?.organization.name}>
-              {identity?.organization.name ?? '—'}
-            </span>
+            {can(Role.ADMIN) ? (
+              <OrganizationSwitcher />
+            ) : (
+              <span
+                className="truncate text-xs text-muted-foreground"
+                title={identity?.organization?.name}
+              >
+                {identity?.organization?.name ?? '—'}
+              </span>
+            )}
           </div>
           <FoldButton collapsed={false} onClick={toggle} />
         </header>
@@ -102,10 +109,10 @@ export function Sidebar() {
           })}
         </nav>
 
-        <SidebarFooter connected={connected} health={health} />
+        <SidebarFooter onNavigate={closeMobile} />
       </div>
 
-      {/* The rail: the mark, the two health glyphs, and the way back out. */}
+      {/* The rail: the mark, the demo, and the way back out. */}
       <div
         className={cn(
           'absolute inset-0 flex flex-col items-center justify-between py-4 max-md:flex-row max-md:px-5 transition-opacity duration-200 motion-reduce:transition-none',
@@ -119,13 +126,21 @@ export function Sidebar() {
           className="btn-bare"
           onClick={toggle}
           aria-label="Open sidebar"
-          title={identity?.organization.name}
+          title={identity?.organization?.name}
         >
           <Mark height={22} />
         </button>
 
         <div className="flex flex-col items-center gap-3 max-md:flex-row">
-          <RailGlyphs connected={connected} health={health} />
+          <Link
+            to="/demo"
+            onClick={closeMobile}
+            className="text-muted-foreground hover:text-primary"
+            aria-label="Demo"
+            title="Demo — a recorded crane lift, step by step"
+          >
+            <PlayCircleIcon size={ICON_SIZE + 2} aria-hidden="true" />
+          </Link>
           <FoldButton collapsed onClick={toggle} />
         </div>
       </div>
@@ -134,8 +149,66 @@ export function Sidebar() {
 }
 
 /**
- * The fold control. A chevron drawn in the mono face, so it sits with the
- * rest of the rail's type rather than importing an icon set for one glyph.
+ * Which organization an admin is operating in.
+ *
+ * Reads as the plain line an operator sees in the same place, with a caret.
+ * Refetches when an organization is created anywhere in the app, because the
+ * sidebar stays mounted while pages come and go beneath it.
+ */
+function OrganizationSwitcher() {
+  const { identity, openOrganization } = useAuth();
+  const organizations = useResource((signal) => api.organizations.list(signal), []);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const { reload } = organizations;
+  useEffect(() => {
+    window.addEventListener(ORGANIZATIONS_CHANGED, reload);
+    return () => window.removeEventListener(ORGANIZATIONS_CHANGED, reload);
+  }, [reload]);
+
+  const current = identity?.organization;
+
+  const open = async (organizationId: string) => {
+    if (!organizationId || organizationId === current?.id) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await openOrganization(organizationId);
+    } catch {
+      // The select stays on the organization that is actually open.
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // The open one is listed even before the list has loaded, so the line is
+  // never blank on first paint.
+  const options = organizations.data
+    ? organizations.data.map((organization) => ({ value: organization.id, label: organization.name }))
+    : current
+      ? [{ value: current.id, label: current.name }]
+      : [];
+
+  return (
+    <Select
+      variant="quiet"
+      aria-label="Organization"
+      value={current?.id}
+      onValueChange={(organizationId) => void open(organizationId)}
+      options={options}
+      placeholder="No organization"
+      disabled={busy}
+      invalid={failed}
+      title={failed ? 'Could not open that organization' : undefined}
+    />
+  );
+}
+
+/**
+ * The fold control. A chevron drawn in the mono face rather than an icon, so
+ * it reads as part of the rail's type.
  */
 function FoldButton({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
   return (
@@ -152,71 +225,53 @@ function FoldButton({ collapsed, onClick }: { collapsed: boolean; onClick: () =>
   );
 }
 
-/** The two health signals, as glyphs alone — the labels are one click away. */
-function RailGlyphs({ connected, health: { report, reachable } }: HealthProps) {
-
-  return (
-    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-      <span title={connected ? 'live' : 'not live'} className={connected ? 'text-primary' : undefined}>
-        <Glyph kind={connected ? 'filled' : 'slash'} />
-      </span>
-      <span title={!reachable ? 'server unreachable' : (report?.status ?? 'checking')}>
-        <Glyph kind={!reachable ? 'slash' : report?.status === 'ok' ? 'filled' : 'hollow'} />
-      </span>
-    </div>
-  );
-}
-
 /**
- * Instrumentation and identity.
+ * The demo, identity, and two preferences.
  *
- * The health strip moved here from the berth header: it answers "is what I am
- * looking at current?", which is a question about the whole app rather than
- * about one berth.
+ * Connection health is deliberately not repeated here. StatusBands raises a
+ * band across the page the moment the API or the live channel drops, which is
+ * the only time it is worth reading — a permanent "live · ok" line was one more
+ * thing to read that almost never said anything.
  */
-interface HealthProps {
-  connected: boolean;
-  health: HealthState;
-}
-
-function SidebarFooter({ connected, health: { report, reachable } }: HealthProps) {
+function SidebarFooter({ onNavigate }: { onNavigate: () => void }) {
   const { identity, signOut, can } = useAuth();
 
   return (
     <footer className="flex flex-col gap-3 border-t px-5 py-4">
-      {can('OPERATOR') ? <ScenarioRunner /> : null}
+      <Link
+        to="/demo"
+        onClick={onNavigate}
+        className="flex items-center gap-2 text-[13px]"
+        title="A recorded crane lift, played step by step. No sign-in needed to share it."
+      >
+        <PlayCircleIcon size={ICON_SIZE} aria-hidden="true" />
+        Demo
+      </Link>
 
-      <div className="datum flex flex-col gap-1.5 text-[11px] text-muted-foreground">
-        <Status kind={connected ? 'filled' : 'slash'}>
-          <span className={connected ? 'text-primary' : undefined}>
-            {connected ? 'live' : 'not live'}
+      {can(Role.OPERATOR) && identity?.organization ? <ScenarioRunner /> : null}
+
+      <div className="flex items-end justify-between gap-3 border-t pt-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="truncate text-[13px]" title={identity?.user.email}>
+            {identity?.user.name ?? '—'}
           </span>
-        </Status>
+          <span className="datum text-[11px] tracking-[0.06em] text-muted-foreground">
+            {identity?.user.role.toLowerCase() ?? ''}
+          </span>
+        </div>
 
-        <Status kind={!reachable ? 'slash' : report?.status === 'ok' ? 'filled' : 'hollow'}>
-          {!reachable ? 'server unreachable' : (report?.status ?? 'checking')}
-        </Status>
-
-        <span className="truncate" title={API_URL}>
-          {safeHost(API_URL)}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-1 border-t pt-3">
-        <span className="truncate text-[13px]" title={identity?.user.email}>
-          {identity?.user.name ?? '—'}
-        </span>
-        <span className="datum text-[11px] tracking-[0.06em] text-muted-foreground">
-          {identity?.user.role.toLowerCase() ?? ''}
-        </span>
-        <div className="flex items-baseline gap-4 pt-1">
+        <div className="-mr-1.5 flex shrink-0 items-center">
+          <ThemeToggler size={ICON_SIZE} />
           <SignOut onSignOut={signOut} />
-          <ThemeToggle />
         </div>
       </div>
     </footer>
   );
 }
+
+/** An icon-only control. The label is for screen readers and the tooltip. */
+const ICON_BUTTON =
+  'btn-bare flex size-7 items-center justify-center text-muted-foreground disabled:opacity-40';
 
 function SignOut({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
@@ -230,50 +285,19 @@ function SignOut({ onSignOut }: { onSignOut: () => Promise<void> }) {
     }
   };
 
+  const label = busy ? 'Signing out…' : 'Sign out';
+
   return (
     <button
       type="button"
-      className="btn-bare text-[11px] text-muted-foreground"
+      className={ICON_BUTTON}
       disabled={busy}
+      aria-busy={busy}
+      aria-label={label}
+      title={label}
       onClick={() => void run()}
     >
-      {busy ? 'signing out…' : 'sign out'}
+      <SignOutIcon size={ICON_SIZE} aria-hidden="true" />
     </button>
   );
-}
-
-/**
- * Light / dark.
- *
- * The only mount of `useTheme` in the app, which is what keeps it honest: the
- * hook owns `useState`, so a second instance would desync from this one. The
- * class it writes is already on `<html>` by the time React runs — index.html
- * sets it before the first paint.
- *
- * It sits beside sign-out because it is a preference set once, not a control
- * anyone reaches for mid-operation. It matters most on the decision graph,
- * where the two themes are not one palette inverted: dark is lit objects in a
- * void, light is solid objects on paper.
- */
-function ThemeToggle() {
-  const { dark, toggle } = useTheme();
-
-  return (
-    <button
-      type="button"
-      className="btn-bare text-[11px] text-muted-foreground"
-      onClick={toggle}
-      aria-pressed={dark}
-    >
-      {dark ? 'light mode' : 'dark mode'}
-    </button>
-  );
-}
-
-function safeHost(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
 }

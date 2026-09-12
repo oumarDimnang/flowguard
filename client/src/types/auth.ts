@@ -1,15 +1,16 @@
 /**
- * Mirrored from server/src/auth/auth.controller.ts and
- * server/src/common/domain/tenancy.ts.
+ * Mirrored from server/src/auth/auth.controller.ts,
+ * server/src/common/domain/tenancy.ts and server/src/admin/dto/*.
  */
 
 /**
- * What a user may do inside their organization.
+ * What a user may do.
  *
- * The boundary that matters is VIEWER vs OPERATOR: dispatching starts a
- * workflow that can allocate paid network capacity. The client hides what a
- * role cannot use, but the server guard is the actual enforcement — hiding a
- * button is tidiness, not security.
+ * OPERATOR and VIEWER belong to one organization and see only its operations;
+ * dispatching is what separates them. ADMIN is a system administrator: no
+ * organization of their own, creates organizations and accounts, and can open
+ * any organization with operator powers. The server guard is the enforcement —
+ * hiding a control here is tidiness.
  */
 export const Role = {
   VIEWER: 'VIEWER',
@@ -29,6 +30,11 @@ export function roleAtLeast(role: Role | undefined, required: Role): boolean {
   return role !== undefined && RANK[role] >= RANK[required];
 }
 
+/** Whether an account of this role must be assigned to an organization. */
+export function belongsToOrganization(role: Role): boolean {
+  return role !== Role.ADMIN;
+}
+
 /** Which kind of operation an organization runs. Selects the facility panel. */
 export const Industry = {
   CONTAINER_TERMINAL: 'CONTAINER_TERMINAL',
@@ -37,6 +43,16 @@ export const Industry = {
 } as const;
 export type Industry = (typeof Industry)[keyof typeof Industry];
 
+export const INDUSTRY_LABELS: Record<Industry, string> = {
+  [Industry.CONTAINER_TERMINAL]: 'Container terminal',
+  [Industry.DRONE_OPERATIONS]: 'Drone operations',
+  [Industry.EMERGENCY_DISPATCH]: 'Emergency dispatch',
+};
+
+export function industryLabel(industry: string): string {
+  return INDUSTRY_LABELS[industry as Industry] ?? industry;
+}
+
 export interface AuthenticatedUser {
   id: string;
   email: string;
@@ -44,16 +60,11 @@ export interface AuthenticatedUser {
   role: Role;
 }
 
-/**
- * A member of the organization, as the admin list returns them.
- *
- * Distinct from AuthenticatedUser, which is what a request carries to authorise
- * itself and holds nothing a session does not need. Never includes the password
- * hash — that leaves the repository only on the login path.
- */
+/** An account, as the admin list returns it. Never includes the password hash. */
 export interface User {
   id: string;
-  organizationId: string;
+  /** Set for operators and viewers. Absent for admins. */
+  organizationId?: string;
   email: string;
   name: string;
   role: Role;
@@ -69,28 +80,37 @@ export interface AuthenticatedOrganization {
 }
 
 /**
- * The response from login and /auth/me.
+ * The response from login, /auth/me and opening an organization.
  *
- * Note there is no organizationId on the user: that is a server-side scoping
- * key read from the session, and the client has no business naming one.
+ * `organization` is the one this session operates in — an operator's own, or
+ * the one an admin has open. Absent only for an admin when none exists yet.
  */
 export interface Identity {
   user: AuthenticatedUser;
-  organization: AuthenticatedOrganization;
+  organization?: AuthenticatedOrganization;
 }
 
-/**
- * Mirrors server/src/auth/dto/register.dto.ts.
- *
- * Registration creates a new organization with the registrant as its first
- * admin. There is deliberately no field naming an existing organization —
- * without invites, a sign-up form is the one thing that must never be able to
- * place a stranger inside a tenant.
- */
-export interface RegisterRequest {
+/** Mirrors server/src/organizations/domain/organization.ts. */
+export interface Organization {
+  id: string;
+  slug: string;
+  name: string;
+  industry: Industry | string;
+  createdAt: string;
+}
+
+/** Mirrors server/src/admin/dto/create-organization.dto.ts. */
+export interface CreateOrganizationRequest {
+  name: string;
+  industry: Industry;
+}
+
+/** Mirrors server/src/admin/dto/create-user.dto.ts. */
+export interface CreateUserRequest {
   name: string;
   email: string;
   password: string;
-  organizationName: string;
-  industry: Industry;
+  role: Role;
+  /** Required for operators and viewers; must be absent for admins. */
+  organizationId?: string;
 }

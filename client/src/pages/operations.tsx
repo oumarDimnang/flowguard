@@ -1,3 +1,4 @@
+import { useAuth } from '@/auth/auth-context';
 import { PageHeader } from '@/components/layout/page-header';
 import { Eyebrow, Glyph, Slot } from '@/components/primitives';
 import { OperationsTable } from '@/features/operations/operations-table';
@@ -18,18 +19,17 @@ import { cn } from '@/lib/utils';
  * "go back to the 40-tonne one and show me the reasoning again" possible.
  */
 export function Operations() {
+  const { identity } = useAuth();
   const [filter, setFilter] = useHistoryFilter();
   const history = useOperationsHistory(filter);
 
   return (
     <>
       <PageHeader
-        trail={[{ label: 'FlowGuard · Control Room', to: '/' }, { label: 'Operations History' }]}
         title="Operations History"
-        description="Every operation the system has decided on, newest first. Each row opens its decision trail."
         meta={
           history.hasData ? <>
-            Khalifa Bin Salman Port — Berth 3 · <Slot ch={3}>{history.total}</Slot> operations
+            {identity?.organization?.name} · <Slot ch={3}>{history.total}</Slot> operations
           </> : history.loading ? 'Loading history...' : 'History unavailable'
         }
       />
@@ -71,12 +71,9 @@ export function Operations() {
         <OperationsTable operations={history.operations} loading={history.loading} />
       ) : null}
 
-      {history.hasData ? <p className="log-row pt-3">
+      {history.hasData ? <p className="pt-3">
         <span className="datum text-xs text-muted-foreground">
           <Slot ch={3}>{history.operations.length}</Slot> of <Slot ch={3}>{history.total}</Slot>
-        </span>
-        <span className="text-xs text-muted-foreground">
-          Rows are appended live as decisions land.
         </span>
       </p> : null}
     </>

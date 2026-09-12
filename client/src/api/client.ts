@@ -104,7 +104,7 @@ function detail(body: unknown): string | undefined {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH';
   body?: unknown;
   query?: Record<string, string | number | undefined>;
   signal?: AbortSignal;
@@ -163,4 +163,7 @@ export const http = {
 
   post: <T>(path: string, options?: Omit<RequestOptions, 'method'>) =>
     request<T>(path, { ...options, method: 'POST' }),
+
+  patch: <T>(path: string, options?: Omit<RequestOptions, 'method'>) =>
+    request<T>(path, { ...options, method: 'PATCH' }),
 };

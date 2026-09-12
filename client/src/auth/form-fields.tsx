@@ -1,10 +1,10 @@
 import { useId, useState } from 'react';
 
-import { Eyebrow, Glyph, SkeletonRows } from '@/components/primitives';
+import { Eyebrow, Glyph, Select, SkeletonRows, type SelectOption } from '@/components/primitives';
 import { cn } from '@/lib/utils';
 
 /**
- * Form controls for the two auth screens.
+ * Form controls for sign-in and the admin forms.
  *
  * Underlined inputs, eyebrow labels, and an error that sits directly under
  * the field it belongs to — a form that lists every problem at the top makes
@@ -156,7 +156,7 @@ export function PasswordField({
 export interface Choice<T extends string> {
   value: T;
   label: string;
-  note: string;
+  note?: string;
 }
 
 export interface ChoiceFieldProps<T extends string> {
@@ -232,7 +232,9 @@ export function ChoiceField<T extends string>({
                   />
                   <Glyph kind={checked ? 'filled' : 'hollow'} className="translate-y-px" />
                   <span className="text-[15px]">{choice.label}</span>
-                  <span className="col-start-2 text-xs text-muted-foreground">{choice.note}</span>
+                  {choice.note ? (
+                    <span className="col-start-2 text-xs text-muted-foreground">{choice.note}</span>
+                  ) : null}
                 </label>
               );
             })
@@ -246,6 +248,45 @@ export function ChoiceField<T extends string>({
         </p>
       ) : null}
     </fieldset>
+  );
+}
+
+export interface SelectFieldProps {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  options: readonly SelectOption[];
+  /** Shown while nothing is chosen. */
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+}
+
+/** A select with the same underline and label as the text fields. For lists too long for ChoiceField. */
+export function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  error,
+}: SelectFieldProps) {
+  return (
+    <FieldShell label={label} error={error}>
+      {({ inputId, describedBy }) => (
+        <Select
+          id={inputId}
+          value={value}
+          onValueChange={onChange}
+          options={options}
+          placeholder={placeholder}
+          disabled={disabled}
+          invalid={Boolean(error)}
+          aria-describedby={describedBy}
+        />
+      )}
+    </FieldShell>
   );
 }
 
