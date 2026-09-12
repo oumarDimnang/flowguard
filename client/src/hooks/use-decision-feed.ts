@@ -5,7 +5,7 @@ import { LIVE_EVENTS, type DecisionRecord } from '@/types';
 import { useLiveEvent } from './use-live-event';
 import { EMPTY, useResource } from './use-resource';
 
-/** How many recent decisions the feed holds. Beyond this, Operations history. */
+/** How many recent decisions the Control Room feed holds. Beyond this, History. */
 const FEED_LIMIT = 40;
 
 export interface DecisionFeed {
@@ -16,19 +16,19 @@ export interface DecisionFeed {
 }
 
 /**
- * The live decision log across every operation.
+ * The live decision log across every operation, newest first.
  *
- * Newest first, which is the opposite of the per-operation trail — this is a
- * feed being watched as it happens, not a sequence being read from the start.
+ * `limit` is the window: 40 for the Control Room's feed, a few hundred for the
+ * dashboard's aggregates. New records are prepended and the oldest fall off, so
+ * the window stays the same size while it stays current.
  *
  * Deduped on `idempotencyKey` like the trail, because a retried Temporal
- * activity emits the same step twice and a doubled line in the feed is exactly
- * the kind of thing someone notices from the back of the room.
+ * activity emits the same step twice.
  */
-export function useDecisionFeed(): DecisionFeed {
+export function useDecisionFeed(limit = FEED_LIMIT): DecisionFeed {
   const resource = useResource(
-    (signal) => api.decisionLog.list({ limit: FEED_LIMIT }, signal).then((page) => page.items),
-    [],
+    (signal) => api.decisionLog.list({ limit }, signal).then((page) => page.items),
+    [limit],
   );
 
   const { setData } = resource;
@@ -38,9 +38,9 @@ export function useDecisionFeed(): DecisionFeed {
       setData((previous) => {
         const records = previous ?? [];
         if (records.some((r) => r.idempotencyKey === record.idempotencyKey)) return records;
-        return [record, ...records].slice(0, FEED_LIMIT);
+        return [record, ...records].slice(0, limit);
       }),
-    [setData],
+    [limit, setData],
   );
 
   useLiveEvent(LIVE_EVENTS.DECISION_RECORDED, prepend);

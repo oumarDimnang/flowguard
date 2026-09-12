@@ -1,3 +1,4 @@
+import { POLICY_RULES } from '@/features/policy/rules';
 import {
   CongestionLevel,
   Criticality,
@@ -68,24 +69,26 @@ export interface AnalysisModel {
 /**
  * Every rule `decide()` can take, in evaluation order.
  *
- * Listed rather than discovered from the data on purpose: a rule that has never
- * fired has to appear with a count of zero, and one that has never fired cannot
- * be discovered from records that do not mention it.
+ * Taken from the policy rather than discovered from the data: a rule that has
+ * never fired has to appear with a count of zero, and it cannot be discovered
+ * from records that do not mention it. One list, so this cannot fall behind the
+ * Policy page again.
  */
-const ALL_RULES: readonly { id: string; disabled?: boolean }[] = [
-  { id: 'GUARD_DEVICE_UNREACHABLE' },
-  { id: 'ROUTINE_NO_ACTION' },
-  { id: 'SAFETY_CRITICAL_ALWAYS_PROTECT', disabled: true },
-  { id: 'MEDIUM_CRITICALITY_HIGH_CONGESTION' },
-  { id: 'MEDIUM_CRITICALITY_NETWORK_HEALTHY' },
-  { id: 'HIGH_CRITICALITY_NETWORK_HEALTHY' },
-  { id: 'SAFETY_CRITICAL_CONGESTED_SLICE' },
-  { id: 'HIGH_CRITICALITY_CONGESTED' },
-];
+const ALL_RULES: readonly { id: string; disabled?: boolean }[] = POLICY_RULES.map(
+  ({ id, disabled }) => ({ id, disabled }),
+);
 
 export function buildAnalysis(records: readonly DecisionRecord[]): AnalysisModel {
+  // Oldest first within each operation. The log arrives newest first, and an
+  // operation can record DECIDED twice — the second when it stops with its
+  // load committed — so "the decision" has to mean the first one, not whichever
+  // the list happened to return first.
+  const chronological = [...records].sort(
+    (a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt),
+  );
+
   const byOperation = new Map<string, DecisionRecord[]>();
-  for (const record of records) {
+  for (const record of chronological) {
     const trail = byOperation.get(record.operationId);
     if (trail) trail.push(record);
     else byOperation.set(record.operationId, [record]);
@@ -94,9 +97,9 @@ export function buildAnalysis(records: readonly DecisionRecord[]): AnalysisModel
   return {
     matrix: buildMatrix(byOperation),
     rules: countRules(records),
-    ...buildHolds(records),
+    ...buildHolds(chronological),
     latencies: measureLatencies(byOperation),
-    ...countDecisions(records),
+    ...countDecisions(byOperation),
   };
 }
 
@@ -158,37 +161,42 @@ function countRules(records: readonly DecisionRecord[]): RuleCount[] {
 // ── Concurrency over time ───────────────────────────────────────────
 
 /**
- * How many sessions were held at once, over time.
+ * How many operations held premium connectivity at once, over time.
  *
- * Every ALLOCATED is +1 and every RELEASED is −1, replayed in timestamp order.
- * The shape that matters is the return to zero after each operation: a
- * staircase would mean capacity accumulating, which is the failure this product
- * exists to prevent.
+ * An operation's first ALLOCATED is +1 and its RELEASED is −1, replayed in
+ * timestamp order. Per run, not per record: a slice attached partway through
+ * emits ALLOCATED a second time for the same operation, which is still one
+ * operation holding. The shape that matters is the return to zero after each
+ * one — a staircase would mean capacity accumulating.
+ *
+ * Expects records oldest first.
  */
 function buildHolds(records: readonly DecisionRecord[]): {
   holds: HoldSample[];
   returnsToZero: number;
   peak: { held: number; at: number } | undefined;
 } {
-  const deltas = records
-    .filter(
-      (record) =>
-        record.step === DecisionStep.ALLOCATED || record.step === DecisionStep.RELEASED,
-    )
-    .map((record) => ({
-      at: Date.parse(record.occurredAt),
-      delta: record.step === DecisionStep.ALLOCATED ? 1 : -1,
-    }))
-    .filter((sample) => Number.isFinite(sample.at))
-    .sort((a, b) => a.at - b.at);
-
+  const holding = new Set<string>();
   const holds: HoldSample[] = [];
-  let held = 0;
   let returnsToZero = 0;
   let peak: { held: number; at: number } | undefined;
 
-  for (const { at, delta } of deltas) {
-    held = Math.max(0, held + delta);
+  for (const record of records) {
+    const at = Date.parse(record.occurredAt);
+    if (!Number.isFinite(at)) continue;
+
+    if (record.step === DecisionStep.ALLOCATED) {
+      if (holding.has(record.runId)) continue;
+      holding.add(record.runId);
+    } else if (record.step === DecisionStep.RELEASED) {
+      // A release whose allocation fell outside the loaded window changes
+      // nothing we can draw.
+      if (!holding.delete(record.runId)) continue;
+    } else {
+      continue;
+    }
+
+    const held = holding.size;
     holds.push({ at, held });
 
     if (held === 0) returnsToZero += 1;
@@ -217,12 +225,16 @@ function measureLatencies(byOperation: Map<string, DecisionRecord[]>): number[] 
 
 // ── Totals ──────────────────────────────────────────────────────────
 
-function countDecisions(records: readonly DecisionRecord[]): {
+/** One per operation, by its first DECIDED — the same rule the server's totals use. */
+function countDecisions(byOperation: Map<string, DecisionRecord[]>): {
   decisions: number;
   protectedCount: number;
   reductionPct: number;
 } {
-  const decided = records.filter((record) => record.step === DecisionStep.DECIDED);
+  const decided = [...byOperation.values()]
+    .map((trail) => trail.find((record) => record.step === DecisionStep.DECIDED))
+    .filter((record): record is DecisionRecord => record !== undefined);
+
   const granted = decided.filter(
     (record) =>
       record.action === NetworkAction.QOD || record.action === NetworkAction.QOD_AND_SLICE,
