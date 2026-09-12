@@ -1,0 +1,136 @@
+/**
+ * The demo page.
+ *
+ * The crane is drawn to the design language's blueprint rule — hairlines,
+ * small-caps callouts, ink on paper — so every stroke is non-scaling: the
+ * drawing grows with the viewport and a hairline has to stay one pixel at
+ * every size, or it stops reading as a hairline.
+ *
+ * Motion defined here is ambient only: the cell's rings, devices flickering on
+ * a congested cell, a link carrying traffic. Anything the story depends on is
+ * driven by the playback clock instead, so it pauses and seeks with everything
+ * else. The ambient motion pauses with it too, and stops entirely for anyone
+ * who has asked their system for less.
+ *
+ * Scoped to `.demo-page` so none of it leaks into the record pages.
+ */
+
+@layer components {
+  .demo-page {
+    --ds-water: color-mix(in oklch, var(--muted) 80%, var(--background));
+    --ds-quay: color-mix(in oklch, var(--muted) 40%, var(--background));
+    --ds-box: var(--muted);
+    --ds-box-strong: color-mix(in oklch, var(--muted) 70%, var(--foreground) 12%);
+  }
+
+  .demo-page svg * {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .demo-page svg text {
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+    fill: var(--foreground);
+    stroke: none;
+  }
+
+  /* ── Strokes and fills, by role rather than by colour ─────────────── */
+
+  .ds-ink {
+    stroke: var(--foreground);
+    fill: none;
+  }
+
+  .ds-hair {
+    stroke: var(--border);
+    fill: none;
+  }
+
+  .ds-dim {
+    stroke: var(--muted-foreground);
+    fill: none;
+  }
+
+  .ds-accent {
+    stroke: var(--primary);
+    fill: none;
+  }
+
+  .ds-danger {
+    stroke: var(--destructive);
+    fill: none;
+  }
+
+  .demo-page svg text.ds-muted {
+    fill: var(--muted-foreground);
+  }
+
+  .demo-page svg text.ds-accent-text {
+    fill: var(--primary);
+  }
+
+  .demo-page svg text.ds-danger-text {
+    fill: var(--destructive);
+  }
+
+  /* ── Ambient motion ───────────────────────────────────────────────── */
+
+  /** A link carrying traffic: dashes marching toward the cell. */
+  .ds-flow {
+    stroke-dasharray: 3 5;
+    animation: ds-flow 1.1s linear infinite;
+  }
+
+  @keyframes ds-flow {
+    to {
+      stroke-dashoffset: -16;
+    }
+  }
+
+  /** The cell's rings, expanding and fading. Staggered by inline delay. */
+  .ds-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ds-ring 2.4s ease-out infinite;
+  }
+
+  @keyframes ds-ring {
+    from {
+      opacity: 0.6;
+      transform: scale(0.45);
+    }
+    to {
+      opacity: 0;
+      transform: scale(1.3);
+    }
+  }
+
+  /** A device fighting for air on a congested cell. */
+  .ds-flicker {
+    animation: ds-flicker 1.7s steps(2, jump-none) infinite;
+  }
+
+  @keyframes ds-flicker {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.2;
+    }
+  }
+
+  .demo-paused .ds-flow,
+  .demo-paused .ds-ring,
+  .demo-paused .ds-flicker {
+    animation-play-state: paused;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ds-flow,
+    .ds-ring,
+    .ds-flicker {
+      animation: none;
+    }
+  }
+}
