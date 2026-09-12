@@ -13,6 +13,7 @@ from typing import Any
 
 from temporalio import activity
 
+from ..graph.trace_sink import NullTraceSink, ReasoningTraceSink, TraceSinkFactory
 from ..network.provider import NetworkProvider
 from ..shared.constants import ACTIVITY_ASSESS_CRITICALITY
 from ..shared.models import BusinessEvent
@@ -22,9 +23,17 @@ logger = logging.getLogger(__name__)
 
 
 class ReasoningActivities:
-    def __init__(self, graph, provider: NetworkProvider) -> None:
+    def __init__(
+        self,
+        graph,
+        provider: NetworkProvider,
+        trace_sink_factory: TraceSinkFactory | None = None,
+    ) -> None:
         self._graph = graph
         self._provider = provider
+        # Optional: with no factory the graph runs unobserved, exactly as it
+        # did before live tracing existed. The verdict is identical either way.
+        self._trace_sink_factory = trace_sink_factory
 
     @activity.defn(name=ACTIVITY_ASSESS_CRITICALITY)
     async def assess_criticality(self, event_raw: dict[str, Any]) -> dict[str, Any]:
@@ -36,23 +45,32 @@ class ReasoningActivities:
         """
         event = BusinessEvent.from_wire(event_raw)
 
+        # One sink per assessment, shared by the graph nodes and the toolbox,
+        # so node events and the tool calls made inside them arrive as a single
+        # ordered stream.
+        sink = self._sink_for(event)
+
         # Tools are bound to this operation's device: the agent chooses which
         # signal to read, never which device to interrogate.
-        toolbox = NetworkToolbox(self._provider, event.device)
+        toolbox = NetworkToolbox(self._provider, event.device, observer=sink)
 
-        result = await self._graph.ainvoke(
-            {
-                "event": event,
-                "context": None,
-                "assessment": None,
-                "attempts": 0,
-                "model": None,
-                "enriched": False,
-                "toolbox": toolbox,
-                "evidence": None,
-                "trace": [],
-            }
-        )
+        try:
+            result = await self._graph.ainvoke(
+                {
+                    "event": event,
+                    "context": None,
+                    "assessment": None,
+                    "attempts": 0,
+                    "model": None,
+                    "enriched": False,
+                    "toolbox": toolbox,
+                    "evidence": None,
+                    "trace": [],
+                    "sink": sink,
+                }
+            )
+        finally:
+            await sink.close()
 
         assessment = result["assessment"]
         trace: list[str] = result.get("trace", [])
@@ -81,3 +99,20 @@ class ReasoningActivities:
                 for c in (getattr(result.get("evidence"), "tool_calls", None) or [])
             ],
         }
+
+    def _sink_for(self, event: BusinessEvent) -> ReasoningTraceSink:
+        if self._trace_sink_factory is None:
+            return NullTraceSink()
+
+        # Present inside a Temporal activity; absent when the method is called
+        # directly, as a unit test does. The trace is still worth streaming
+        # without them — the operation id is what the dashboard correlates on.
+        workflow_id: str | None = None
+        run_id: str | None = None
+        try:
+            info = activity.info()
+            workflow_id, run_id = info.workflow_id, info.workflow_run_id
+        except RuntimeError:
+            pass
+
+        return self._trace_sink_factory(event.organization_id, event.id, workflow_id, run_id)

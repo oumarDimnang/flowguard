@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from ..network.provider import NetworkProvider
 from ..shared.models import DeviceRef
@@ -37,6 +37,20 @@ class ToolCall:
     arguments: dict[str, Any]
     result: str
     failed: bool = False
+
+
+class ToolObserver(Protocol):
+    """Watches tool calls as the model makes them.
+
+    Observation only — an observer sees a call after the toolbox has decided
+    to make it and cannot alter, veto or add one. Failures inside an observer
+    are swallowed so that a dashboard being down never changes what the agent
+    learns.
+    """
+
+    async def tool_started(self, name: str, arguments: dict[str, Any]) -> None: ...
+
+    async def tool_finished(self, call: ToolCall) -> None: ...
 
 
 #: Schemas advertised to the model. Descriptions are written for the model, not
@@ -101,9 +115,15 @@ class NetworkToolbox:
     a whole class of mistake — and of abuse — from the surface.
     """
 
-    def __init__(self, provider: NetworkProvider, device: DeviceRef) -> None:
+    def __init__(
+        self,
+        provider: NetworkProvider,
+        device: DeviceRef,
+        observer: ToolObserver | None = None,
+    ) -> None:
         self._provider = provider
         self._device = device
+        self._observer = observer
 
     @property
     def schemas(self) -> list[dict[str, Any]]:
@@ -118,17 +138,30 @@ class NetworkToolbox:
         """
         args = arguments or {}
 
+        await self._observe(lambda o: o.tool_started(name, args))
+
         try:
             result = await self._dispatch(name, args)
-            return ToolCall(name=name, arguments=args, result=result)
+            call = ToolCall(name=name, arguments=args, result=result)
         except Exception as exc:  # noqa: BLE001 - surfaced to the model, not swallowed
             logger.warning("Tool %s failed: %s", name, exc)
-            return ToolCall(
+            call = ToolCall(
                 name=name,
                 arguments=args,
                 result=f"Unavailable: {type(exc).__name__}. Treat this signal as unknown.",
                 failed=True,
             )
+
+        await self._observe(lambda o: o.tool_finished(call))
+        return call
+
+    async def _observe(self, notify) -> None:
+        if self._observer is None:
+            return
+        try:
+            await notify(self._observer)
+        except Exception as exc:  # noqa: BLE001 - observation must not change the outcome
+            logger.debug("Tool observer raised: %s", exc)
 
     async def _dispatch(self, name: str, args: dict[str, Any]) -> str:
         if name == "verify_device_location":

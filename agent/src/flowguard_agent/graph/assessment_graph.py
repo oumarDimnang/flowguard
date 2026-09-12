@@ -34,8 +34,31 @@ from ..llm.client import CriticalityClassifier
 from ..shared.models import BusinessEvent, Criticality, CriticalityAssessment
 from .evidence import Evidence, EvidenceGatherer
 from .state import AssessmentState
+from .trace_sink import NODE_FINISHED, NODE_STARTED
 
 logger = logging.getLogger(__name__)
+
+
+async def _report(
+    state: AssessmentState,
+    kind: str,
+    node: str,
+    detail: str | None = None,
+    data: dict | None = None,
+) -> None:
+    """Tell whoever is watching that a node started or finished.
+
+    The sink is optional and its failures are its own problem: the assessment
+    must produce the same verdict whether or not anybody is watching it.
+    """
+    sink = state.get("sink")
+    if sink is None:
+        return
+    try:
+        await sink.emit(kind, node, detail, data)
+    except Exception as exc:  # noqa: BLE001 - observation must not change the outcome
+        logger.debug("Reasoning trace sink raised on %s: %s", node, exc)
+
 
 #: Static asset knowledge, merged alongside whatever the agent gathers.
 #:
@@ -90,6 +113,13 @@ def build_assessment_graph(
         attempts = state.get("attempts", 0) + 1
         model = state.get("model")
 
+        await _report(
+            state,
+            NODE_STARTED,
+            "classify",
+            data={"attempt": attempts, "model": model, "enriched": bool(state.get("enriched"))},
+        )
+
         assessment = await classifier.classify(
             event,
             context=state.get("context"),
@@ -104,15 +134,30 @@ def build_assessment_graph(
             assessment.model,
         )
 
+        line = (
+            f"classify(attempt={attempts}, model={assessment.model}) -> "
+            f"{assessment.criticality.value} @ {assessment.confidence:.2f}"
+        )
+
+        await _report(
+            state,
+            NODE_FINISHED,
+            "classify",
+            detail=line,
+            data={
+                "attempt": attempts,
+                "model": assessment.model,
+                "criticality": assessment.criticality.value,
+                "confidence": assessment.confidence,
+                "safetyCritical": assessment.safety_critical,
+                "reasoning": assessment.reasoning,
+            },
+        )
+
         return {
             "assessment": assessment,
             "attempts": attempts,
-            "trace": [
-                (
-                    f"classify(attempt={attempts}, model={assessment.model}) -> "
-                    f"{assessment.criticality.value} @ {assessment.confidence:.2f}"
-                )
-            ],
+            "trace": [line],
         }
 
     async def gather_evidence(state: AssessmentState) -> dict:
@@ -125,10 +170,14 @@ def build_assessment_graph(
         event: BusinessEvent = state["event"]
         toolbox = state.get("toolbox")
 
+        await _report(state, NODE_STARTED, "gather_evidence")
+
         context = {**(state.get("context") or {}), **ASSET_PROFILES.get(event.asset_type.value, {})}
         if event.site:
             context["site"] = event.site
 
+        # Tool calls report themselves from inside the toolbox, one event each,
+        # as the model makes them — not here, after the fact.
         evidence = Evidence()
         if evidence_gatherer is not None and toolbox is not None:
             evidence = await evidence_gatherer.gather(event, toolbox)
@@ -136,6 +185,14 @@ def build_assessment_graph(
 
         trace = [f"gather_evidence(facts={len(context)}, tools={len(evidence.tool_calls)})"]
         trace += [f"  tool:{call.name} -> {call.result[:80]}" for call in evidence.tool_calls]
+
+        await _report(
+            state,
+            NODE_FINISHED,
+            "gather_evidence",
+            detail=trace[0],
+            data={"facts": len(context), "tools": len(evidence.tool_calls)},
+        )
 
         return {
             "context": context,
@@ -150,9 +207,16 @@ def build_assessment_graph(
         Cost follows risk: the cheap model handles the routine majority, and only
         genuine uncertainty pays for the expensive one.
         """
+        line = f"escalate(model={escalation_model or 'default'})"
+
+        await _report(state, NODE_STARTED, "escalate")
+        await _report(
+            state, NODE_FINISHED, "escalate", detail=line, data={"model": escalation_model}
+        )
+
         return {
             "model": escalation_model,
-            "trace": [f"escalate(model={escalation_model or 'default'})"],
+            "trace": [line],
         }
 
     async def validate(state: AssessmentState) -> dict:
@@ -160,16 +224,26 @@ def build_assessment_graph(
         assessment: CriticalityAssessment | None = state.get("assessment")
         evidence: Evidence | None = state.get("evidence")
 
+        await _report(state, NODE_STARTED, "validate")
+
         if assessment is None:
             logger.warning("Assessment graph produced no result; degrading to MEDIUM")
+            degraded = CriticalityAssessment(
+                criticality=Criticality.MEDIUM,
+                confidence=0.0,
+                reasoning="Criticality could not be assessed; defaulted to MEDIUM.",
+                safety_critical=False,
+                model="none",
+            )
+            await _report(
+                state,
+                NODE_FINISHED,
+                "validate",
+                detail="validate(degraded=no-assessment)",
+                data={"criticality": degraded.criticality.value, "confidence": 0.0},
+            )
             return {
-                "assessment": CriticalityAssessment(
-                    criticality=Criticality.MEDIUM,
-                    confidence=0.0,
-                    reasoning="Criticality could not be assessed; defaulted to MEDIUM.",
-                    safety_critical=False,
-                    model="none",
-                ),
+                "assessment": degraded,
                 "trace": ["validate(degraded=no-assessment)"],
             }
 
@@ -208,9 +282,24 @@ def build_assessment_graph(
 
         assessment.escalated = bool(state.get("model"))
 
+        line = f"validate({', '.join(notes) if notes else 'ok'})"
+
+        await _report(
+            state,
+            NODE_FINISHED,
+            "validate",
+            detail=line,
+            data={
+                "criticality": assessment.criticality.value,
+                "confidence": assessment.confidence,
+                "safetyCritical": assessment.safety_critical,
+                "notes": notes,
+            },
+        )
+
         return {
             "assessment": assessment,
-            "trace": [f"validate({', '.join(notes) if notes else 'ok'})"],
+            "trace": [line],
         }
 
     def route(state: AssessmentState) -> str:

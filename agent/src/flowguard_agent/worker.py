@@ -25,6 +25,7 @@ from .activities.reasoning import ReasoningActivities
 from .config import Settings, get_settings
 from .graph.assessment_graph import build_assessment_graph
 from .graph.evidence import HeuristicEvidenceGatherer
+from .graph.trace_sink import http_trace_sink_factory
 from .llm.client import build_classifier
 from .network.mock_provider import MockNetworkProvider
 from .network.provider import NetworkProvider
@@ -107,7 +108,17 @@ async def run_worker() -> None:
     )
 
     network_activities = NetworkActivities(provider, qos_profile=settings.nokia_qos_profile)
-    reasoning_activities = ReasoningActivities(graph, provider)
+    # The live reasoning trace goes to the same server, with the same token,
+    # as the decision records — but through its own endpoint, because it is
+    # ephemeral and must never be mistaken for the audited trail.
+    reasoning_activities = ReasoningActivities(
+        graph,
+        provider,
+        trace_sink_factory=http_trace_sink_factory(
+            base_url=settings.server_base_url,
+            token=settings.internal_api_token,
+        ),
+    )
     emit_activities = EmitActivities(
         base_url=settings.server_base_url,
         token=settings.internal_api_token,

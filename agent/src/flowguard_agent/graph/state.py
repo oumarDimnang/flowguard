@@ -38,3 +38,7 @@ class AssessmentState(TypedDict, total=False):
     evidence: object | None
     #: Human-readable record of the path taken, surfaced in the decision trail.
     trace: Annotated[list[str], _append]
+    #: Where each node reports itself as it runs, so the dashboard can show the
+    #: reasoning live rather than as one batch at the end. Live object, like
+    #: the toolbox; None means nobody is watching.
+    sink: object | None
