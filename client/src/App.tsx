@@ -1,30 +1,35 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
 
 import { AuthProvider } from '@/auth/auth-context';
-import { AppShell } from '@/components/layout/app-shell';
-import { Analysis } from './pages/analysis';
-import { Asset } from './pages/asset';
-import { Network } from './pages/network';
-import { Scenarios } from './pages/scenarios';
-import { Users } from './pages/users';
+import { AppShell, RequireAdmin, RequireOrganization } from '@/components/layout/app-shell';
+import { Asset } from '@/pages/asset';
 import { ControlRoom } from '@/pages/control-room';
+import { Dashboard } from '@/pages/dashboard';
 import { DecisionGraphPage } from '@/pages/decision-graph';
-import { Impact } from '@/pages/impact';
+import { Demo } from '@/pages/demo';
+import { LiveOperation } from '@/pages/live-operation';
 import { Login } from '@/pages/login';
 import { NotFound } from '@/pages/not-found';
 import { OperationDetail } from '@/pages/operation-detail';
 import { Operations } from '@/pages/operations';
+import { Organizations } from '@/pages/organizations';
 import { Policy } from '@/pages/policy';
-import { Register } from '@/pages/register';
+import { Scenarios } from '@/pages/scenarios';
 import { Thesis } from '@/pages/thesis';
+import { Users } from '@/pages/users';
 
 /**
  * Routes.
  *
- * `/login` and `/register` are the only pages outside the shell. Everything
- * else is inside it,
- * and the shell redirects anyone without a session — so a route added later is
- * protected by default rather than by remembering to protect it.
+ * `/login` and `/demo` are the only pages outside the shell. Everything else is
+ * inside it, and the shell redirects anyone without a session — so a route
+ * added later is protected by default rather than by remembering to protect
+ * it. The demo is public because it reads nothing from the server: it replays
+ * a recording bundled into the page.
+ *
+ * Pages that read an organization's operations sit under RequireOrganization,
+ * for the one case where there is none: an admin before any organization
+ * exists. The admin pages do not need one.
  */
 export default function App() {
   return (
@@ -32,21 +37,28 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/demo" element={<Demo />} />
 
           <Route element={<AppShell />}>
-            <Route index element={<ControlRoom />} />
-            <Route path="operations" element={<Operations />} />
-            <Route path="operations/:operationId" element={<OperationDetail />} />
-            <Route path="operations/:operationId/graph" element={<DecisionGraphPage />} />
-            <Route path="assets/:deviceId" element={<Asset />} />
-            <Route path="network" element={<Network />} />
-            <Route path="analysis" element={<Analysis />} />
-            <Route path="scenarios" element={<Scenarios />} />
-            <Route path="admin/users" element={<Users />} />
+            <Route element={<RequireOrganization />}>
+              <Route index element={<Dashboard />} />
+              <Route path="control-room" element={<ControlRoom />} />
+              <Route path="operations" element={<Operations />} />
+              <Route path="operations/:operationId" element={<OperationDetail />} />
+              <Route path="operations/:operationId/graph" element={<DecisionGraphPage />} />
+              <Route path="operations/:operationId/live" element={<LiveOperation />} />
+              <Route path="assets/:deviceId" element={<Asset />} />
+              <Route path="scenarios" element={<Scenarios />} />
+              <Route path="thesis" element={<Thesis />} />
+            </Route>
+
             <Route path="policy" element={<Policy />} />
-            <Route path="thesis" element={<Thesis />} />
-            <Route path="impact" element={<Impact />} />
+
+            <Route element={<RequireAdmin />}>
+              <Route path="admin/organizations" element={<Organizations />} />
+              <Route path="admin/users" element={<Users />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
