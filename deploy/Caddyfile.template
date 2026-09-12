@@ -1,8 +1,8 @@
 # FlowGuard reverse proxy and static host.
 #
 # Rendered to /etc/caddy/Caddyfile at deploy time, substituting ${APP_DOMAIN},
-# ${API_DOMAIN}, ${TEMPORAL_DOMAIN} and ${TEMPORAL_UI_PASSWORD_HASH} only.
-# Caddy's own {placeholders} have no leading $ and pass through untouched.
+# ${API_DOMAIN} and ${TEMPORAL_DOMAIN} only. Caddy's own {placeholders} have no
+# leading $ and pass through untouched.
 #
 # Caddy obtains and renews Let's Encrypt certificates by itself over the HTTP-01
 # challenge, which needs nothing but an A record and port 80 — no DNS API, so
@@ -51,17 +51,25 @@ ${API_DOMAIN} {
 # would hand anyone who found it the ability to read every decision history and
 # terminate running workflows.
 #
-# What is published here is a web app behind a password. That is still real
-# authority: anyone past the prompt can terminate a running operation. The
-# password is a bcrypt hash held in GitHub Secrets and rendered at deploy time;
-# it is never in the repository.
+# The UI is open — no password, so anyone with the link can browse it. That is
+# deliberate: workflow histories carry business events and the agent's
+# reasoning, which is the thing worth showing, and no credential ever travels
+# as a workflow argument.
+#
+# What is NOT open is changing anything. The UI's write actions — terminate,
+# cancel, signal, reset — would otherwise let any visitor kill a running
+# operation mid-demo. Reads are GET, writes are POST/PUT/PATCH/DELETE, so the
+# method is a sufficient boundary and needs no knowledge of Temporal's API
+# surface. Delete the @writes block to hand out full control.
 ${TEMPORAL_DOMAIN} {
-	basic_auth {
-		admin ${TEMPORAL_UI_PASSWORD_HASH}
+	@writes not method GET HEAD OPTIONS
+	handle @writes {
+		respond "The Temporal UI is published read-only." 403
 	}
 
 	# The UI is a SPA that calls its own API on the same origin, so everything
-	# goes to one upstream. The browser replays the credentials automatically
-	# after the first prompt.
-	reverse_proxy 127.0.0.1:8233
+	# else goes to one upstream.
+	handle {
+		reverse_proxy 127.0.0.1:8233
+	}
 }

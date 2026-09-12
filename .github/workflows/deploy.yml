@@ -78,7 +78,6 @@ jobs:
           SSH_HOST: ${{ vars.SSH_HOST }}
           SSH_PRIVATE_KEY_SET: ${{ secrets.SSH_PRIVATE_KEY != '' }}
           SSH_KNOWN_HOSTS_SET: ${{ secrets.SSH_KNOWN_HOSTS != '' }}
-          TEMPORAL_HASH_SET: ${{ secrets.TEMPORAL_UI_PASSWORD_HASH != '' }}
         run: |
           missing=
           for v in APP_DOMAIN API_DOMAIN TEMPORAL_DOMAIN SSH_HOST; do
@@ -86,7 +85,6 @@ jobs:
           done
           [ "$SSH_PRIVATE_KEY_SET" = true ] || missing="$missing SSH_PRIVATE_KEY(secret)"
           [ "$SSH_KNOWN_HOSTS_SET" = true ] || missing="$missing SSH_KNOWN_HOSTS(secret)"
-          [ "$TEMPORAL_HASH_SET" = true ] || missing="$missing TEMPORAL_UI_PASSWORD_HASH(secret)"
           if [ -n "$missing" ]; then
             echo "::error::Not configured:$missing — set these under Settings > Secrets and variables > Actions"
             exit 1
@@ -240,16 +238,10 @@ jobs:
       # `caddy validate` runs before the reload, so a broken config fails the
       # deploy rather than taking the site down.
       - name: Configure Caddy
-        env:
-          TEMPORAL_UI_PASSWORD_HASH: ${{ secrets.TEMPORAL_UI_PASSWORD_HASH }}
         run: |
-          # The rendered file carries the UI password hash, so it is never
-          # world-readable: 077 here, and 640 root:caddy once installed.
-          umask 077
           sed -e "s|\${APP_DOMAIN}|${APP_DOMAIN}|g" \
               -e "s|\${API_DOMAIN}|${API_DOMAIN}|g" \
               -e "s|\${TEMPORAL_DOMAIN}|${TEMPORAL_DOMAIN}|g" \
-              -e "s|\${TEMPORAL_UI_PASSWORD_HASH}|${TEMPORAL_UI_PASSWORD_HASH}|g" \
               deploy/Caddyfile.template > Caddyfile.rendered
           scp -q Caddyfile.rendered "$TARGET:Caddyfile.rendered"
           rm -f Caddyfile.rendered
@@ -330,15 +322,33 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' "https://${API_DOMAIN}/internal/decisions")
           [ "$code" = "404" ] || { echo "expected 404, got $code"; exit 1; }
 
-          echo "--- dashboard serves the SPA"
-          curl -fsS "https://${APP_DOMAIN}/" >/dev/null
+          # Assert on content, not the status code. A registrar parking page
+          # answers 200 perfectly happily, and if leftover parking A records are
+          # still on the name, DNS round-robin means a status-only check passes
+          # roughly two times in three while Let's Encrypt fails validation
+          # against those same IPs and the site never gets a certificate.
+          echo "--- dashboard serves the real SPA, not a parked domain"
+          curl -fsS --max-time 20 "https://${APP_DOMAIN}/" | grep -q 'flowguard\.theme' || {
+            echo "the apex answered, but not with FlowGuard."
+            echo "check for leftover registrar parking A records on ${APP_DOMAIN}:"
+            echo "  dig +short ${APP_DOMAIN}   # must return only your Elastic IP"
+            exit 1
+          }
 
-          # A 200 here would mean the UI is published to the internet with no
-          # password at all, and anyone who found it could terminate workflows.
-          # Fail the deploy rather than leave that standing.
-          echo "--- Temporal UI demands credentials (expect 401)"
-          code=$(curl -s -o /dev/null -w '%{http_code}' "https://${TEMPORAL_DOMAIN}/")
-          [ "$code" = "401" ] || { echo "expected 401, got $code — the UI may be UNPROTECTED"; exit 1; }
+          echo "--- SPA history fallback (a deep link must not 404)"
+          curl -fsS -o /dev/null --max-time 20 "https://${APP_DOMAIN}/operations"
+
+          echo "--- Temporal UI is reachable without credentials"
+          curl -fsS -o /dev/null --max-time 20 "https://${TEMPORAL_DOMAIN}/"
+
+          # The UI is deliberately public, so read-only is the only thing
+          # standing between a visitor and terminating a live operation. If this
+          # ever returns anything but 403, the guard is gone — fail the deploy
+          # rather than leave that standing.
+          echo "--- Temporal UI refuses state changes (expect 403)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST --max-time 20 \
+            "https://${TEMPORAL_DOMAIN}/api/v1/namespaces/default/workflows/probe/runs/probe/terminate")
+          [ "$code" = "403" ] || { echo "expected 403, got $code — write actions are NOT blocked"; exit 1; }
 
       # The only trustworthy liveness signal for the worker.
       #

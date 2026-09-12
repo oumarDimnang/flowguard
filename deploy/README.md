@@ -15,15 +15,15 @@ Budget about 45 minutes for the first run, most of it waiting for DNS.
    api.<domain> ──► │        ├────► :3000  NestJS ──┐                      │
                     │        │                      ├──► :7233 Temporal    │
                     │        │      Python worker ──┘        (loopback)    │
-  temporal.<domain> │        └────► :8233  Temporal Web UI  (basic auth)   │
+  temporal.<domain> │        └────► :8233  Temporal Web UI  (read-only)    │
               ────► └──────────────────────────────────────────────────────┘
                                        │
                          MongoDB Atlas ─┘  (allowlisted to the Elastic IP)
 ```
 
 Only Caddy is exposed. Temporal's gRPC frontend on :7233 has **no authentication of
-any kind** and stays bound to loopback; only its Web UI is published, behind a
-password.
+any kind** and stays bound to loopback; only its Web UI is published, and only
+for reading.
 
 ---
 
@@ -216,7 +216,6 @@ Optional variables, each with a working default if you leave it unset:
 |---|---|
 | `SSH_PRIVATE_KEY` | contents of `~/.ssh/flowguard-deploy` (the whole file, including the BEGIN/END lines) |
 | `SSH_KNOWN_HOSTS` | the output of the `ssh-keyscan` above |
-| `TEMPORAL_UI_PASSWORD_HASH` | `ssh -t … "caddy hash-password"` on the box — it prompts, so the password itself never reaches your shell history |
 | `MONGODB_URI` | Atlas |
 | `SESSION_SECRET` | step 1 |
 | `INTERNAL_API_TOKEN` | step 1 |
@@ -289,13 +288,16 @@ ssh -i ~/Downloads/flowguard-admin.pem ubuntu@<EIP> 'sudo journalctl -u flowguar
 
 Swap in `flowguard-agent`, `flowguard-temporal` or `caddy`.
 
-**Temporal Web UI** — `https://temporal.<domain>`, username `admin` and the
-password you hashed at step 10. Anyone past that prompt can terminate running
-workflows, so treat it as an admin console, not a dashboard.
+**Temporal Web UI** — `https://temporal.<domain>`, open to anyone with the link
+and **read-only**: Caddy answers 403 to every request that is not GET/HEAD/
+OPTIONS, so a visitor can browse workflow histories but cannot terminate,
+cancel, signal or reset anything. Histories carry business events and the
+agent's reasoning, never credentials — those are looked up inside activities by
+organization id, never passed as workflow arguments.
 
-If you would rather not publish it at all, delete the `temporal` A record and
-the `${TEMPORAL_DOMAIN}` block from `Caddyfile.template`, and tunnel instead —
-the UI stays bound to loopback either way:
+To take back write access for yourself, tunnel to it — that reaches the UI
+directly and bypasses Caddy entirely. To hand write access to everyone, delete
+the `@writes` block from `Caddyfile.template`.
 
 ```bash
 ssh -i ~/Downloads/flowguard-admin.pem -N -L 8233:localhost:8233 ubuntu@<EIP>
