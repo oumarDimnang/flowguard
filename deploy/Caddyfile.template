@@ -1,0 +1,45 @@
+# FlowGuard reverse proxy and static host.
+#
+# Rendered to /etc/caddy/Caddyfile at deploy time with envsubst, substituting
+# ${APP_DOMAIN} and ${API_DOMAIN} only. Caddy's own {placeholders} have no
+# leading $ and pass through untouched.
+#
+# Caddy obtains and renews Let's Encrypt certificates by itself over the HTTP-01
+# challenge, which needs nothing but an A record and port 80 — no DNS API, so
+# the registrar is irrelevant. It also adds HSTS and upgrades WebSocket
+# connections without being asked, both of which this app depends on.
+
+# ── Dashboard ─────────────────────────────────────────────────────────
+${APP_DOMAIN} {
+	encode zstd gzip
+
+	root * /opt/flowguard/client
+
+	# The SPA uses BrowserRouter, so /operations and friends are real URLs with
+	# no file behind them. Anything that is not a file on disk is the app.
+	try_files {path} /index.html
+	file_server
+
+	# Vite fingerprints everything under /assets, so it can be cached forever.
+	# index.html must not be, or a deploy is invisible until a hard refresh.
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+}
+
+# ── API ───────────────────────────────────────────────────────────────
+${API_DOMAIN} {
+	encode zstd gzip
+
+	# /internal/* is the agent → server callback path and it travels over
+	# loopback. It is token-guarded already; this closes it at the edge so a
+	# leaked INTERNAL_API_TOKEN is not by itself enough to forge decisions.
+	# 404 rather than 403 — no reason to confirm the path exists.
+	handle /internal/* {
+		respond 404
+	}
+
+	# Everything else, including /webhooks/nac/* (Nokia's only public sink) and
+	# the /live Socket.IO namespace. The client disables polling entirely, so
+	# the upgrade has to survive the proxy — Caddy passes it through by default.
+	reverse_proxy 127.0.0.1:3000
+}

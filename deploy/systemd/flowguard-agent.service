@@ -1,0 +1,43 @@
+[Unit]
+Description=FlowGuard agent (Temporal worker)
+After=network-online.target flowguard-temporal.service
+Wants=network-online.target flowguard-temporal.service
+
+# The restart limit is the point of this block, and it exists for one specific
+# failure. worker.py awaits provider.bootstrap() — slice pre-provisioning and
+# the congestion subscription — *before* constructing the Worker. Under
+# NETWORK_PROVIDER=nokia, if the sandbox is slow or unreachable the worker never
+# reaches worker.run() and never polls the task queue, while systemd happily
+# reports the unit as active. Five failures in five minutes and the unit goes to
+# `failed`, where it is visible, instead of looping quietly forever.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=flowguard
+Group=flowguard
+
+# Same story as the server: pydantic-settings reads env_file relative to cwd.
+WorkingDirectory=/opt/flowguard/agent
+
+# The venv's console script directly, not `uv run`. The deploy already ran
+# `uv sync`, so there is nothing to resolve at start time — this needs no cache
+# directory, no home, and no write access to anything.
+ExecStart=/opt/flowguard/agent/.venv/bin/flowguard-worker
+
+Restart=always
+RestartSec=10
+
+# ProtectSystem=full leaves /opt writable, so stop Python writing __pycache__
+# back into the deployed tree — rsync --delete would fight it every deploy.
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

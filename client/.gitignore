@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Only public values belong in client/.env — Vite inlines every VITE_-prefixed
+# variable into the browser bundle. Ignored anyway, so a mistake stays local.
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

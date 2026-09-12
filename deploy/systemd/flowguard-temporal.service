@@ -1,0 +1,40 @@
+[Unit]
+# Temporal dev server: a single binary over SQLite.
+#
+# This is explicitly a *dev* server, and it is the right call for a demo host —
+# but it is the first thing to replace with Temporal Cloud if this ever carries
+# real traffic. The env schema already has TEMPORAL_API_KEY and TEMPORAL_TLS, so
+# that move is a config change, not a refactor.
+Description=Temporal dev server (FlowGuard)
+Documentation=https://docs.temporal.io/cli/server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=flowguard
+Group=flowguard
+WorkingDirectory=/var/lib/flowguard
+
+# --db-filename is what makes in-flight operations survive a restart; without
+# it the dev server is in-memory and a reboot silently loses running workflows.
+# Binding to loopback keeps both the frontend and the Web UI off the internet —
+# reach the UI with `ssh -L 8233:localhost:8233 ubuntu@<host>`.
+ExecStart=/usr/local/bin/temporal server start-dev \
+    --db-filename /var/lib/flowguard/temporal.db \
+    --ip 127.0.0.1 \
+    --port 7233 \
+    --ui-port 8233 \
+    --log-level warn
+
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/flowguard
+
+[Install]
+WantedBy=multi-user.target

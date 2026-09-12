@@ -1,0 +1,34 @@
+[Unit]
+Description=FlowGuard API (NestJS)
+After=network-online.target flowguard-temporal.service
+# Wants, not Requires: the server opens its Temporal connection during
+# OnModuleInit, so if Temporal is not up yet the process exits and Restart
+# brings it back a few seconds later. That self-heals; Requires would instead
+# tear the server down every time Temporal blipped.
+Wants=network-online.target flowguard-temporal.service
+
+[Service]
+Type=simple
+User=flowguard
+Group=flowguard
+
+# WorkingDirectory is load-bearing: @nestjs/config reads envFilePath
+# ['.env.local', '.env'] relative to the process cwd, so the server finds its
+# configuration only from here.
+WorkingDirectory=/opt/flowguard/server
+ExecStart=/usr/bin/node dist/main
+
+Restart=always
+RestartSec=5
+
+# NODE_ENV lives in .env rather than here, so there is exactly one file to look
+# at when the session cookie misbehaves. It gates `secure` on the cookie
+# (session.module.ts) and must be `production` behind real TLS.
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

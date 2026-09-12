@@ -1,0 +1,321 @@
+name: Deploy
+
+# Build on the runner, ship the output to the demo host, restart, prove it works.
+#
+# Nothing is ever built on the box. `vite build` runs `tsc -b` first, so a type
+# error has to fail CI rather than the demo host — and a 2 GB instance should
+# spend its memory running the app, not compiling it.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Never let two deploys interleave rsync and systemctl. Queue instead, and do
+# not cancel one that is already touching the box.
+concurrency:
+  group: deploy-demo-host
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ── Gate ────────────────────────────────────────────────────────────
+  # Master auto-deploys, so the test suites are the only thing between a bad
+  # push and the demo host.
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Server tests
+        working-directory: server
+        run: |
+          npm ci
+          npm test
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: agent/uv.lock
+
+      # --extra dev is required: pytest and ruff live in
+      # [project.optional-dependencies].dev, which uv does not install by
+      # default (that applies to [dependency-groups], which this project
+      # does not use).
+      - name: Agent tests
+        working-directory: agent
+        run: uv run --frozen --extra dev pytest -q
+
+  # ── Build and ship ──────────────────────────────────────────────────
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    environment: demo
+
+    env:
+      TARGET: ${{ vars.SSH_USER || 'ubuntu' }}@${{ vars.SSH_HOST }}
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+      API_DOMAIN: ${{ vars.API_DOMAIN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail here with a readable message rather than thirty lines later with
+      # `ssh: Could not resolve hostname @`.
+      - name: Check required configuration
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_PRIVATE_KEY_SET: ${{ secrets.SSH_PRIVATE_KEY != '' }}
+          SSH_KNOWN_HOSTS_SET: ${{ secrets.SSH_KNOWN_HOSTS != '' }}
+        run: |
+          missing=
+          for v in APP_DOMAIN API_DOMAIN SSH_HOST; do
+            [ -n "${!v}" ] || missing="$missing $v(var)"
+          done
+          [ "$SSH_PRIVATE_KEY_SET" = true ] || missing="$missing SSH_PRIVATE_KEY(secret)"
+          [ "$SSH_KNOWN_HOSTS_SET" = true ] || missing="$missing SSH_KNOWN_HOSTS(secret)"
+          if [ -n "$missing" ]; then
+            echo "::error::Not configured:$missing — set these under Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Build server
+        working-directory: server
+        run: |
+          npm ci
+          npm run build
+
+      # VITE_API_URL is inlined into the bundle at build time — it cannot be
+      # changed later by editing anything on the box. Get it wrong and the
+      # deployed SPA calls whoever opened it, on localhost.
+      - name: Build client
+        working-directory: client
+        env:
+          VITE_API_URL: https://${{ vars.API_DOMAIN }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<'CONF'
+          Host *
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 30
+          CONF
+
+      # --delete only where the whole directory is ours to own. The agent tree
+      # keeps its .venv and .env, which live there but are not in git.
+      #
+      # Never add --exclude '*.md' here: the agent's prompts are loaded from
+      # prompts/templates/*.md via importlib.resources, and a missing one fails
+      # with a KeyError at the first decision, not at boot.
+      - name: Ship
+        run: |
+          rsync -az --delete server/dist/  "$TARGET:/opt/flowguard/server/dist/"
+          rsync -az server/package.json server/package-lock.json "$TARGET:/opt/flowguard/server/"
+          rsync -az --delete client/dist/  "$TARGET:/opt/flowguard/client/"
+          rsync -az --delete deploy/       "$TARGET:/opt/flowguard/deploy/"
+          rsync -az --delete \
+            --exclude '.venv/' --exclude '.env' \
+            --exclude '__pycache__/' --exclude '.pytest_cache/' --exclude '.ruff_cache/' \
+            agent/ "$TARGET:/opt/flowguard/agent/"
+
+      # Both files are written by this one step, so INTERNAL_API_TOKEN and
+      # NOKIA_WEBHOOK_TOKEN cannot drift apart. A mismatch is the nastiest
+      # failure in this system: the agent's decision events get 401'd and the
+      # dashboard simply stays empty, with nothing pointing at the cause.
+      - name: Render environment files
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          NOKIA_WEBHOOK_TOKEN: ${{ secrets.NOKIA_WEBHOOK_TOKEN }}
+          NOKIA_API_KEY: ${{ secrets.NOKIA_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          umask 077
+
+          cat > server.env <<EOF
+          NODE_ENV=production
+          PORT=3000
+          CORS_ORIGIN=https://${APP_DOMAIN}
+
+          MONGODB_URI=${MONGODB_URI}
+          MONGODB_DB_NAME=${{ vars.MONGODB_DB_NAME || 'flowguard' }}
+
+          TEMPORAL_ADDRESS=localhost:7233
+          TEMPORAL_NAMESPACE=default
+          TEMPORAL_TASK_QUEUE=flowguard
+          TEMPORAL_TLS=false
+
+          NOKIA_WEBHOOK_TOKEN=${NOKIA_WEBHOOK_TOKEN}
+          INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
+          SESSION_SECRET=${SESSION_SECRET}
+          EOF
+
+          cat > agent.env <<EOF
+          TEMPORAL_ADDRESS=localhost:7233
+          TEMPORAL_NAMESPACE=default
+          TEMPORAL_TASK_QUEUE=flowguard
+
+          SERVER_BASE_URL=http://localhost:3000
+          INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
+
+          NETWORK_PROVIDER=${{ vars.NETWORK_PROVIDER || 'mock' }}
+          NOKIA_API_KEY=${NOKIA_API_KEY}
+          NOKIA_BASE_URL=${{ vars.NOKIA_BASE_URL || 'https://network-as-code.p-eu.apihub.nokia.io' }}
+          NOKIA_RAPIDAPI_HOST=${{ vars.NOKIA_RAPIDAPI_HOST || 'network-as-code.nokia.rapidapi.com' }}
+          NOKIA_QOS_PROFILE=${{ vars.NOKIA_QOS_PROFILE || 'DOWNLINK_M_UPLINK_L' }}
+          NOKIA_APPLICATION_SERVER_IPV4=${{ vars.NOKIA_APPLICATION_SERVER_IPV4 || '8.8.8.8' }}
+          NOKIA_SLICE_ID=${{ vars.NOKIA_SLICE_ID }}
+          WEBHOOK_BASE_URL=https://${API_DOMAIN}
+          NOKIA_WEBHOOK_TOKEN=${NOKIA_WEBHOOK_TOKEN}
+
+          LLM_PROVIDER=${{ vars.LLM_PROVIDER || 'mock' }}
+          OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+          LLM_MODEL=${{ vars.LLM_MODEL || 'openai/gpt-5.6-luna' }}
+          LLM_FALLBACK_MODELS=${{ vars.LLM_FALLBACK_MODELS || 'openai/gpt-5.6-terra' }}
+          LLM_CONFIDENCE_THRESHOLD=${{ vars.LLM_CONFIDENCE_THRESHOLD || '0.80' }}
+
+          LANGFUSE_ENABLED=false
+
+          POLICY_ALWAYS_PROTECT_SAFETY_CRITICAL=${{ vars.POLICY_ALWAYS_PROTECT_SAFETY_CRITICAL || 'false' }}
+          POLICY_FAIL_OPEN=${{ vars.POLICY_FAIL_OPEN || 'true' }}
+          EOF
+
+          ssh "$TARGET" 'mkdir -p -m 700 ~/deploy-tmp'
+          scp -q server.env agent.env "$TARGET:deploy-tmp/"
+          ssh "$TARGET" '
+            set -e
+            sudo install -o flowguard -g flowguard -m 600 ~/deploy-tmp/server.env /opt/flowguard/server/.env
+            sudo install -o flowguard -g flowguard -m 600 ~/deploy-tmp/agent.env  /opt/flowguard/agent/.env
+            rm -rf ~/deploy-tmp
+          '
+          rm -f server.env agent.env
+
+      # Units ship with the code, so changing one is a push rather than an edit
+      # on a box nobody remembers touching.
+      - name: Install systemd units
+        run: |
+          ssh "$TARGET" '
+            set -e
+            sudo install -m 644 /opt/flowguard/deploy/systemd/*.service /etc/systemd/system/
+            sudo systemctl daemon-reload
+          '
+
+      # Rendered on the runner, where the two domains are already in scope —
+      # substituting remotely means nesting quotes through ssh, which is how
+      # deploy scripts acquire bugs nobody can read. Only the two placeholders
+      # are replaced, so Caddy's own {placeholders} pass through untouched.
+      #
+      # `caddy validate` runs before the reload, so a broken config fails the
+      # deploy rather than taking the site down.
+      - name: Configure Caddy
+        run: |
+          sed -e "s|\${APP_DOMAIN}|${APP_DOMAIN}|g" \
+              -e "s|\${API_DOMAIN}|${API_DOMAIN}|g" \
+              deploy/Caddyfile.template > Caddyfile.rendered
+          scp -q Caddyfile.rendered "$TARGET:Caddyfile.rendered"
+          ssh "$TARGET" '
+            set -e
+            sudo install -m 644 ~/Caddyfile.rendered /etc/caddy/Caddyfile
+            rm -f ~/Caddyfile.rendered
+            sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+            sudo systemctl reload caddy || sudo systemctl restart caddy
+          '
+
+      # All three provider extras go on whether or not they are in use today, so
+      # switching NETWORK_PROVIDER or LLM_PROVIDER is a variable change and a
+      # restart rather than a redeploy. `dev` is deliberately left off — pytest
+      # and ruff have no business on the demo host.
+      - name: Install dependencies on the host
+        run: |
+          ssh "$TARGET" '
+            set -e
+            cd /opt/flowguard/server && npm ci --omit=dev
+            cd /opt/flowguard/agent  && uv sync --frozen --extra openrouter --extra nokia --extra langfuse
+          '
+
+      - name: Restart services
+        run: |
+          ssh "$TARGET" '
+            set -e
+            sudo systemctl enable --now flowguard-temporal
+            sudo systemctl enable flowguard-server flowguard-agent
+            sudo systemctl restart flowguard-server flowguard-agent
+          '
+
+      # Each check targets one deployment-layer failure that no unit test can
+      # reach. On failure, dump the logs into the run — the box may be gone by
+      # the time anyone looks.
+      - name: Smoke test
+        run: |
+          echo "--- prompt templates present (silent KeyError at first decision if not)"
+          ssh "$TARGET" 'test -f /opt/flowguard/agent/src/flowguard_agent/prompts/templates/criticality_system.md'
+
+          echo "--- /health on the box: 200 only if Mongo AND Temporal are both up"
+          ssh "$TARGET" '
+            for i in $(seq 1 30); do
+              curl -fsS http://127.0.0.1:3000/health >/dev/null && exit 0
+              sleep 2
+            done
+            echo "health never came up"
+            sudo systemctl status flowguard-server --no-pager || true
+            sudo journalctl -u flowguard-server -n 60 --no-pager
+            exit 1
+          '
+
+          echo "--- units active"
+          ssh "$TARGET" 'systemctl is-active flowguard-temporal flowguard-server flowguard-agent'
+
+          echo "--- /health through Caddy and TLS"
+          curl -fsS "https://${API_DOMAIN}/health" >/dev/null
+
+          echo "--- /internal/* closed at the edge (expect 404)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://${API_DOMAIN}/internal/decisions")
+          [ "$code" = "404" ] || { echo "expected 404, got $code"; exit 1; }
+
+          echo "--- dashboard serves the SPA"
+          curl -fsS "https://${APP_DOMAIN}/" >/dev/null
+
+      # Informational: the worker can be `active` while stuck in bootstrap() and
+      # never polling. A poller listed here is the proof it is actually working.
+      - name: Worker poller status
+        continue-on-error: true
+        run: |
+          ssh "$TARGET" 'temporal task-queue describe --task-queue flowguard --address 127.0.0.1:7233' || true
+          ssh "$TARGET" 'sudo journalctl -u flowguard-agent -n 30 --no-pager'
+
+      - name: Deployed
+        run: |
+          echo "### Deployed :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: https://${APP_DOMAIN}" >> $GITHUB_STEP_SUMMARY
+          echo "- Demo: https://${APP_DOMAIN}/demo" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://${API_DOMAIN}/health" >> $GITHUB_STEP_SUMMARY

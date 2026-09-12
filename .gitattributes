@@ -1,0 +1,7 @@
+# The repository is developed on Windows and deployed to Linux. Anything the
+# demo host executes or parses must arrive with LF endings regardless of the
+# checkout's core.autocrlf: a CRLF shell script fails with `$'\r': command not
+# found`, and systemd and Caddy are no happier about the stray carriage return.
+*.sh            text eol=lf
+*.service       text eol=lf
+Caddyfile*      text eol=lf
