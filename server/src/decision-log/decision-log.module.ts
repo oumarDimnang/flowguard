@@ -7,6 +7,8 @@ import { DecisionLogController } from './decision-log.controller';
 import { DecisionLogService } from './decision-log.service';
 import { DecisionsController } from './decisions.controller';
 import { DecisionLogRepository } from './ports/decision-log.repository';
+import { ReasoningTraceController } from './reasoning-trace.controller';
+import { ReasoningTraceService } from './reasoning-trace.service';
 import { DecisionRecordEntity, DecisionRecordSchema } from './schemas/decision-record.schema';
 
 @Module({
@@ -16,9 +18,10 @@ import { DecisionRecordEntity, DecisionRecordSchema } from './schemas/decision-r
     ]),
     OperationsModule,
   ],
-  controllers: [DecisionLogController, DecisionsController],
+  controllers: [DecisionLogController, DecisionsController, ReasoningTraceController],
   providers: [
     DecisionLogService,
+    ReasoningTraceService,
     { provide: DecisionLogRepository, useClass: MongoDecisionLogRepository },
   ],
   exports: [DecisionLogService],

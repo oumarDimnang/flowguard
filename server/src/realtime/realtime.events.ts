@@ -23,6 +23,14 @@ export const LIVE_EVENTS = {
   FACILITY_JOB_UPDATED: 'facility.job_updated',
   /** The facility plan was reset back to its planned state. */
   FACILITY_PLAN_RESET: 'facility.plan_reset',
+  /**
+   * The agent's reasoning, one node or tool call at a time, while it runs.
+   *
+   * Ephemeral: pushed straight through and never stored. The audited version
+   * of the same reasoning is the CRITICALITY_ASSESSED decision record that
+   * follows a few seconds later, and a client that missed these still gets it.
+   */
+  REASONING_TRACE: 'reasoning.trace',
 } as const;
 
 export type LiveEventName = (typeof LIVE_EVENTS)[keyof typeof LIVE_EVENTS];
